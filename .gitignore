@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+ENV/
+.env
+.venv
+env/
+env.bak/
+venv.bak/
+
+# IDE相关
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 日志文件
+*.log
+logs/
+
+# 本地配置文件
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 测试相关
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+
+# MongoDB
+.mongodb/
+mongodb_data/
+
+# 临时文件
+temp/
+tmp/
+
+# Cloudflare R2 / 阿里云OSS相关的临时文件或配置
+.r2_credentials
+.oss_credentials
+
+# 其他应用特定文件
+node_modules/
+.cache/
+
+docs/
+*docs/*
+
+*.next/
+*.cursorrules*
+*test_scripts*

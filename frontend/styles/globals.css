@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+    /* 隐藏所有li元素的marker */
+    li::marker {
+        content: none !important;
+        display: none !important;
+    }
+}
+
+@layer utilities {
+
+    /* 确保拖拽标签中不显示marker */
+    .hide-drag-indicator li::marker {
+        content: none !important;
+        display: none !important;
+    }
+}
+
+/* DND Kit 拖拽样式覆盖 */
+[data-dnd-draggable] {
+    transform: none !important;
+}
+
+[data-dnd-draggable] * {
+    transform: none !important;
+}
+
+.sortable-tag {
+    transform: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+}
+
+[role="button"] {
+    transform: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+}
