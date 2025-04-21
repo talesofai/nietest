@@ -19,16 +19,56 @@ import random
 
 from app.db.mongodb import get_database
 from app.models.subtask import SubTaskStatus
+from app.models.task import TaskStatus
 from app.services.image import create_image_generator
 from app.services.task_executor import get_task_executor, submit_task, get_task_result
 from app.core.config import settings
 from app.crud.dramatiq_task import update_dramatiq_task_result, get_dramatiq_task
 from app.crud.dramatiq_task import get_dramatiq_task, update_dramatiq_task_status
 from app.crud.task import get_task
-from app.services.task import task_crud
+from app.crud import task as task_crud
 
 # 配置日志
 logger = logging.getLogger(__name__)
+
+async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
+    """
+    准备任务
+
+    Args:
+        task_id: 任务ID
+
+    Returns:
+        准备结果
+    """
+    logger.info(f"开始准备任务 {task_id} 的子任务")
+    db = await get_database()
+
+    # 获取任务
+    task_data = await task_crud.get_task(db, task_id)
+    if not task_data:
+        logger.error(f"找不到任务 {task_id}")
+        raise ValueError(f"找不到任务 {task_id}")
+
+    # 计算变量组合
+    logger.info(f"开始计算任务 {task_id} 的变量组合")
+    combinations = await calculate_combinations(task_id, task_data)
+    logger.info(f"任务 {task_id} 共有 {len(combinations)} 个变量组合")
+
+    # 更新任务状态为处理中
+    await task_crud.update_task_status(db, task_id, TaskStatus.PROCESSING.value)
+
+    # 使用新的任务处理器创建和提交子任务
+    # 将计算好的变量组合传递给create_and_submit_subtasks函数
+    result = await create_and_submit_subtasks(task_id, combinations)
+
+    if result.get("status") == "success":
+        logger.info(f"任务 {task_id} 已成功创建子任务: {result.get('message')}")
+        return result
+    else:
+        logger.error(f"创建子任务失败: {result.get('error')}")
+        await task_crud.update_task_status(db, task_id, TaskStatus.FAILED.value, result.get('error'))
+        raise ValueError(f"创建子任务失败: {result.get('error')}")
 
 async def calculate_combinations(
     task_id: str,

@@ -1,8 +1,5 @@
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, Optional
 import logging
-import uuid
-import random
-import json
 
 from app.db.mongodb import get_database
 from app.db.redis import get_redis_cache
@@ -10,8 +7,7 @@ from app.crud import task as task_crud
 from app.crud import dramatiq_task as dramatiq_task_crud
 from app.models.task import TaskStatus
 from app.models.subtask import SubTaskStatus
-from app.services.task_processor import create_and_submit_subtasks, monitor_task_progress, calculate_combinations
-from app.core.config import settings
+from app.services.task_processor import prepare_dramatiq_tasks as processor_prepare_dramatiq_tasks
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -344,7 +340,9 @@ async def delete_task(task_id: str) -> bool:
 
 async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
     """
-    准备任务
+    准备任务 - 包装函数
+
+    此函数是对 app.services.task_processor.prepare_dramatiq_tasks 的包装
 
     Args:
         task_id: 任务ID
@@ -352,31 +350,5 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
     Returns:
         准备结果
     """
-    logger.info(f"开始准备任务 {task_id} 的子任务")
-    db = await get_database()
-
-    # 获取任务
-    task_data = await task_crud.get_task(db, task_id)
-    if not task_data:
-        logger.error(f"找不到任务 {task_id}")
-        raise ValueError(f"找不到任务 {task_id}")
-
-    # 计算变量组合
-    logger.info(f"开始计算任务 {task_id} 的变量组合")
-    combinations = await calculate_combinations(task_id, task_data)
-    logger.info(f"任务 {task_id} 共有 {len(combinations)} 个变量组合")
-
-    # 更新任务状态为处理中
-    await task_crud.update_task_status(db, task_id, TaskStatus.PROCESSING.value)
-
-    # 使用新的任务处理器创建和提交子任务
-    # 将计算好的变量组合传递给create_and_submit_subtasks函数
-    result = await create_and_submit_subtasks(task_id, combinations)
-
-    if result.get("status") == "success":
-        logger.info(f"任务 {task_id} 已成功创建子任务: {result.get('message')}")
-        return result
-    else:
-        logger.error(f"创建子任务失败: {result.get('error')}")
-        await task_crud.update_task_status(db, task_id, TaskStatus.FAILED.value, result.get('error'))
-        raise ValueError(f"创建子任务失败: {result.get('error')}")
+    logger.info(f"调用任务准备函数: {task_id}")
+    return await processor_prepare_dramatiq_tasks(task_id)
