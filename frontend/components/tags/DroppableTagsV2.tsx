@@ -210,7 +210,10 @@ const DroppableTagsV2: React.FC = () => {
                 isConfirmOpen={isConfirmOpen}
                 onConfirmClose={onConfirmClose}
                 onConfirmAccept={() => {
-                    if (totalImages > 1000) {
+                    if (totalImages > 50000) {
+                        // 如果超过50000张图片，显示错误
+                        return;
+                    } else if (totalImages > 1000) {
                         onSecondConfirmOpen();
                     } else {
                         onTaskNameModalOpen();

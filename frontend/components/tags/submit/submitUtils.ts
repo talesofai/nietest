@@ -531,7 +531,7 @@ export const completeSubmitProcess = async (
     // 第二步：准备数据
     const data = await prepareSubmitData(tags, variableValues, taskName);
 
-    // 第三步：提交（目前是模拟提交）
+    // 第三步：提交
     try {
         // 执行提交操作
         const result = await submitPost(data);

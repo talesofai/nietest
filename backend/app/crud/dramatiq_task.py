@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from bson import ObjectId
 
@@ -19,7 +19,6 @@ async def create_dramatiq_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, 
     task = {
         "parent_task_id": task_data.get("parent_task_id"),
         "dramatiq_message_id": task_data.get("dramatiq_message_id"),
-        # 不再需要combination_key
         "v0": task_data.get("v0"),
         "v1": task_data.get("v1"),
         "v2": task_data.get("v2"),
@@ -36,8 +35,8 @@ async def create_dramatiq_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, 
         "ratio": task_data.get("ratio", "1:1"),
         "seed": task_data.get("seed"),
         "use_polish": task_data.get("use_polish", False),
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
     }
 
     # 插入任务
@@ -132,29 +131,6 @@ async def get_dramatiq_task_by_variables(db: Any, parent_task_id: str, v0: Optio
     return task
 
 
-async def get_dramatiq_task_by_combination(db: Any, parent_task_id: str, combination_key: str) -> Optional[Dict[str, Any]]:
-    """
-    通过父任务ID和组合键获取Dramatiq任务（已弃用，使用get_dramatiq_task_by_variables代替）
-
-    Args:
-        db: 数据库连接
-        parent_task_id: 父任务ID
-        combination_key: 组合键
-
-    Returns:
-        匹配的Dramatiq任务，如果不存在则返回None
-    """
-    # 查询任务
-    task = await db.dramatiq_tasks.find_one({
-        "parent_task_id": parent_task_id
-    })
-
-    if task:
-        # 转换ID为字符串
-        task["id"] = str(task.pop("_id"))
-
-    return task
-
 async def get_dramatiq_tasks_by_parent_id(
     db: Any,
     parent_task_id: str,
@@ -200,7 +176,7 @@ async def update_dramatiq_task(db: Any, task_id: str, update_data: Dict[str, Any
         更新后的Dramatiq任务，如果不存在则返回None
     """
     # 添加更新时间
-    update_data["updated_at"] = datetime.utcnow()
+    update_data["updated_at"] = datetime.now(timezone.utc)
 
     # 更新任务
     result = await db.dramatiq_tasks.update_one(
@@ -233,7 +209,7 @@ async def update_dramatiq_task_status(db: Any, task_id: str, status: str) -> boo
         {
             "$set": {
                 "status": status,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
@@ -260,7 +236,7 @@ async def update_dramatiq_task_result(db: Any, task_id: str, status: str, result
             "$set": {
                 "status": status,
                 "result": result,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
@@ -287,7 +263,7 @@ async def update_dramatiq_task_error(db: Any, task_id: str, status: str, error: 
             "$set": {
                 "status": status,
                 "error": error,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             },
             "$inc": {
                 "retry_count": 1
@@ -315,7 +291,7 @@ async def update_dramatiq_task_message_id(db: Any, task_id: str, message_id: str
         {
             "$set": {
                 "dramatiq_message_id": message_id,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
@@ -336,3 +312,40 @@ async def delete_dramatiq_tasks_by_parent_id(db: Any, parent_task_id: str) -> in
     # 删除任务
     result = await db.dramatiq_tasks.delete_many({"parent_task_id": parent_task_id})
     return result.deleted_count
+
+async def get_oldest_pending_dramatiq_task(db: Any) -> Optional[Dict[str, Any]]:
+    """
+    获取最旧的未执行任务
+
+    Args:
+        db: 数据库连接
+
+    Returns:
+        最旧的未执行任务，如果没有则返回None
+    """
+    # 查询最旧的未执行任务
+    task = await db.dramatiq_tasks.find_one(
+        {"status": DramatiqTaskStatus.PENDING.value},
+        sort=[("created_at", 1)]
+    )
+
+    if task:
+        # 转换ID为字符串
+        task["id"] = str(task.pop("_id"))
+
+    return task
+
+async def count_dramatiq_tasks_by_status(db: Any, status: str) -> int:
+    """
+    计算指定状态的Dramatiq任务数量
+
+    Args:
+        db: 数据库连接
+        status: 任务状态
+
+    Returns:
+        任务数量
+    """
+    # 计算任务数量
+    count = await db.dramatiq_tasks.count_documents({"status": status})
+    return count

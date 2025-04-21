@@ -23,8 +23,7 @@ class Task(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     total_images: int = 0
-    processed_images: int = 0
-    progress: int = 0
+    all_subtasks_completed: bool = False
     is_deleted: bool = False
     priority: int = 1
 
@@ -37,12 +36,11 @@ class Task(BaseModel):
         """将任务标记为已完成"""
         self.status = TaskStatus.COMPLETED
         self.updated_at = datetime.utcnow()
-        self.progress = 100
-        self.processed_images = self.total_images
+        self.all_subtasks_completed = True
 
     def mark_as_failed(self, error: str = None):
         """将任务标记为失败
-        
+
         Args:
             error: 错误信息
         """
@@ -54,20 +52,18 @@ class Task(BaseModel):
         self.status = TaskStatus.CANCELLED
         self.updated_at = datetime.utcnow()
 
-    def update_progress(self, processed_images: int, progress: int):
-        """更新任务进度
-        
+    def update_subtasks_completion(self, all_completed: bool):
+        """更新子任务完成状态
+
         Args:
-            processed_images: 已处理图片数
-            progress: 进度百分比
+            all_completed: 所有子任务是否已完成
         """
-        self.processed_images = processed_images
-        self.progress = progress
+        self.all_subtasks_completed = all_completed
         self.updated_at = datetime.utcnow()
 
     def is_cancelled(self) -> bool:
         """检查任务是否已取消
-        
+
         Returns:
             是否已取消
         """

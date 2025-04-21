@@ -77,6 +77,12 @@ export const useSubmitTask = (
             return;
         }
 
+        // 如果超过50000张图片，显示错误
+        if (calculatedImages > 50000) {
+            alertService.warning("提交失败", "图片数量不能超过50000张");
+            return;
+        }
+
         // 清空任务名称并打开任务名称输入模态框
         setTaskName("");
         onTaskNameModalOpen();

@@ -15,7 +15,7 @@ class DramatiqTask(BaseModel):
     """Dramatiq任务模型"""
     parent_task_id: str                                                     # 关联原始任务ID
     dramatiq_message_id: Optional[str] = None                               # Dramatiq消息ID
-    # 不再需要combination_key，使用变量索引作为唯一标识
+    # 使用变量索引作为唯一标识
     v0: Optional[int] = None                                                # 变量v0的索引，None表示不存在，整数表示在变量列表中的位置
     v1: Optional[int] = None                                                # 变量v1的索引
     v2: Optional[int] = None                                                # 变量v2的索引

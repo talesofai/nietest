@@ -8,7 +8,6 @@ from app.crud import task as task_crud
 from app.crud import dramatiq_task as dramatiq_task_crud
 from app.models.task import TaskStatus
 from app.models.dramatiq_task import DramatiqTaskStatus
-from app.utils.make_image import create_image_generator
 from app.dramatiq.tasks import generate_single_image
 
 # 配置日志
@@ -45,22 +44,38 @@ async def get_task(task_id: str) -> Optional[Dict[str, Any]]:
     db = await get_database()
     task = await task_crud.get_task(db, task_id)
 
-    # 如果任务存在且状态为已完成或处理中，获取结果
-    if task and task.get("status") in [TaskStatus.COMPLETED.value, TaskStatus.PROCESSING.value]:
-        # 获取子任务
-        dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(
-            db, task_id, DramatiqTaskStatus.COMPLETED.value
-        )
+    if task:
+        # 获取所有子任务
+        all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
 
-        # 整理结果
-        results = {}
-        for dt in dramatiq_tasks:
-            if dt.get("result"):
-                results[dt.get("combination_key")] = dt.get("result")
+        # 计算进度
+        total_tasks = len(all_dramatiq_tasks)
+        completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value)
+        failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.FAILED.value)
 
-        # 添加结果到任务
-        if results:
-            task["results"] = results
+        # 添加计算出的进度到任务
+        if total_tasks > 0:
+            task["processed_images"] = completed_tasks + failed_tasks
+            task["progress"] = int((completed_tasks + failed_tasks) / total_tasks * 100)
+        else:
+            task["processed_images"] = 0
+            task["progress"] = 0
+
+        # 如果任务状态为已完成或处理中，获取结果
+        if task.get("status") in [TaskStatus.COMPLETED.value, TaskStatus.PROCESSING.value]:
+            # 获取已完成的子任务
+            completed_dramatiq_tasks = [dt for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value]
+
+            # 整理结果
+            results = {}
+            for dt in completed_dramatiq_tasks:
+                if dt.get("result"):
+                    combination_key = dt.get("combination_key", f"v0_{dt.get('v0')}:v1_{dt.get('v1')}")
+                    results[combination_key] = dt.get("result")
+
+            # 添加结果到任务
+            if results:
+                task["results"] = results
 
     return task
 
@@ -96,7 +111,29 @@ async def list_tasks(
         任务列表和分页信息
     """
     db = await get_database()
-    return await task_crud.list_tasks(db, username, status, page, page_size)
+    result = await task_crud.list_tasks(db, username, status, page, page_size)
+
+    # 对每个任务计算进度
+    for task in result.get("items", []):
+        # 获取子任务
+        task_id = task.get("id")
+        if task_id:
+            all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
+
+            # 计算进度
+            total_tasks = len(all_dramatiq_tasks)
+            completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value)
+            failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.FAILED.value)
+
+            # 添加计算出的进度到任务
+            if total_tasks > 0:
+                task["processed_images"] = completed_tasks + failed_tasks
+                task["progress"] = int((completed_tasks + failed_tasks) / total_tasks * 100)
+            else:
+                task["processed_images"] = 0
+                task["progress"] = 0
+
+    return result
 
 async def cancel_task(task_id: str) -> bool:
     """
@@ -148,12 +185,11 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
         x_token = task_data.get("settings", {}).get("xToken", "")
         logger.info(f"任务 {task_id} 的xToken: {x_token}")
 
-        # 创建图片生成器
-        image_generator = create_image_generator(x_token)
+        # 注意：我们不再使用x_token参数，因为现在使用环境变量
 
         # 计算变量组合
         logger.info(f"开始计算任务 {task_id} 的变量组合")
-        combinations = await calculate_combinations(task_id, task_data, image_generator)
+        combinations = await calculate_combinations(task_id, task_data)
         logger.info(f"任务 {task_id} 共有 {len(combinations)} 个变量组合")
 
         # 更新任务状态为处理中
@@ -168,8 +204,7 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
             # 提取参数
             prompts, ratio, seed, use_polish = await extract_parameters(
                 task_data.get("tags", []),
-                combination,
-                image_generator
+                combination
             )
             logger.debug(f"提取的参数: prompts={prompts}, ratio={ratio}, seed={seed}, use_polish={use_polish}")
 
@@ -315,18 +350,7 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
                 logger.debug(f"创建了Dramatiq任务: {dramatiq_task['id']}")
 
                 # 发送子任务到Dramatiq队列
-                message = generate_single_image.send(
-                    parent_task_id=task_id,
-                    prompt=prompt_item,
-                    characters=character_list,
-                    elements=element_list,
-                    ratio=ratio,
-                    seed=seed,
-                    use_polish=use_polish,
-                    x_token=x_token,
-                    variable_indices=variable_indices,
-                    combination=combination
-                )
+                message = generate_single_image.send(dramatiq_task["id"])
                 logger.debug(f"发送了Dramatiq消息: {message.message_id}")
 
                 # 更新Dramatiq任务的消息ID
@@ -349,8 +373,7 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
 
 async def calculate_combinations(
     task_id: str,
-    task_data: Dict[str, Any],
-    image_generator
+    task_data: Dict[str, Any]
 ) -> List[Dict[str, Dict[str, str]]]:
     """
     计算所有变量组合
@@ -358,7 +381,6 @@ async def calculate_combinations(
     Args:
         task_id: 任务ID
         task_data: 任务数据
-        image_generator: 图片生成器
 
     Returns:
         变量组合列表
@@ -386,7 +408,31 @@ async def calculate_combinations(
     logger.info(f"手动计算的组合数量: {manual_count}")
 
     # 计算组合
-    combinations = await image_generator.calculate_combinations(variables)
+    # 在这里我们需要实现一个简单的组合计算逻辑
+    import itertools
+
+    # 准备变量值列表
+    var_values = []
+    var_names = []
+
+    for var_name, var_data in sorted(variables.items()):
+        if var_name.startswith('v'):
+            values = var_data.get('values', [])
+            if values:
+                var_names.append(var_name)
+                var_values.append(values)
+
+    # 计算笛卡尔积
+    combinations = []
+    if var_values:
+        for values in itertools.product(*var_values):
+            combination = {}
+            for i, var_name in enumerate(var_names):
+                combination[var_name] = values[i]
+            combinations.append(combination)
+    else:
+        # 如果没有变量，返回一个空组合
+        combinations = [{}]
 
     # 更新任务的图片总数
     total_images = len(combinations)
@@ -432,8 +478,7 @@ async def calculate_combinations(
 
 async def extract_parameters(
     tags: List[Dict[str, Any]],
-    combination: Dict[str, Dict[str, str]],
-    image_generator
+    combination: Dict[str, Dict[str, str]]
 ) -> Tuple[List[str], str, Optional[int], bool]:
     """
     从标签和组合中提取参数
@@ -441,7 +486,6 @@ async def extract_parameters(
     Args:
         tags: 标签列表
         combination: 变量组合
-        image_generator: 图片生成器
 
     Returns:
         提示词、比例、种子和是否使用润色
@@ -450,8 +494,59 @@ async def extract_parameters(
         # 记录输入参数
         logger.debug(f"提取参数输入: tags={tags}, combination={combination}")
 
-        # 使用图片生成器提取参数
-        result = await image_generator.extract_parameters(tags, combination)
+        # 自己实现提取参数的逻辑
+        # 提取提示词
+        prompts = []
+        ratio = "1:1"  # 默认比例
+        seed = random.randint(1, 2147483647)  # 默认随机种子
+        use_polish = False  # 默认不使用润色
+
+        # 从组合中提取变量值
+        for var_key, var_data in combination.items():
+            if var_key.startswith('v') and isinstance(var_data, dict):
+                var_value = var_data.get("value", "")
+                if var_value:
+                    # 将变量值添加到提示词列表
+                    prompts.append(var_value)
+
+        # 处理标签
+        for tag in tags:
+            tag_type = tag.get("type")
+            is_variable = tag.get("is_variable", False)
+
+            if tag_type == "prompt":
+                # 提示词标签
+                if not is_variable:
+                    # 固定提示词
+                    tag_value = tag.get("value", "")
+                    if tag_value:
+                        prompts.append(tag_value)
+
+            elif tag_type == "ratio":
+                # 比例标签
+                ratio = tag.get("value", "1:1")
+
+            elif tag_type == "seed":
+                # 种子标签
+                try:
+                    seed_value = tag.get("value")
+                    if seed_value:
+                        seed = int(seed_value)
+                except (ValueError, TypeError):
+                    pass
+
+            elif tag_type == "polish":
+                # 润色标签
+                use_polish = tag.get("value", "false").lower() == "true"
+
+            elif tag_type == "character":
+                # 角色标签
+                if not is_variable:
+                    tag_value = tag.get("value", "")
+                    if tag_value:
+                        prompts.append(tag_value)
+
+        result = (prompts, ratio, seed, use_polish)
 
         # 记录提取结果
         logger.debug(f"提取参数结果: {result}")
@@ -461,33 +556,3 @@ async def extract_parameters(
         logger.error(f"提取参数时出错: {str(e)}")
         # 返回默认值
         return [], "1:1", random.randint(1, 2147483647), False
-
-def generate_combination_key(combination: Dict[str, Dict[str, str]]) -> str:
-    """
-    生成组合键
-
-    Args:
-        combination: 变量组合
-
-    Returns:
-        组合键
-    """
-    # 如果组合为空，返回默认键
-    if not combination:
-        return "default_combination"
-
-    parts = []
-    for var_name, var_data in sorted(combination.items()):
-        # 处理不同类型的值
-        if isinstance(var_data, dict):
-            value = var_data.get('value', '')
-        else:
-            value = str(var_data)
-
-        parts.append(f"{var_name}_{value}")
-
-    # 如果没有部分，返回默认键
-    if not parts:
-        return "default_combination"
-
-    return ":".join(parts)

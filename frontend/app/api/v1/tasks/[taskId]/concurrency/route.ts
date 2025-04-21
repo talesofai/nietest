@@ -28,13 +28,13 @@ export async function POST(
             );
         }
 
-        // 验证并发数范围（1-5）
+        // 验证并发数范围（1-50）
         const concurrencyValue = parseInt(concurrency, 10);
-        if (isNaN(concurrencyValue) || concurrencyValue < 1 || concurrencyValue > 5) {
+        if (isNaN(concurrencyValue) || concurrencyValue < 1 || concurrencyValue > 50) {
             return NextResponse.json(
                 {
                     code: 400,
-                    message: '并发数必须是1至5之间的整数',
+                    message: '并发数必须是1至50之间的整数',
                     data: null,
                 },
                 { status: 400 }

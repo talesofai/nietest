@@ -16,11 +16,16 @@ logger = logging.getLogger(__name__)
 class TaskTimeMiddleware(Middleware):
     """记录任务执行时间的中间件"""
 
+    # 使用类变量存储任务开始时间
+    _task_start_times = {}
+
     def before_process_message(self, broker, message):
-        message.meta["start_time"] = time.time()
+        # 使用message_id作为键存储开始时间
+        self._task_start_times[message.message_id] = time.time()
 
     def after_process_message(self, broker, message, *, result=None, exception=None):
-        start_time = message.meta.get("start_time")
+        # 从存储中获取开始时间
+        start_time = self._task_start_times.pop(message.message_id, None)
         if start_time:
             duration = time.time() - start_time
             logger.info(f"任务 {message.message_id} 执行时间: {duration:.2f}秒")

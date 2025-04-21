@@ -37,7 +37,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 使用邮箱获取用户，避免ObjectId错误
     db = await get_database()
     user = await user_crud.get_by_email(db, email)
 
@@ -48,7 +47,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 检查用户是否激活
     if not user.get("is_active", False):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

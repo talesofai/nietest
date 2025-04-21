@@ -7,6 +7,7 @@ from app.schemas.task import TaskCreate, TaskResponse, TaskListResponse, TaskDet
 from app.schemas.common import APIResponse
 from app.services.task import create_task, get_task, list_tasks, cancel_task, delete_task
 from app.dramatiq.tasks import generate_images
+from app.core.config import settings
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -36,11 +37,11 @@ async def create_new_task(
 
     # 检查并发数设置
     settings = task_data.settings or {}
-    concurrency = settings.get("concurrency", 3)  # 默认并发数为3
+    concurrency = settings.get("concurrency", settings.TASKS_DEFAULT_CONCURRENCY)  # 默认并发数为3
 
     # 验证并发数
-    if concurrency < 1 or concurrency > 5:
-        settings["concurrency"] = min(max(concurrency, 1), 5)  # 限制在1-5之间
+    if concurrency < 1 or concurrency > 50:
+        settings["concurrency"] = min(max(concurrency, 1), 50)  # 限制在1-50之间
 
     # 预先计算变量组合数
     total_images = 1
@@ -70,10 +71,18 @@ async def create_new_task(
     # 在后台启动任务监控
     background_tasks.add_task(generate_images.send, task["id"])
 
+    # 动态计算processed_images和progress字段
+    # 初始创建时这些值都是0
+    task_response = TaskResponse(
+        **task,
+        processed_images=0,
+        progress=0
+    )
+
     return APIResponse[TaskResponse](
         code=200,
         message="任务创建成功",
-        data=TaskResponse(**task)
+        data=task_response
     )
 
 @router.get("/", response_model=APIResponse[TaskListResponse])
@@ -111,6 +120,7 @@ async def read_tasks(
     )
 
     # 将结果转换为符合TaskListResponse模型的格式
+    # 在services/task.py中已经计算了processed_images和progress字段
     response_data = {
         "tasks": [TaskResponse(**task) for task in result.get("items", [])],
         "total": result.get("total", 0),

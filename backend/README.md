@@ -42,8 +42,7 @@ backend2/
 │   │   ├── v1/             # API版本1
 │   │   │   ├── auth.py     # 认证相关API
 │   │   │   ├── users.py    # 用户管理API
-│   │   │   ├── tasks.py    # 任务管理API
-│   │   │   └── search.py   # 搜索API
+│   │   │   └── tasks.py    # 任务管理API
 │   │   └── deps.py         # API依赖项
 │   ├── core/               # 核心配置
 │   │   ├── config.py       # 应用配置
@@ -167,5 +166,4 @@ API 文档可在 http://localhost:8000/docs 访问。
   - `POST /api/v1/tasks/{task_id}/cancel` - 取消任务
   - `DELETE /api/v1/tasks/{task_id}` - 删除任务
 
-- **搜索服务**
-  - `POST /api/v1/search/{search_type}` - 搜索角色或元素
+

@@ -1,24 +1,16 @@
-# Web框架
 fastapi
 uvicorn
 pydantic
 pydantic-settings
 email-validator
-
-# 数据库
 motor
 pymongo
-
-# 认证
 python-jose
 passlib
 python-multipart
-
-# 任务队列
 dramatiq
 redis
 apscheduler
-
-# 工具
 python-dotenv
 loguru
+httpx

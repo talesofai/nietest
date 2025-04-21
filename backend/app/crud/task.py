@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Union
 from bson import ObjectId
 import uuid
@@ -53,11 +53,11 @@ async def create_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, Any]:
         "variables": processed_variables,  # 使用处理后的变量
         "settings": task_data.get("settings", {}),
         "status": TaskStatus.PENDING.value,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
         "total_images": total_images,  # 设置计算出的图片总数
-        "processed_images": 0,
-        "progress": 0,
+        # 不存储 processed_images 和 progress 字段，在查询时动态计算
+        "all_subtasks_completed": False,
         "is_deleted": False,
         "priority": task_data.get("priority", 1)
     }
@@ -173,7 +173,7 @@ async def update_task(db: Any, task_id: str, update_data: Dict[str, Any]) -> Opt
         更新后的任务，如果不存在则返回None
     """
     # 添加更新时间
-    update_data["updated_at"] = datetime.utcnow()
+    update_data["updated_at"] = datetime.now(timezone.utc)
 
     # 更新任务
     result = await db.tasks.update_one(
@@ -204,18 +204,15 @@ async def update_task_status(db: Any, task_id: str, status: str, error: Optional
     # 准备更新数据
     update_data = {
         "status": status,
-        "updated_at": datetime.utcnow()
+        "updated_at": datetime.now(timezone.utc)
     }
 
     if error:
         update_data["error"] = error
 
-    # 如果状态是已完成，更新进度
+    # 如果状态是已完成，更新子任务完成状态
     if status == TaskStatus.COMPLETED.value:
-        task = await get_task(db, task_id)
-        if task:
-            update_data["progress"] = 100
-            update_data["processed_images"] = task.get("total_images", 0)
+        update_data["all_subtasks_completed"] = True
 
     # 更新任务
     result = await db.tasks.update_one(
@@ -225,15 +222,14 @@ async def update_task_status(db: Any, task_id: str, status: str, error: Optional
 
     return result.modified_count > 0
 
-async def update_task_progress(db: Any, task_id: str, processed_images: int, progress: int) -> bool:
+async def update_subtasks_completion(db: Any, task_id: str, all_completed: bool) -> bool:
     """
-    更新任务进度
+    更新子任务完成状态
 
     Args:
         db: 数据库连接
         task_id: 任务ID
-        processed_images: 已处理图片数
-        progress: 进度百分比
+        all_completed: 所有子任务是否已完成
 
     Returns:
         更新是否成功
@@ -243,9 +239,8 @@ async def update_task_progress(db: Any, task_id: str, processed_images: int, pro
         {"_id": ObjectId(task_id)},
         {
             "$set": {
-                "processed_images": processed_images,
-                "progress": progress,
-                "updated_at": datetime.utcnow()
+                "all_subtasks_completed": all_completed,
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
@@ -270,7 +265,7 @@ async def update_task_total_images(db: Any, task_id: str, total_images: int) -> 
         {
             "$set": {
                 "total_images": total_images,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
@@ -307,7 +302,7 @@ async def delete_task(db: Any, task_id: str) -> bool:
         {
             "$set": {
                 "is_deleted": True,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now(timezone.utc)
             }
         }
     )

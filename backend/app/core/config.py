@@ -43,5 +43,30 @@ class Settings(BaseSettings):
     # 日志配置
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # Nieta API配置
+    NIETA_XTOKEN: str = os.getenv("NIETA_XTOKEN", "")
+
+    # Worker配置
+    # 最大Worker数量
+    WORKER_MAX_COUNT: int = int(os.getenv("WORKER_MAX_COUNT", "200"))
+    # Worker空闲超时时间（秒）
+    WORKER_IDLE_TIMEOUT: int = int(os.getenv("WORKER_IDLE_TIMEOUT", "60"))
+    # Worker扩展间隔（秒）
+    WORKER_SCALE_INTERVAL: int = int(os.getenv("WORKER_SCALE_INTERVAL", "15"))
+    # 每次最多扩展的Worker数量
+    WORKER_MAX_SCALE_PER_INTERVAL: int = int(os.getenv("WORKER_MAX_SCALE_PER_INTERVAL", "1"))
+    # 当任务数量是Worker数量的多少倍时扩展Worker
+    WORKER_SCALE_THRESHOLD: float = float(os.getenv("WORKER_SCALE_THRESHOLD", "2.0"))
+
+    # tasks默认设置
+    TASKS_DEFAULT_CONCURRENCY: int = int(os.getenv("TASKS_DEFAULT_CONCURRENCY", "5"))  # 默认并发数
+
+
+
+
+
+
+
+
 # 创建设置实例
 settings = Settings()

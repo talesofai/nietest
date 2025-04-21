@@ -67,8 +67,8 @@ class TaskResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     total_images: int
-    processed_images: int
-    progress: int
+    processed_images: int = 0  # 默认值，在API响应中动态计算
+    progress: int = 0  # 默认值，在API响应中动态计算
     priority: int
 
     class Config:
