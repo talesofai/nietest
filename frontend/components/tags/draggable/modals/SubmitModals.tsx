@@ -11,6 +11,7 @@ interface SubmitModalsProps {
     // 提交确认模态框
     isConfirmOpen: boolean;
     onConfirmClose: () => void;
+    onConfirmOpen: () => void; // 添加打开确认模态框的函数
     onConfirmAccept: () => void;
     totalImages: number;
 
@@ -21,6 +22,7 @@ interface SubmitModalsProps {
 
     // 任务名称输入模态框
     isTaskNameModalOpen: boolean;
+    onTaskNameModalOpen: () => void; // 添加打开任务名称输入模态框的函数
     onTaskNameModalClose: () => void;
     taskName: string;
     setTaskName: (name: string) => void;
@@ -40,6 +42,7 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
     // 提交确认模态框
     isConfirmOpen,
     onConfirmClose,
+    onConfirmOpen,
     onConfirmAccept,
     totalImages,
 
@@ -50,6 +53,7 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
 
     // 任务名称输入模态框
     isTaskNameModalOpen,
+    onTaskNameModalOpen,
     onTaskNameModalClose,
     taskName,
     setTaskName,
@@ -101,8 +105,11 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
                             </ModalHeader>
                             <ModalBody>
                                 <div className="space-y-4">
-                                    <p className="text-center">
-                                        本次任务将生成 <span className="font-bold">{totalImages}</span> 张图片，是否继续？
+                                    <p className="text-default-700">
+                                        本次任务将生成 <span className="font-bold text-primary">{totalImages}</span> 张图片，这可能需要一定时间。
+                                    </p>
+                                    <p className="text-sm text-default-500">
+                                        请确认是否继续？
                                     </p>
                                 </div>
                             </ModalBody>
@@ -114,7 +121,8 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
                                     color="primary"
                                     onPress={() => {
                                         onModalClose();
-                                        onConfirmAccept();
+                                        // 确认后打开任务名称输入模态框
+                                        onTaskNameModalOpen();
                                     }}
                                 >
                                     确认
@@ -151,7 +159,8 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
                                     color="danger"
                                     onPress={() => {
                                         onModalClose();
-                                        onSecondConfirmAccept();
+                                        // 二次确认后打开任务名称输入模态框
+                                        onTaskNameModalOpen();
                                     }}
                                 >
                                     确认继续
@@ -194,6 +203,7 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
                                         // 如果没有输入任务名称，使用默认名称
                                         const finalTaskName = taskName.trim() || `无标题任务_${new Date().toLocaleString()}`;
                                         onModalClose();
+                                        // 直接提交任务
                                         onSubmit(finalTaskName);
                                     }}
                                     isDisabled={false}

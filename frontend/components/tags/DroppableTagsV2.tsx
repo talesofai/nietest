@@ -96,8 +96,10 @@ const DroppableTagsV2: React.FC = () => {
         isLoginTipOpen,
         onLoginTipClose,
         isConfirmOpen,
+        onConfirmOpen,
         onConfirmClose,
         isSecondConfirmOpen,
+        onSecondConfirmOpen,
         onSecondConfirmClose,
         isTaskNameModalOpen,
         onTaskNameModalOpen,
@@ -107,8 +109,7 @@ const DroppableTagsV2: React.FC = () => {
         setTaskName,
         handleSubmit,
         proceedWithSubmission,
-        router,
-        onSecondConfirmOpen
+        router
     } = useSubmitTask(tags, variableValues, user);
 
     // 使用自定义拖拽Hook
@@ -209,13 +210,16 @@ const DroppableTagsV2: React.FC = () => {
                 // 提交确认模态框
                 isConfirmOpen={isConfirmOpen}
                 onConfirmClose={onConfirmClose}
+                onConfirmOpen={onConfirmOpen}
                 onConfirmAccept={() => {
                     if (totalImages > 50000) {
                         // 如果超过50000张图片，显示错误
                         return;
                     } else if (totalImages > 1000) {
+                        // 如果超过1000张图片，需要二次确认
                         onSecondConfirmOpen();
                     } else {
+                        // 打开任务名称输入模态框
                         onTaskNameModalOpen();
                     }
                 }}
@@ -224,10 +228,11 @@ const DroppableTagsV2: React.FC = () => {
                 // 二次确认模态框
                 isSecondConfirmOpen={isSecondConfirmOpen}
                 onSecondConfirmClose={onSecondConfirmClose}
-                onSecondConfirmAccept={onTaskNameModalOpen}
+                onSecondConfirmAccept={() => onTaskNameModalOpen()}
 
                 // 任务名称输入模态框
                 isTaskNameModalOpen={isTaskNameModalOpen}
+                onTaskNameModalOpen={onTaskNameModalOpen}
                 onTaskNameModalClose={onTaskNameModalClose}
                 taskName={taskName}
                 setTaskName={setTaskName}
