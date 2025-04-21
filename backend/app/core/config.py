@@ -61,12 +61,5 @@ class Settings(BaseSettings):
     # tasks默认设置
     TASKS_DEFAULT_CONCURRENCY: int = int(os.getenv("TASKS_DEFAULT_CONCURRENCY", "5"))  # 默认并发数
 
-
-
-
-
-
-
-
 # 创建设置实例
 settings = Settings()

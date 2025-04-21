@@ -36,12 +36,15 @@ async def create_new_task(
     task_data.username = current_user["email"]
 
     # 检查并发数设置
-    settings = task_data.settings or {}
-    concurrency = settings.get("concurrency", settings.TASKS_DEFAULT_CONCURRENCY)  # 默认并发数为3
+    task_settings = task_data.settings or {}
+    concurrency = task_settings.get("concurrency", settings.TASKS_DEFAULT_CONCURRENCY)  # 默认并发数为3
 
     # 验证并发数
     if concurrency < 1 or concurrency > 50:
-        settings["concurrency"] = min(max(concurrency, 1), 50)  # 限制在1-50之间
+        task_settings["concurrency"] = min(max(concurrency, 1), 50)  # 限制在1-50之间
+
+    # 将修改后的设置保存回 task_data
+    task_data.settings = task_settings
 
     # 预先计算变量组合数
     total_images = 1
