@@ -75,9 +75,9 @@ async def create_indexes(db_instance):
         await db_instance.tasks.create_index("status")
         await db_instance.tasks.create_index("is_deleted")
 
-        # 为Dramatiq任务集合创建索引
-        await db_instance.dramatiq_tasks.create_index("dramatiq_message_id", unique=True)
+        # 为子任务集合创建索引
         await db_instance.dramatiq_tasks.create_index("parent_task_id")
+        await db_instance.dramatiq_tasks.create_index("id", unique=True)
         # 使用变量索引的组合来唯一标识任务
         await db_instance.dramatiq_tasks.create_index([("parent_task_id", 1), ("v0", 1), ("v1", 1), ("v2", 1), ("v3", 1), ("v4", 1), ("v5", 1)])
         await db_instance.dramatiq_tasks.create_index("status")
