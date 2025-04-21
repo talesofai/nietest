@@ -19,7 +19,7 @@ import random
 
 from app.db.mongodb import get_database
 from app.models.dramatiq_task import DramatiqTaskStatus
-from app.services.image import create_image_generator, format_prompt_for_api
+from app.services.image import create_image_generator
 from app.services.task_executor import get_task_executor, submit_task, get_task_result
 from app.core.config import settings
 from app.crud.dramatiq_task import update_dramatiq_task_result, get_dramatiq_task
@@ -99,7 +99,6 @@ async def calculate_combinations(
     await task_crud.update_task_total_images(db, task_id, total_images)
 
     return combinations
-
 
 async def process_image_task(task_id: str) -> Dict[str, Any]:
     """
@@ -184,6 +183,96 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
         "status": "completed",
         "result": result_item
     }
+
+def format_prompt_for_api(prompt_data: Any, prompt_type: str) -> Dict[str, Any]:
+    """
+    将提示词、角色或元素数据转换为标准API格式
+
+    Args:
+        prompt_data: 提示词、角色或元素数据
+        prompt_type: 指定类型，可以是'prompt'/'character'/'element'
+
+    Returns:
+        标准格式的提示词数据
+    """
+    # 记录输入参数
+    logger.debug(f"格式化提示词输入: prompt_type={prompt_type}, prompt_data={json.dumps(prompt_data) if isinstance(prompt_data, (dict, list)) else prompt_data}")
+
+    # 确保prompt_type符合要求
+    if prompt_type not in [None, "prompt", "character", "element"]:
+        raise ValueError("prompt_type必须是'prompt'/'character'/'element'中的一个")
+
+    # 初始化结果字典
+    result = {}
+
+    # 如果是字符串，则创建一个freetext类型的提示词
+    if isinstance(prompt_data, str):
+        result = {
+            "type": "freetext",
+            "weight": 1,
+            "value": prompt_data
+        }
+        logger.debug(f"字符串提示词格式化结果: {json.dumps(result)}")
+        return result
+
+    # 如果不是字典，报错
+    if not isinstance(prompt_data, dict):
+        raise TypeError(f"提示词数据必须是字符串或字典，当前类型: {type(prompt_data)}")
+
+    # 如果是提示词类型，使用freetext类型
+    if prompt_type == "prompt":
+        result = {
+            "type": "freetext",
+            "weight": prompt_data.get("weight", 1),
+            "value": prompt_data.get("value", "")
+        }
+        logger.debug(f"提示词格式化结果: {json.dumps(result)}")
+        return result
+
+    # 如果是角色或元素类型
+    # 首先检查是否有必要的字段
+    if "uuid" not in prompt_data:
+        # 如果有value字段，使用它作为uuid
+        if "value" in prompt_data:
+            prompt_data["uuid"] = prompt_data["value"]
+            logger.debug(f"从 value 字段复制 uuid: {prompt_data['value']}")
+        else:
+            error_msg = f"提示词数据缺少uuid字段: {json.dumps(prompt_data)}"
+            logger.error(error_msg)
+            raise KeyError(error_msg)
+
+    if "name" not in prompt_data:
+        logger.warning(f"提示词数据缺少name字段: {json.dumps(prompt_data)}")
+        # 如果没有name字段，使用uuid作为name
+        prompt_data["name"] = prompt_data.get("uuid", "")
+        logger.debug(f"使用 uuid 作为 name: {prompt_data['name']}")
+
+    # 根据prompt_type或prompt_data["type"]决定类型
+    is_character = False
+    if prompt_type == "character":
+        is_character = True
+        logger.debug(f"根据 prompt_type 确定为角色类型")
+    elif "type" in prompt_data and prompt_data["type"] == "character":
+        is_character = True
+        logger.debug(f"根据 prompt_data['type'] 确定为角色类型")
+
+    # 构建结果字典
+    result["type"] = "oc_vtoken_adaptor" if is_character else "elementum"
+    result["uuid"] = prompt_data["uuid"]
+    result["value"] = prompt_data["uuid"]  # value与uuid相同
+    result["name"] = prompt_data["name"]
+    result["weight"] = prompt_data.get("weight", 1)
+    result["img_url"] = prompt_data.get("header_url", "")
+    result["domain"] = ""
+    result["parent"] = ""
+    result["label"] = None
+    result["sort_index"] = 0
+    result["status"] = "IN_USE"
+    result["polymorphi_values"] = {}
+    result["sub_type"] = None
+
+    logger.debug(f"角色/元素格式化结果: {json.dumps(result)}")
+    return result
 
 async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dict[str, Dict[str, Any]]]) -> Dict[str, Any]:
     """
