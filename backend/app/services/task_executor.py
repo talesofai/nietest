@@ -105,7 +105,7 @@ class TaskExecutor:
                 logger.info(f"任务 {task_id} 开始执行")
                 result = await coro
                 elapsed_time = time.time() - start_time
-                logger.info(f"任务 {task_id} 执行完成，耗时: {elapsed_time:.2f}秒")
+                logger.debug(f"任务 {task_id} 执行完成，耗时: {elapsed_time:.2f}秒")
                 self.task_results[task_id] = {
                     "status": "completed",
                     "result": result,
@@ -202,7 +202,8 @@ class TaskExecutor:
             try:
                 running_count = len(self.running_tasks)
                 completed_count = len(self.task_results)
-                logger.debug(f"任务监控: 运行中任务数={running_count}, 已完成任务数={completed_count}, 信号量={self.semaphore._value}")
+                if running_count > 0:  # 只在有运行中任务时记录
+                    logger.debug(f"任务监控: 运行中任务数={running_count}, 已完成任务数={completed_count}, 信号量={self.semaphore._value}")
 
                 # 清理过期的任务结果（可选）
                 # 这里可以添加清理逻辑，例如删除完成超过一定时间的任务结果

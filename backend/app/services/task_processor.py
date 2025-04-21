@@ -7,7 +7,7 @@
 3. 清理过期任务
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import logging
 import asyncio
 import time
@@ -112,8 +112,8 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
                 advanced_translator=use_polish
             )
             logger.info(f"图像生成请求已发送并返回结果: {task_id}")
-            logger.info(f"图像生成结果数据结构: {type(result)}, 包含字段: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
-            logger.info(f"图像生成结果: {json.dumps(result, ensure_ascii=False)}")
+            logger.debug(f"图像生成结果数据结构: {type(result)}, 包含字段: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
+            logger.debug(f"图像生成结果: {json.dumps(result, ensure_ascii=False)}")
         except Exception as e:
             logger.error(f"图像生成请求失败: {task_id}, 错误: {str(e)}")
             # 打印异常堆栈
@@ -187,12 +187,13 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
 
         raise
 
-async def create_and_submit_subtasks(parent_task_id: str) -> Dict[str, Any]:
+async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
     """
     创建并提交子任务
 
     Args:
         parent_task_id: 父任务ID
+        combinations: 预先计算好的变量组合，如果为None则重新计算
 
     Returns:
         创建结果
@@ -214,10 +215,7 @@ async def create_and_submit_subtasks(parent_task_id: str) -> Dict[str, Any]:
         # 创建子任务
         from app.crud.dramatiq_task import create_dramatiq_task
 
-        # 使用task.py中的变量组合计算逻辑
-        from app.services.task import calculate_combinations
-        combinations = await calculate_combinations(parent_task_id, task_data)
-        logger.info(f"为任务 {parent_task_id} 计算出 {len(combinations)} 个变量组合")
+        logger.info(f"为任务 {parent_task_id} 使用预先计算好的 {len(combinations)} 个变量组合")
 
         # 使用task.py中的参数提取逻辑
         from app.services.task import extract_parameters
@@ -234,35 +232,60 @@ async def create_and_submit_subtasks(parent_task_id: str) -> Dict[str, Any]:
 
             # 提取变量索引
             variable_indices = {}
-            for var_name, var_data in combination.items():
-                if var_name.startswith('v') and var_data:
-                    # 提取变量索引
-                    var_index = None
-                    if isinstance(var_data, dict) and 'variable_id' in var_data:
-                        # 如果有variable_id字段，使用它来提取索引
-                        var_id = var_data['variable_id']
-                        # 尝试从变量ID中提取索引
-                        try:
-                            if '_' in var_id:
-                                var_index = int(var_id.split('_')[-1])
-                            else:
-                                var_index = 0
-                        except (ValueError, TypeError):
-                            var_index = 0
-                    elif isinstance(var_data, dict) and 'id' in var_data:
-                        # 如果有id字段，使用它来提取索引
-                        var_id = var_data['id']
-                        # 尝试从变量ID中提取索引
-                        try:
-                            if '_' in var_id:
-                                var_index = int(var_id.split('_')[-1])
-                            else:
-                                var_index = 0
-                        except (ValueError, TypeError):
-                            var_index = 0
+            # 初始化所有变量索引为Null
+            for i in range(6):
+                variable_indices[f"v{i}"] = None
 
-                    # 记录变量索引
-                    variable_indices[var_name] = var_index
+            # 创建标签ID到标签类型的映射
+            tag_id_to_type = {}
+            for tag in task_data.get("tags", []):
+                if tag.get("id") and tag.get("type"):
+                    tag_id_to_type[tag.get("id")] = tag.get("type")
+
+            # 遍历变量定义，找出每个变量在其值列表中的索引
+            for var_name, var_data in variables.items():
+                if var_name.startswith('v') and var_data.get('values'):
+                    var_values = var_data.get('values', [])
+
+                    # 获取当前组合中该变量的值
+                    if var_name in combination and isinstance(combination[var_name], dict):
+                        combo_var_data = combination[var_name]
+                        combo_var_value = combo_var_data.get('value')
+
+                        # 在变量值列表中查找匹配的索引
+                        found_index = False
+                        for idx, val in enumerate(var_values):
+                            if isinstance(val, dict) and val.get('value') == combo_var_value:
+                                variable_indices[var_name] = idx
+                                found_index = True
+                                logger.debug(f"变量 {var_name} 的值 {combo_var_value} 在列表中的索引是 {idx}")
+                                break
+
+                        if not found_index:
+                            logger.warning(f"无法找到变量 {var_name} 的值 {combo_var_value} 在列表中的索引")
+
+            # 记录变量索引
+            logger.info(f"变量索引: {variable_indices}")
+
+            # 记录变量索引数组
+            variable_indices_array = [
+                variable_indices.get("v0"),
+                variable_indices.get("v1"),
+                variable_indices.get("v2"),
+                variable_indices.get("v3"),
+                variable_indices.get("v4"),
+                variable_indices.get("v5")
+            ]
+            logger.info(f"变量索引数组: {variable_indices_array}")
+
+            # 检查是否已存在相同的子任务
+            from app.crud.dramatiq_task import get_dramatiq_task_by_variables
+            existing_task = await get_dramatiq_task_by_variables(db, parent_task_id, variable_indices_array)
+
+            if existing_task:
+                logger.info(f"已存在相同的子任务: {existing_task['id']}, 跳过创建")
+                subtask_ids.append(existing_task['id'])
+                continue
 
             # 分离提示词、角色和元素
             prompt_item = None
@@ -318,10 +341,13 @@ async def create_and_submit_subtasks(parent_task_id: str) -> Dict[str, Any]:
                         if character_value and character_uuid:
                             character_list.append({
                                 "value": character_uuid,
+                                "uuid": character_uuid,  # 确保有uuid字段
                                 "name": character_value,
                                 "weight": character_weight,
-                                "header_url": character_header_url
+                                "header_url": character_header_url,
+                                "type": "character"  # 添加类型字段
                             })
+                            logger.info(f"添加角色: uuid={character_uuid}, name={character_value}")
 
                     # 如果是元素类型的变量
                     elif var_tag and var_tag.get("type") == "element":
@@ -333,18 +359,37 @@ async def create_and_submit_subtasks(parent_task_id: str) -> Dict[str, Any]:
                         if element_value and element_uuid:
                             element_list.append({
                                 "value": element_uuid,
+                                "uuid": element_uuid,  # 确保有uuid字段
                                 "name": element_value,
                                 "weight": element_weight,
-                                "header_url": element_header_url
+                                "header_url": element_header_url,
+                                "type": "element"  # 添加类型字段
                             })
+                            logger.info(f"添加元素: uuid={element_uuid}, name={element_value}")
+
+            # 处理标签中的提示词
+            for tag in task_data.get("tags", []):
+                if tag.get("type") == "prompt" and not tag.get("is_variable", False):
+                    prompt_value = tag.get("value", "")
+                    prompt_weight = tag.get("weight", 1.0)
+                    if prompt_value:
+                        prompt_item = {"value": prompt_value, "weight": prompt_weight}
+                        logger.info(f"从标签中提取到提示词: {prompt_value}, 权重: {prompt_weight}")
 
             # 处理变量中的提示词
             for var_name, var_data in combination.items():
                 if var_name.startswith('v') and isinstance(var_data, dict) and "value" in var_data:
-                    prompt_value = var_data.get("value", "")
-                    prompt_weight = var_data.get("weight", 1.0)
-                    if prompt_value:
-                        prompt_item = {"value": prompt_value, "weight": prompt_weight}
+                    # 获取变量的标签类型
+                    var_tag_id = var_data.get("tag_id", "")
+                    var_tag = next((tag for tag in task_data.get("tags", []) if tag.get("id") == var_tag_id), None)
+
+                    # 只处理提示词类型的变量
+                    if var_tag and var_tag.get("type") == "prompt":
+                        prompt_value = var_data.get("value", "")
+                        prompt_weight = var_data.get("weight", 1.0)
+                        if prompt_value:
+                            prompt_item = {"value": prompt_value, "weight": prompt_weight}
+                            logger.info(f"从变量中提取到提示词: {prompt_value}, 权重: {prompt_weight}")
 
             # 如果没有提示词，使用默认值
             if prompt_item is None:
@@ -362,12 +407,15 @@ async def create_and_submit_subtasks(parent_task_id: str) -> Dict[str, Any]:
                 "ratio": ratio,
                 "seed": seed,
                 "use_polish": use_polish,
-                "v0": variable_indices.get("v0"),
-                "v1": variable_indices.get("v1"),
-                "v2": variable_indices.get("v2"),
-                "v3": variable_indices.get("v3"),
-                "v4": variable_indices.get("v4"),
-                "v5": variable_indices.get("v5"),
+                # 构建变量索引数组
+                "variable_indices": [
+                    variable_indices.get("v0"),
+                    variable_indices.get("v1"),
+                    variable_indices.get("v2"),
+                    variable_indices.get("v3"),
+                    variable_indices.get("v4"),
+                    variable_indices.get("v5")
+                ],
                 "created_at": datetime.now(timezone.utc),
                 "updated_at": datetime.now(timezone.utc)
             }
@@ -427,8 +475,14 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
         # 如果子任务未创建，创建子任务
         if not sub_tasks:
             logger.info(f"子任务不存在，开始创建子任务: {task_id}")
-            # 创建子任务
-            creation_result = await create_and_submit_subtasks(task_id)
+
+            # 计算变量组合
+            from app.services.task import calculate_combinations
+            combinations = await calculate_combinations(task_id, task_data)
+            logger.info(f"任务 {task_id} 共有 {len(combinations)} 个变量组合")
+
+            # 创建子任务，传递预先计算好的变量组合
+            creation_result = await create_and_submit_subtasks(task_id, combinations)
 
             if creation_result.get("status") == "failed":
                 error_msg = f"创建子任务失败: {creation_result.get('error')}"
@@ -453,7 +507,7 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
         while True:
             monitoring_iteration += 1
             elapsed_time = time.time() - monitoring_start_time
-            logger.info(f"监控循环第 {monitoring_iteration} 次迭代, 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_id}")
+            logger.debug(f"监控循环第 {monitoring_iteration} 次迭代, 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_id}")
 
             # 获取最新的任务状态
             logger.debug(f"获取最新的任务状态: {task_id}")
@@ -474,7 +528,7 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
             processing_tasks = sum(1 for task in sub_tasks if task.get("status") == DramatiqTaskStatus.PROCESSING.value)
             pending_tasks = total_tasks - completed_tasks - failed_tasks - processing_tasks
 
-            logger.info(f"子任务状态: 总数={total_tasks}, 完成={completed_tasks}, 失败={failed_tasks}, 处理中={processing_tasks}, 等待中={pending_tasks}, 任务ID: {task_id}")
+            logger.debug(f"子任务状态: 总数={total_tasks}, 完成={completed_tasks}, 失败={failed_tasks}, 处理中={processing_tasks}, 等待中={pending_tasks}, 任务ID: {task_id}")
 
             # 检查是否所有子任务已完成或失败
             all_completed = (completed_tasks + failed_tasks) >= total_tasks
@@ -495,17 +549,29 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 # 如果所有子任务都失败，则任务失败
                 if failed_tasks == total_tasks:
                     logger.info(f"所有子任务均失败，更新任务状态为失败: {task_id}, 总耗时: {total_time:.2f}秒")
+                    # 更新任务状态
                     await update_task_status(db, task_id, TaskStatus.FAILED.value)
+                    # 更新进度信息
+                    from app.crud.task import update_task_progress
+                    await update_task_progress(db, task_id, failed_tasks, total_tasks)
                     return {"status": "failed", "message": "所有子任务均失败"}
                 # 如果有一些子任务失败，但不是全部，则任务部分完成
                 elif failed_tasks > 0:
                     logger.info(f"部分子任务失败，更新任务状态为已完成: {task_id}, 失败数: {failed_tasks}/{total_tasks}, 总耗时: {total_time:.2f}秒")
+                    # 更新任务状态
                     await update_task_status(db, task_id, TaskStatus.COMPLETED.value)
+                    # 更新进度信息
+                    from app.crud.task import update_task_progress
+                    await update_task_progress(db, task_id, completed_tasks + failed_tasks, total_tasks)
                     return {"status": "completed_with_failures", "message": "任务已完成，但有部分子任务失败"}
                 # 如果所有子任务都成功，则任务成功
                 else:
                     logger.info(f"所有子任务均成功，更新任务状态为已完成: {task_id}, 完成数: {completed_tasks}/{total_tasks}, 总耗时: {total_time:.2f}秒")
+                    # 更新任务状态
                     await update_task_status(db, task_id, TaskStatus.COMPLETED.value)
+                    # 更新进度信息
+                    from app.crud.task import update_task_progress
+                    await update_task_progress(db, task_id, completed_tasks, total_tasks)
 
                     logger.info(f"任务已成功完成: {task_id}, 总耗时: {total_time:.2f}秒")
                     return {"status": "completed", "message": "任务已成功完成"}
@@ -544,7 +610,7 @@ async def cleanup_expired_task_data() -> Dict[str, Any]:
 
         # 查找过期的任务
         from app.crud.task import list_tasks, delete_task
-        from app.crud.dramatiq_task import delete_dramatiq_tasks_by_parent_id, get_dramatiq_tasks_by_parent_id
+        from app.crud.dramatiq_task import delete_dramatiq_tasks_by_parent_id
 
         # 获取30天前的任务
         result = await list_tasks(

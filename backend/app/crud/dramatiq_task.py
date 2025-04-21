@@ -21,15 +21,19 @@ async def create_dramatiq_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, 
     task_id = task_data.get("id") or str(uuid.uuid4())
 
     # 准备任务数据
+    # 构建变量索引数组
+    variable_indices = []
+    for i in range(6):
+        var_key = f"v{i}"
+        if var_key in task_data and task_data[var_key] is not None:
+            variable_indices.append(task_data[var_key])
+        else:
+            variable_indices.append(None)
+
     task = {
         "id": task_id,  # 使用提供的ID或UUID作为主键
         "parent_task_id": task_data.get("parent_task_id"),
-        "v0": task_data.get("v0"),
-        "v1": task_data.get("v1"),
-        "v2": task_data.get("v2"),
-        "v3": task_data.get("v3"),
-        "v4": task_data.get("v4"),
-        "v5": task_data.get("v5"),
+        "variable_indices": variable_indices,  # 使用变量索引数组
         "status": task_data.get("status", DramatiqTaskStatus.PENDING.value),
         "result": task_data.get("result"),
         "error": task_data.get("error"),
@@ -67,19 +71,14 @@ async def get_dramatiq_task(db: Any, task_id: str) -> Optional[Dict[str, Any]]:
 
     return task
 
-async def get_dramatiq_task_by_variables(db: Any, parent_task_id: str, v0: Optional[int] = None, v1: Optional[int] = None, v2: Optional[int] = None, v3: Optional[int] = None, v4: Optional[int] = None, v5: Optional[int] = None) -> Optional[Dict[str, Any]]:
+async def get_dramatiq_task_by_variables(db: Any, parent_task_id: str, variable_indices: List[Optional[int]]) -> Optional[Dict[str, Any]]:
     """
-    通过父任务ID和变量索引获取Dramatiq任务
+    通过父任务ID和变量索引数组获取Dramatiq任务
 
     Args:
         db: 数据库连接
         parent_task_id: 父任务ID
-        v0: v0变量索引
-        v1: v1变量索引
-        v2: v2变量索引
-        v3: v3变量索引
-        v4: v4变量索引
-        v5: v5变量索引
+        variable_indices: 变量索引数组，最多六个元素，对应v0-v5
 
     Returns:
         匹配的Dramatiq任务，如果不存在则返回None
@@ -87,19 +86,12 @@ async def get_dramatiq_task_by_variables(db: Any, parent_task_id: str, v0: Optio
     # 构建查询条件
     query = {"parent_task_id": parent_task_id}
 
-    # 添加变量索引条件
-    if v0 is not None:
-        query["v0"] = v0
-    if v1 is not None:
-        query["v1"] = v1
-    if v2 is not None:
-        query["v2"] = v2
-    if v3 is not None:
-        query["v3"] = v3
-    if v4 is not None:
-        query["v4"] = v4
-    if v5 is not None:
-        query["v5"] = v5
+    # 添加变量索引数组条件
+    # MongoDB中数组元素的精确匹配需要使用$elemMatch或精确的位置查询
+    # 这里我们使用精确的位置查询
+    for i, value in enumerate(variable_indices):
+        if value is not None:
+            query[f"variable_indices.{i}"] = value
 
     # 查询任务
     task = await db.dramatiq_tasks.find_one(query)
@@ -201,6 +193,11 @@ async def update_dramatiq_task_result(db: Any, task_id: str, status: str, result
     Returns:
         更新是否成功
     """
+    # 获取任务信息，以获取父任务ID
+    task = await get_dramatiq_task(db, task_id)
+    if not task:
+        return False
+
     # 更新任务
     update_result = await db.dramatiq_tasks.update_one(
         {"id": task_id},  # 直接使用id字段查询
@@ -212,6 +209,15 @@ async def update_dramatiq_task_result(db: Any, task_id: str, status: str, result
             }
         }
     )
+
+    # 如果更新成功且状态为已完成，增加父任务的完成计数
+    if update_result.modified_count > 0 and status == DramatiqTaskStatus.COMPLETED.value:
+        parent_task_id = task.get("parent_task_id")
+        if parent_task_id:
+            # 导入父任务的increment_processed_images函数
+            from app.crud.task import increment_processed_images
+            # 增加父任务的已处理图片数
+            await increment_processed_images(db, parent_task_id)
 
     return update_result.modified_count > 0
 
@@ -228,6 +234,11 @@ async def update_dramatiq_task_error(db: Any, task_id: str, status: str, error: 
     Returns:
         更新是否成功
     """
+    # 获取任务信息，以获取父任务ID
+    task = await get_dramatiq_task(db, task_id)
+    if not task:
+        return False
+
     # 更新任务
     result = await db.dramatiq_tasks.update_one(
         {"id": task_id},  # 直接使用id字段查询
@@ -242,6 +253,15 @@ async def update_dramatiq_task_error(db: Any, task_id: str, status: str, error: 
             }
         }
     )
+
+    # 如果更新成功且状态为失败，增加父任务的完成计数
+    if result.modified_count > 0 and status == DramatiqTaskStatus.FAILED.value:
+        parent_task_id = task.get("parent_task_id")
+        if parent_task_id:
+            # 导入父任务的increment_processed_images函数
+            from app.crud.task import increment_processed_images
+            # 增加父任务的已处理图片数
+            await increment_processed_images(db, parent_task_id)
 
     return result.modified_count > 0
 

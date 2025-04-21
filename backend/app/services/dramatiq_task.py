@@ -67,16 +67,84 @@ async def process_image_task(dramatiq_task_id: str) -> Dict[str, Any]:
         seed = task_data.get("seed")
         use_polish = task_data.get("use_polish", False)
 
+        # 记录提取的参数
+        logger.info(f"提取的参数: prompt={prompt}, characters={characters}, ratio={ratio}, seed={seed}, use_polish={use_polish}")
+
         # 创建图像生成服务
         image_generator = create_image_generator()
 
         # 计算宽高
         width, height = await image_generator.calculate_dimensions(ratio)
+        logger.info(f"计算得到的宽高: {width}x{height}, 比例: {ratio}")
+
+        # 记录原始参数
+        logger.info(f"原始参数: prompt={json.dumps(prompt)}, characters={json.dumps(characters)}, ratio={ratio}, seed={seed}, use_polish={use_polish}")
 
         # 格式化提示词
-        formatted_prompt = format_prompt_for_api(prompt, "prompt") if prompt else None
-        formatted_characters = [format_prompt_for_api(char, "character") for char in characters] if characters else []
-        formatted_elements = [format_prompt_for_api(elem, "element") for elem in elements] if elements else []
+        from app.services.image import format_prompt_for_api
+
+        # 格式化提示词
+        formatted_prompt = None
+        if prompt and prompt.get("value"):
+            formatted_prompt = format_prompt_for_api(prompt, "prompt")
+            logger.info(f"格式化提示词: {json.dumps(formatted_prompt)}")
+
+        # 格式化角色
+        formatted_characters = []
+        if characters:
+            logger.info(f"开始格式化角色，数量: {len(characters)}")
+            for i, char in enumerate(characters):
+                logger.info(f"原始角色数据[{i}]: {json.dumps(char)}")
+                # 确保角色数据包含uuid和name字段
+                if "uuid" not in char and "value" in char:
+                    char["uuid"] = char["value"]
+                    logger.info(f"从 value 字段复制 uuid: {char['uuid']}")
+
+                # 确保有type字段
+                if "type" not in char:
+                    char["type"] = "character"
+                    logger.info(f"添加缺失的 type 字段: character")
+
+                try:
+                    formatted_char = format_prompt_for_api(char, "character")
+                    formatted_characters.append(formatted_char)
+                    logger.info(f"格式化角色[{i}]: {json.dumps(formatted_char)}")
+                except Exception as e:
+                    logger.error(f"格式化角色[{i}]失败: {str(e)}")
+                    # 打印异常堆栈
+                    import traceback
+                    logger.error(f"格式化角色异常堆栈:
+{traceback.format_exc()}")
+
+        # 格式化元素
+        formatted_elements = []
+        if elements:
+            logger.info(f"开始格式化元素，数量: {len(elements)}")
+            for i, elem in enumerate(elements):
+                logger.info(f"原始元素数据[{i}]: {json.dumps(elem)}")
+                # 确保元素数据包含uuid和name字段
+                if "uuid" not in elem and "value" in elem:
+                    elem["uuid"] = elem["value"]
+                    logger.info(f"从 value 字段复制 uuid: {elem['uuid']}")
+
+                # 确保有type字段
+                if "type" not in elem:
+                    elem["type"] = "element"
+                    logger.info(f"添加缺失的 type 字段: element")
+
+                try:
+                    formatted_elem = format_prompt_for_api(elem, "element")
+                    formatted_elements.append(formatted_elem)
+                    logger.info(f"格式化元素[{i}]: {json.dumps(formatted_elem)}")
+                except Exception as e:
+                    logger.error(f"格式化元素[{i}]失败: {str(e)}")
+                    # 打印异常堆栈
+                    import traceback
+                    logger.error(f"格式化元素异常堆栈:
+{traceback.format_exc()}")
+
+        # 记录格式化后的参数
+        logger.info(f"格式化后的参数汇总: prompt={json.dumps(formatted_prompt)}, characters={len(formatted_characters)}个, elements={len(formatted_elements)}个")
 
         # 合并所有提示词
         all_prompts = []
@@ -96,7 +164,7 @@ async def process_image_task(dramatiq_task_id: str) -> Dict[str, Any]:
             all_prompts = [{"type": "freetext", "weight": 1, "value": "placeholder"}]
 
         # 生成图像
-        logger.info(f"开始生成图像: {dramatiq_task_id}, 宽度={width}, 高度={height}, 种子={seed}, 使用文本润色={use_polish}")
+        logger.info(f"开始生成图像: {dramatiq_task_id}, 宽高: {width}x{height}, 比例: {ratio}, 种子: {seed}, 润色: {use_polish}")
 
         # 记录当前耗时
         current_time = time.time()
@@ -110,7 +178,7 @@ async def process_image_task(dramatiq_task_id: str) -> Dict[str, Any]:
                 width=width,
                 height=height,
                 seed=seed,
-                advanced_translator=use_polish
+                advanced_translator=use_polish  # 润色参数对应advanced_translator
             )
             logger.info(f"图像生成请求已发送并返回结果: {dramatiq_task_id}")
             logger.info(f"图像生成结果数据结构: {type(result)}, 包含字段: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")

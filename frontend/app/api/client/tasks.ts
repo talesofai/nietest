@@ -6,4 +6,5 @@
 import { TaskStatus, TaskDetail, TaskResponse, TaskCreateRequest } from '@/types/task';
 
 // 导出任务相关类型
-export { TaskStatus, TaskDetail, TaskResponse, TaskCreateRequest };
+export { TaskStatus };
+export type { TaskDetail, TaskResponse, TaskCreateRequest };

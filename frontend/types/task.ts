@@ -19,6 +19,43 @@ export enum TaskStatus {
 /**
  * 任务详情接口
  */
+export interface DramatiqTask {
+  id: string;
+  parent_task_id: string;
+  status: string;
+  result?: {
+    url: string;
+    width: number;
+    height: number;
+    seed: number;
+    created_at: string;
+  };
+  error?: string;
+  retry_count: number;
+  prompt: {
+    value: string;
+    weight: number;
+  };
+  characters: Array<{
+    value: string;
+    name: string;
+    weight: number;
+    header_url: string;
+  }>;
+  elements: Array<any>;
+  ratio: string;
+  seed?: number;
+  use_polish: boolean;
+  created_at: string;
+  updated_at: string;
+  v0?: number;
+  v1?: number;
+  v2?: number;
+  v3?: number;
+  v4?: number;
+  v5?: number;
+}
+
 export interface TaskDetail {
   id: string;
   task_name: string;
@@ -36,6 +73,18 @@ export interface TaskDetail {
   variables: Variables;
   settings: Record<string, any>;
   results?: any;
+  dramatiq_tasks?: DramatiqTask[];
+}
+
+/**
+ * 任务矩阵数据接口
+ */
+export interface TaskMatrix {
+  task_id: string;
+  task_name: string;
+  created_at: string;
+  variables: Variables;
+  coordinates: Record<string, string>; // 坐标字符串 -> URL映射，例如 "0,0,0" -> "https://example.com/image.jpg"
 }
 
 /**

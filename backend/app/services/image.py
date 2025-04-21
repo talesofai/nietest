@@ -13,6 +13,7 @@ import json
 import os
 import time
 import asyncio
+import math
 from datetime import datetime
 
 from app.core.config import settings
@@ -49,7 +50,7 @@ class ImageGenerationService:
 
     async def calculate_dimensions(self, ratio: str) -> Tuple[int, int]:
         """
-        根据比例计算宽高
+        根据比例计算宽高，确保总像素数接近 1024²
 
         Args:
             ratio: 比例字符串，如"1:1"、"4:3"等
@@ -57,27 +58,59 @@ class ImageGenerationService:
         Returns:
             宽度和高度
         """
-        default_width = 512
-        default_height = 512
+        # 目标总像素数
+        target_pixels = 1024 * 1024
 
+        # 如果比例是"3:5"，返回608x1024
+        if ratio == "3:5":
+            return 608, 1024
+
+        # 如果比例是"2:3"，返回680x1024
+        if ratio == "2:3":
+            return 680, 1024
+
+        # 如果比例是"16:9"，返回1024x576
+        if ratio == "16:9":
+            return 1024, 576
+
+        # 如果比例是"1:1"，返回1024x1024
+        if ratio == "1:1":
+            return 1024, 1024
+
+        # 如果是其他比例，计算宽高
         parts = ratio.split(":")
         if len(parts) == 2:
             width_ratio = float(parts[0])
             height_ratio = float(parts[1])
 
-            # 计算宽高
-            if width_ratio > height_ratio:
-                width = default_width
-                height = int(default_width * height_ratio / width_ratio)
-            else:
-                height = default_height
-                width = int(default_height * width_ratio / height_ratio)
+            # 计算比例因子
+            ratio_factor = width_ratio / height_ratio
+
+            # 计算宽高，保持总像素数接近目标值
+            height = int(math.sqrt(target_pixels / ratio_factor))
+            width = int(height * ratio_factor)
 
             # 确保宽高是8的倍数
             width = (width // 8) * 8
             height = (height // 8) * 8
 
+            # 确保宽高不超过1024
+            if width > 1024:
+                width = 1024
+                height = int(width / ratio_factor)
+                height = (height // 8) * 8
+            elif height > 1024:
+                height = 1024
+                width = int(height * ratio_factor)
+                width = (width // 8) * 8
+
+            # 记录计算结果
+            logger.info(f"根据比例 {ratio} 计算宽高: {width}x{height}, 总像素数: {width*height}")
             return width, height
+
+        # 如果比例格式不正确，返回默认宽高
+        logger.warning(f"比例格式不正确: {ratio}，使用默认宽高: 1024x1024")
+        return 1024, 1024
 
     # ===== 核心图像生成功能 =====
 
@@ -105,6 +138,7 @@ class ImageGenerationService:
         if seed is None:
             seed = random.randint(1, 2147483647)
 
+        # 构建请求载荷
         payload = {
             "storyId": "",
             "jobType": "universal",
@@ -117,6 +151,16 @@ class ImageGenerationService:
             "negative_freetext": "",
             "advanced_translator": advanced_translator
         }
+
+        # 记录请求载荷
+        logger.info(f"请求载荷结构: width={width}, height={height}, seed={seed}, advanced_translator={advanced_translator}")
+        logger.info(f"提示词数量: {len(prompts)}")
+        for i, prompt in enumerate(prompts):
+            prompt_type = prompt.get("type", "unknown")
+            prompt_value = prompt.get("value", "")
+            prompt_weight = prompt.get("weight", 1)
+            prompt_name = prompt.get("name", "")
+            logger.info(f"提示词[{i}]: type={prompt_type}, value={prompt_value}, weight={prompt_weight}, name={prompt_name}")
 
         # 发送API请求获取任务ID
         task_response = await self._send_api_request(payload)
@@ -176,21 +220,21 @@ class ImageGenerationService:
         logger.info(f"开始从结果中提取图像URL")
 
         # 输出完整的响应以便调试
-        logger.info(f"完整的API响应类型: {type(result)}, 包含字段: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
-        logger.info(f"完整的API响应: {json.dumps(result, ensure_ascii=False)}")
+        logger.debug(f"完整的API响应类型: {type(result)}, 包含字段: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
+        logger.debug(f"完整的API响应: {json.dumps(result, ensure_ascii=False)}")
 
         # 处理新的轮询响应格式
         if "artifacts" in result and isinstance(result["artifacts"], list) and len(result["artifacts"]) > 0:
             logger.info(f"发现artifacts字段，包含 {len(result['artifacts'])} 个项目")
             for i, artifact in enumerate(result["artifacts"]):
-                logger.info(f"检查artifact[{i}]: {json.dumps(artifact, ensure_ascii=False)}")
+                logger.debug(f"检查artifact[{i}]: {json.dumps(artifact, ensure_ascii=False)}")
                 if isinstance(artifact, dict) and "url" in artifact and artifact.get("status") == "SUCCESS":
                     logger.info(f"从 artifacts[{i}] 中提取到URL: {artifact['url'][:50]}...")
                     return artifact["url"]
 
         # 如果数据已经包含在data字段中
         if "data" in result and isinstance(result["data"], dict):
-            logger.info(f"发现data字段: {json.dumps(result['data'], ensure_ascii=False)}")
+            logger.debug(f"发现data字段: {json.dumps(result['data'], ensure_ascii=False)}")
             if "image_url" in result["data"]:
                 logger.info(f"从 data 字段中提取到URL: {result['data']['image_url'][:50]}...")
                 return result["data"]["image_url"]
@@ -265,7 +309,7 @@ class ImageGenerationService:
 
                     # 记录完整的轮询结果
                     logger.info(f"轮询任务状态结果 (第{attempt+1}次): {task_status}, 任务ID: {task_uuid}")
-                    logger.info(f"轮询响应详情 (第{attempt+1}次): {json.dumps(result, ensure_ascii=False)}")
+                    logger.debug(f"轮询响应详情 (第{attempt+1}次): {json.dumps(result, ensure_ascii=False)}")
                     logger.info(f"轮询简要信息 (第{attempt+1}次): task_status={task_status}, artifacts_count={artifacts_count}, 任务ID: {task_uuid}")
 
                     # 如果任务完成或失败，返回结果
@@ -329,7 +373,7 @@ class ImageGenerationService:
                 result = response.json()
                 elapsed_time = time.time() - start_time
                 logger.info(f"图像生成API请求成功 {task_info}, 耗时: {elapsed_time:.2f}秒")
-                logger.info(f"图像生成API响应: {json.dumps(result, ensure_ascii=False)}")
+                logger.debug(f"图像生成API响应: {json.dumps(result, ensure_ascii=False)}")
 
                 return result
 
@@ -375,6 +419,9 @@ def format_prompt_for_api(prompt_data: Any, prompt_type: str) -> Dict[str, Any]:
     Returns:
         标准格式的提示词数据
     """
+    # 记录输入参数
+    logger.debug(f"格式化提示词输入: prompt_type={prompt_type}, prompt_data={json.dumps(prompt_data) if isinstance(prompt_data, (dict, list)) else prompt_data}")
+
     # 确保prompt_type符合要求
     if prompt_type not in [None, "prompt", "character", "element"]:
         raise ValueError("prompt_type必须是'prompt'/'character'/'element'中的一个")
@@ -384,23 +431,27 @@ def format_prompt_for_api(prompt_data: Any, prompt_type: str) -> Dict[str, Any]:
 
     # 如果是字符串，则创建一个freetext类型的提示词
     if isinstance(prompt_data, str):
-        return {
+        result = {
             "type": "freetext",
             "weight": 1,
             "value": prompt_data
         }
+        logger.debug(f"字符串提示词格式化结果: {json.dumps(result)}")
+        return result
 
     # 如果不是字典，报错
-    if type(prompt_data) != dict:
-        raise TypeError("提示词数据必须是字符串或字典")
+    if not isinstance(prompt_data, dict):
+        raise TypeError(f"提示词数据必须是字符串或字典，当前类型: {type(prompt_data)}")
 
     # 如果是提示词类型，使用freetext类型
     if prompt_type == "prompt":
-        return {
+        result = {
             "type": "freetext",
             "weight": prompt_data.get("weight", 1),
             "value": prompt_data.get("value", "")
         }
+        logger.debug(f"提示词格式化结果: {json.dumps(result)}")
+        return result
 
     # 如果是角色或元素类型
     # 首先检查是否有必要的字段
@@ -408,25 +459,28 @@ def format_prompt_for_api(prompt_data: Any, prompt_type: str) -> Dict[str, Any]:
         # 如果有value字段，使用它作为uuid
         if "value" in prompt_data:
             prompt_data["uuid"] = prompt_data["value"]
+            logger.debug(f"从 value 字段复制 uuid: {prompt_data['value']}")
         else:
-            raise KeyError("提示词数据缺少uuid字段")
+            error_msg = f"提示词数据缺少uuid字段: {json.dumps(prompt_data)}"
+            logger.error(error_msg)
+            raise KeyError(error_msg)
 
     if "name" not in prompt_data:
-        logger.warning(f"提示词数据缺少name字段: {prompt_data}")
-        # 返回一个默认的freetext类型
-        return {
-            "type": "freetext",
-            "weight": prompt_data.get("weight", 1),
-            "value": prompt_data.get("uuid", "")
-        }
+        logger.warning(f"提示词数据缺少name字段: {json.dumps(prompt_data)}")
+        # 如果没有name字段，使用uuid作为name
+        prompt_data["name"] = prompt_data.get("uuid", "")
+        logger.debug(f"使用 uuid 作为 name: {prompt_data['name']}")
 
     # 根据prompt_type或prompt_data["type"]决定类型
     is_character = False
     if prompt_type == "character":
         is_character = True
+        logger.debug(f"根据 prompt_type 确定为角色类型")
     elif "type" in prompt_data and prompt_data["type"] == "character":
         is_character = True
+        logger.debug(f"根据 prompt_data['type'] 确定为角色类型")
 
+    # 构建结果字典
     result["type"] = "oc_vtoken_adaptor" if is_character else "elementum"
     result["uuid"] = prompt_data["uuid"]
     result["value"] = prompt_data["uuid"]  # value与uuid相同
@@ -441,6 +495,7 @@ def format_prompt_for_api(prompt_data: Any, prompt_type: str) -> Dict[str, Any]:
     result["polymorphi_values"] = {}
     result["sub_type"] = None
 
+    logger.debug(f"角色/元素格式化结果: {json.dumps(result)}")
     return result
 
 # 创建图像生成服务实例

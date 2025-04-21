@@ -45,7 +45,10 @@ const ProgressTab: React.FC = () => {
             try {
                 setLoading(true);
                 setError(null);
-                const response = await getTaskList(1, 10);
+                // 只获取未开始和执行中的任务
+                const response = await getTaskList(1, 10, {
+                    status: `${TaskStatus.PENDING},${TaskStatus.PROCESSING}`
+                });
 
                 if (response?.error) {
                     setError(response.error);

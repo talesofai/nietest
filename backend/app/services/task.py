@@ -47,40 +47,44 @@ async def create_task(task_data: Dict[str, Any]) -> Dict[str, Any]:
     # 返回创建的任务
     return task
 
-async def get_task(task_id: str) -> Optional[Dict[str, Any]]:
+async def get_task(db: Any, task_id: str) -> Optional[Dict[str, Any]]:
     """
     获取任务详情
 
     Args:
+        db: 数据库连接
         task_id: 任务ID
 
     Returns:
         任务详情，如果不存在则返回None
     """
-    db = await get_database()
     task = await task_crud.get_task(db, task_id)
 
     if task:
-        # 如果任务未完成，查询子任务状态并更新进度
-        if task.get("status") != TaskStatus.COMPLETED.value:
-            # 获取所有子任务
-            all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
+        # 无论任务状态如何，都查询子任务状态并计算进度
+        # 获取所有子任务
+        all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
 
-            # 计算进度
-            total_tasks = len(all_dramatiq_tasks)
-            completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value)
-            failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.FAILED.value)
+        # 计算进度
+        total_tasks = len(all_dramatiq_tasks)
+        completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value)
+        failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.FAILED.value)
 
-            # 添加计算出的进度到任务
-            if total_tasks > 0:
-                task["processed_images"] = completed_tasks + failed_tasks
-                task["progress"] = int((completed_tasks + failed_tasks) / total_tasks * 100)
+        # 添加计算出的进度到任务
+        if total_tasks > 0:
+            task["processed_images"] = completed_tasks + failed_tasks
+            task["progress"] = int((completed_tasks + failed_tasks) / total_tasks * 100)
 
-                # 检查是否所有子任务都已完成
-                if completed_tasks + failed_tasks == total_tasks:
-                    # 更新任务状态为已完成
-                    await task_crud.update_task_status(db, task_id, TaskStatus.COMPLETED.value)
-                    task["status"] = TaskStatus.COMPLETED.value
+            # 如果任务未完成，检查是否所有子任务都已完成
+            if task.get("status") != TaskStatus.COMPLETED.value and completed_tasks + failed_tasks == total_tasks:
+                # 更新任务状态为已完成
+                await task_crud.update_task_status(db, task_id, TaskStatus.COMPLETED.value)
+                task["status"] = TaskStatus.COMPLETED.value
+        else:
+            # 如果没有子任务，但任务状态为已完成，则设置进度为100%
+            if task.get("status") == TaskStatus.COMPLETED.value:
+                task["processed_images"] = task.get("total_images", 0)
+                task["progress"] = 100
             else:
                 task["processed_images"] = 0
                 task["progress"] = 0
@@ -92,21 +96,73 @@ async def get_task(task_id: str) -> Optional[Dict[str, Any]]:
             completed_dramatiq_tasks = [dt for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value]
 
             # 整理结果
-            results = {}
+            raw_results = {}
             for dt in completed_dramatiq_tasks:
                 if dt.get("result"):
-                    combination_key = dt.get("combination_key", f"v0_{dt.get('v0')}:v1_{dt.get('v1')}")
-                    results[combination_key] = dt.get("result")
+                    # 提取变量索引
+                    v0 = dt.get("v0")
+                    v1 = dt.get("v1")
+                    v2 = dt.get("v2")
+                    v3 = dt.get("v3")
+                    v4 = dt.get("v4")
+                    v5 = dt.get("v5")
 
-            # 添加结果到任务
-            if results:
-                task["results"] = results
+                    # 构建组合键
+                    combination_key = dt.get("combination_key", f"v0_{v0}:v1_{v1}")
+                    raw_results[combination_key] = dt.get("result")
+
+                    # 将变量索引添加到结果中
+                    raw_results[combination_key]["v0"] = v0
+                    raw_results[combination_key]["v1"] = v1
+                    raw_results[combination_key]["v2"] = v2
+                    raw_results[combination_key]["v3"] = v3
+                    raw_results[combination_key]["v4"] = v4
+                    raw_results[combination_key]["v5"] = v5
+
+            # 转换结果格式为前端期望的格式
+            if raw_results:
+                # 获取任务变量
+                variables = task.get("variables", {})
+
+                # 创建矩阵结果结构
+                matrix_results = {}
+
+                # 遍历所有变量
+                for var_name, var_data in variables.items():
+                    if var_name.startswith('v') and var_data.get("values"):
+                        # 创建变量索引映射
+                        var_index = int(var_name[1:])
+                        var_values = var_data.get("values", [])
+
+                        # 初始化变量结果
+                        matrix_results[var_name] = {}
+
+                        # 遍历所有结果
+                        for combination_key, result in raw_results.items():
+                            # 获取当前变量的索引
+                            current_var_index = result.get(var_name)
+
+                            # 如果有效索引
+                            if current_var_index is not None and current_var_index < len(var_values):
+                                # 获取变量值
+                                var_value = var_values[current_var_index].get("value", "")
+
+                                # 将结果添加到矩阵中
+                                if var_value not in matrix_results[var_name]:
+                                    matrix_results[var_name][var_value] = result.get("url", "")
+
+                # 添加结果到任务
+                task["results"] = {
+                    "matrix": matrix_results,
+                    "raw": raw_results
+                }
 
     return task
 
 async def list_tasks(
     username: Optional[str] = None,
     status: Optional[str] = None,
+    task_name: Optional[str] = None,
     page: int = 1,
     page_size: int = 10
 ) -> Dict[str, Any]:
@@ -116,42 +172,150 @@ async def list_tasks(
     Args:
         username: 用户名过滤
         status: 状态过滤
+        task_name: 任务名称搜索
         page: 页码
         page_size: 每页大小
 
     Returns:
         任务列表和分页信息
     """
+    # 记录查询参数
+    logger.info(f"获取任务列表: username={username}, status={status}, task_name={task_name}, page={page}, page_size={page_size}")
+
     db = await get_database()
-    result = await task_crud.list_tasks(db, username, status, page, page_size)
+
+    # 查询最新的任务列表
+    result = await task_crud.list_tasks(db, username, status, task_name, page, page_size)
+
+    # 记录查询结果
+    logger.info(f"任务列表查询结果: 总数={result.get('total', 0)}, 项目数={len(result.get('items', []))}")
 
     # 对每个任务计算进度
     for task in result.get("items", []):
-        # 只对未完成的任务查询子任务状态
-        if task.get("status") != TaskStatus.COMPLETED.value:
+        # 确保必要字段存在
+        if "priority" not in task:
+            task["priority"] = 1
+        if "total_images" not in task:
+            task["total_images"] = 0
+        if "processed_images" not in task:
+            task["processed_images"] = 0
+        if "progress" not in task:
+            task["progress"] = 0
+
+        # 获取任务状态
+        task_status = task.get("status")
+        task_id = task.get("id")
+
+        # 如果任务状态为已完成/失败/取消，则不需要重新计算进度
+        if task_status in [TaskStatus.COMPLETED.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value]:
+            # 如果是已完成状态，确保进度为100%
+            if task_status == TaskStatus.COMPLETED.value:
+                task["processed_images"] = task.get("total_images", 0)
+                task["progress"] = 100
+            continue
+
+        # 只对未完成的任务计算进度
+        if task_id:
             # 获取子任务
-            task_id = task.get("id")
-            if task_id:
+            all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
+
+            # 计算进度
+            total_tasks = len(all_dramatiq_tasks)
+            completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value)
+            failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.FAILED.value)
+
+            # 记录子任务状态
+            logger.debug(f"任务 {task_id} 的子任务状态: 总数={total_tasks}, 已完成={completed_tasks}, 失败={failed_tasks}")
+
+            # 添加计算出的进度到任务
+            if total_tasks > 0:
+                task["processed_images"] = completed_tasks + failed_tasks
+                task["progress"] = int((completed_tasks + failed_tasks) / total_tasks * 100)
+
+                # 如果任务未完成，检查是否所有子任务都已完成
+                if completed_tasks + failed_tasks == total_tasks:
+                    # 更新任务状态为已完成
+                    await task_crud.update_task_status(db, task_id, TaskStatus.COMPLETED.value)
+                    task["status"] = TaskStatus.COMPLETED.value
+                    logger.info(f"任务 {task_id} 已完成，更新状态")
+            else:
+                # 如果没有子任务，设置进度为0
+                task["processed_images"] = 0
+                task["progress"] = 0
+
+        # 记录任务字段
+        logger.debug(f"任务 {task_id} 的字段: {list(task.keys())}")
+
+        # 如果任务状态为已完成或处理中，且有完成的子任务，获取结果
+        if task_id and task.get("status") in [TaskStatus.COMPLETED.value, TaskStatus.PROCESSING.value] and task.get("processed_images", 0) > 0:
+            # 获取子任务（如果还没有获取过）
+            if not locals().get('all_dramatiq_tasks'):
                 all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
 
-                # 计算进度
-                total_tasks = len(all_dramatiq_tasks)
-                completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value)
-                failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.FAILED.value)
+            # 获取已完成的子任务
+            completed_dramatiq_tasks = [dt for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value]
 
-                # 添加计算出的进度到任务
-                if total_tasks > 0:
-                    task["processed_images"] = completed_tasks + failed_tasks
-                    task["progress"] = int((completed_tasks + failed_tasks) / total_tasks * 100)
+            # 整理结果
+            raw_results = {}
+            for dt in completed_dramatiq_tasks:
+                if dt.get("result"):
+                    # 提取变量索引
+                    v0 = dt.get("v0")
+                    v1 = dt.get("v1")
+                    v2 = dt.get("v2")
+                    v3 = dt.get("v3")
+                    v4 = dt.get("v4")
+                    v5 = dt.get("v5")
 
-                    # 检查是否所有子任务都已完成
-                    if completed_tasks + failed_tasks == total_tasks:
-                        # 更新任务状态为已完成
-                        await task_crud.update_task_status(db, task_id, TaskStatus.COMPLETED.value)
-                        task["status"] = TaskStatus.COMPLETED.value
-                else:
-                    task["processed_images"] = 0
-                    task["progress"] = 0
+                    # 构建组合键
+                    combination_key = dt.get("combination_key", f"v0_{v0}:v1_{v1}")
+                    raw_results[combination_key] = dt.get("result")
+
+                    # 将变量索引添加到结果中
+                    raw_results[combination_key]["v0"] = v0
+                    raw_results[combination_key]["v1"] = v1
+                    raw_results[combination_key]["v2"] = v2
+                    raw_results[combination_key]["v3"] = v3
+                    raw_results[combination_key]["v4"] = v4
+                    raw_results[combination_key]["v5"] = v5
+
+            # 转换结果格式为前端期望的格式
+            if raw_results:
+                # 获取任务变量
+                task_detail = await get_task(db, task_id)
+                variables = task_detail.get("variables", {})
+
+                # 创建矩阵结果结构
+                matrix_results = {}
+
+                # 遍历所有变量
+                for var_name, var_data in variables.items():
+                    if var_name.startswith('v') and var_data.get("values"):
+                        # 创建变量索引映射
+                        var_values = var_data.get("values", [])
+
+                        # 初始化变量结果
+                        matrix_results[var_name] = {}
+
+                        # 遍历所有结果
+                        for combination_key, result in raw_results.items():
+                            # 获取当前变量的索引
+                            current_var_index = result.get(var_name)
+
+                            # 如果有效索引
+                            if current_var_index is not None and current_var_index < len(var_values):
+                                # 获取变量值
+                                var_value = var_values[current_var_index].get("value", "")
+
+                                # 将结果添加到矩阵中
+                                if var_value not in matrix_results[var_name]:
+                                    matrix_results[var_name][var_value] = result.get("url", "")
+
+                # 添加结果到任务
+                task["results"] = {
+                    "matrix": matrix_results,
+                    "raw": raw_results
+                }
 
     return result
 
@@ -210,7 +374,8 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
         await task_crud.update_task_status(db, task_id, TaskStatus.PROCESSING.value)
 
         # 使用新的任务处理器创建和提交子任务
-        result = await create_and_submit_subtasks(task_id)
+        # 将计算好的变量组合传递给create_and_submit_subtasks函数
+        result = await create_and_submit_subtasks(task_id, combinations)
 
         if result.get("status") == "success":
             logger.info(f"任务 {task_id} 已成功创建子任务: {result.get('message')}")
@@ -286,11 +451,15 @@ async def calculate_combinations(
         for values in itertools.product(*var_values):
             combination = {}
             for i, var_name in enumerate(var_names):
+                # 保留变量值的完整信息，包括value、uuid等
                 combination[var_name] = values[i]
             combinations.append(combination)
     else:
         # 如果没有变量，返回一个空组合
         combinations = [{}]
+
+    # 记录组合详情
+    logger.debug(f"计算出的组合详情: {combinations}")
 
     # 更新任务的图片总数
     total_images = len(combinations)
@@ -336,7 +505,7 @@ async def calculate_combinations(
 
 async def extract_parameters(
     tags: List[Dict[str, Any]],
-    combination: Dict[str, Dict[str, str]]
+    combination: Dict[str, Dict[str, Any]]
 ) -> Tuple[List[str], str, Optional[int], bool]:
     """
     从标签和组合中提取参数
@@ -352,39 +521,73 @@ async def extract_parameters(
         # 记录输入参数
         logger.debug(f"提取参数输入: tags={tags}, combination={combination}")
 
-        # 自己实现提取参数的逻辑
-        # 提取提示词
+        # 初始化参数
         prompts = []
         ratio = "1:1"  # 默认比例
         seed = random.randint(1, 2147483647)  # 默认随机种子
         use_polish = False  # 默认不使用润色
 
+        # 创建标签ID到标签类型的映射
+        tag_id_to_type = {}
+        for tag in tags:
+            if tag.get("id") and tag.get("type"):
+                tag_id_to_type[tag.get("id")] = tag.get("type")
+
         # 从组合中提取变量值
         for var_key, var_data in combination.items():
             if var_key.startswith('v') and isinstance(var_data, dict):
+                # 获取变量值和标签ID
                 var_value = var_data.get("value", "")
-                if var_value:
-                    # 将变量值添加到提示词列表
-                    prompts.append(var_value)
+                var_tag_id = var_data.get("tag_id", "")
 
-        # 处理标签
+                # 如果没有值或标签ID，跳过
+                if not var_value or not var_tag_id:
+                    continue
+
+                # 获取标签类型
+                var_type = tag_id_to_type.get(var_tag_id)
+
+                # 根据标签类型处理变量值
+                if var_type == "prompt":
+                    # 提示词变量
+                    prompts.append(var_value)
+                elif var_type == "ratio":
+                    # 比例变量
+                    ratio = var_value
+                elif var_type == "seed":
+                    # 种子变量
+                    try:
+                        seed = int(var_value)
+                    except (ValueError, TypeError):
+                        pass
+                elif var_type == "polish":
+                    # 润色变量
+                    use_polish = var_value.lower() == "true"
+                elif var_type == "character":
+                    # 角色变量 - 不在这里处理，在create_and_submit_subtasks中处理
+                    pass
+                elif var_type == "element":
+                    # 元素变量 - 不在这里处理，在create_and_submit_subtasks中处理
+                    pass
+
+        # 处理非变量标签
         for tag in tags:
             tag_type = tag.get("type")
             is_variable = tag.get("is_variable", False)
 
+            # 只处理非变量标签
+            if is_variable:
+                continue
+
             if tag_type == "prompt":
                 # 提示词标签
-                if not is_variable:
-                    # 固定提示词
-                    tag_value = tag.get("value", "")
-                    if tag_value:
-                        prompts.append(tag_value)
-
-            elif tag_type == "ratio":
+                tag_value = tag.get("value", "")
+                if tag_value:
+                    prompts.append(tag_value)
+            elif tag_type == "ratio" and ratio == "1:1":  # 只有当没有变量覆盖时才使用
                 # 比例标签
                 ratio = tag.get("value", "1:1")
-
-            elif tag_type == "seed":
+            elif tag_type == "seed" and seed == random.randint(1, 2147483647):  # 只有当没有变量覆盖时才使用
                 # 种子标签
                 try:
                     seed_value = tag.get("value")
@@ -392,17 +595,9 @@ async def extract_parameters(
                         seed = int(seed_value)
                 except (ValueError, TypeError):
                     pass
-
-            elif tag_type == "polish":
+            elif tag_type == "polish" and not use_polish:  # 只有当没有变量覆盖时才使用
                 # 润色标签
                 use_polish = tag.get("value", "false").lower() == "true"
-
-            elif tag_type == "character":
-                # 角色标签
-                if not is_variable:
-                    tag_value = tag.get("value", "")
-                    if tag_value:
-                        prompts.append(tag_value)
 
         result = (prompts, ratio, seed, use_polish)
 

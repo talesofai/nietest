@@ -61,16 +61,18 @@ class TaskResponse(BaseModel):
     id: str  # UUID作为主键
     task_name: str
     username: str
-    status: TaskStatus
+    status: str  # 使用字符串而不是枚举，更灵活
     created_at: datetime
     updated_at: datetime
-    total_images: int
+    total_images: int = 0  # 添加默认值
     processed_images: int = 0  # 默认值，在API响应中动态计算
     progress: int = 0  # 默认值，在API响应中动态计算
-    priority: int
+    priority: int = 1  # 添加默认值
 
     class Config:
         from_attributes = True
+        # 允许额外的字段
+        extra = "ignore"
 
 class TaskDetail(TaskResponse):
     """任务详情模式"""
@@ -79,9 +81,25 @@ class TaskDetail(TaskResponse):
     settings: Dict[str, Any] = {}
     results: Optional[Dict[str, Dict[str, Any]]] = None
     error: Optional[str] = None
+    dramatiq_tasks: Optional[List[Dict[str, Any]]] = None
 
     class Config:
         from_attributes = True
+        # 允许额外的字段
+        extra = "ignore"
+
+class TaskMatrixResponse(BaseModel):
+    """任务矩阵响应模式"""
+    task_id: str
+    task_name: str
+    created_at: datetime
+    variables: Dict[str, Any] = {}  # 变量信息
+    coordinates: Dict[str, str] = {}  # 坐标字符串 -> URL映射，例如 "0,0,0" -> "https://example.com/image.jpg"
+
+    class Config:
+        from_attributes = True
+        # 允许额外的字段
+        extra = "ignore"
 
 class TaskListResponse(BaseModel):
     """任务列表响应模式"""

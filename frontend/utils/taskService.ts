@@ -211,3 +211,41 @@ export const deleteTask = async (taskId: string) => {
     };
   }
 };
+
+/**
+ * 获取任务矩阵数据（六维空间坐标系统）
+ * @param taskId 任务ID
+ * @returns 任务矩阵数据
+ */
+export const getTaskMatrix = async (taskId: string) => {
+  try {
+    // 确保taskId有效
+    if (!taskId) {
+      throw new Error('任务ID不能为空');
+    }
+
+    // 发送请求（确保路径以斜杠结尾）
+    const response = await apiRequest.get(`/api/v1/tasks/${taskId}/matrix/`);
+
+    if (!response.success) {
+      console.error('获取任务矩阵数据失败:', response.error);
+      return {
+        success: false,
+        error: response.error || '获取任务矩阵数据失败',
+        data: null
+      };
+    }
+
+    return {
+      success: true,
+      data: response.data
+    };
+  } catch (error) {
+    console.error('获取任务矩阵数据出错:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '未知错误',
+      data: null
+    };
+  }
+};

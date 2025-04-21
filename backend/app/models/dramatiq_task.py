@@ -15,13 +15,8 @@ class DramatiqTask(BaseModel):
     """Dramatiq任务模型"""
     id: str                                                                # 使用UUID作为主键
     parent_task_id: str                                                     # 关联原始任务ID
-    # 使用变量索引作为唯一标识
-    v0: Optional[int] = None                                                # 变量v0的索引，None表示不存在，整数表示在变量列表中的位置
-    v1: Optional[int] = None                                                # 变量v1的索引
-    v2: Optional[int] = None                                                # 变量v2的索引
-    v3: Optional[int] = None                                                # 变量v3的索引
-    v4: Optional[int] = None                                                # 变量v4的索引
-    v5: Optional[int] = None                                                # 变量v5的索引
+    # 使用变量索引数组作为唯一标识
+    variable_indices: List[Optional[int]] = []                              # 变量索引数组，最多六个元素，对应v0-v5
     status: DramatiqTaskStatus = DramatiqTaskStatus.PENDING                 # 任务状态
     result: Optional[Dict[str, Any]] = None                                 # 任务结果
     error: Optional[str] = None                                             # 错误信息
