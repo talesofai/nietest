@@ -14,9 +14,13 @@
 ## 启动脚本
 
 - `start_web.ps1` / `start_web.sh` - 启动Web服务
-- `start_worker.ps1` / `start_worker.sh` - 启动Dramatiq Worker处理后台任务
-- `start_scheduler.ps1` / `start_scheduler.sh` - 启动任务调度器
 - `start_all.ps1` / `start_all.sh` - 一键启动所有服务（Web服务、Worker和调度器）
+
+## 工具脚本
+
+- `check_queues.py` - 检查Dramatiq队列状态
+- `clear_queues.py` - 清空Dramatiq队列
+- `dramatiq_worker.py` - Dramatiq Worker启动脚本
 
 ## 使用方法
 
@@ -32,9 +36,12 @@
 #### 日常使用
 
 - 如果只需要启动Web服务，运行 `./start_web.ps1`
-- 如果只需要启动Worker，运行 `./start_worker.ps1`
-- 如果只需要启动调度器，运行 `./start_scheduler.ps1`
 - 如果需要启动所有服务，运行 `./start_all.ps1`
+
+#### 工具使用
+
+- 检查队列状态：`python -m scripts.check_queues`
+- 清空队列：`python -m scripts.clear_queues`
 
 ### Linux/macOS 环境
 
@@ -49,9 +56,12 @@
 #### 日常使用
 
 - 如果只需要启动Web服务，运行 `./start_web.sh`
-- 如果只需要启动Worker，运行 `./start_worker.sh`
-- 如果只需要启动调度器，运行 `./start_scheduler.sh`
 - 如果需要启动所有服务，运行 `./start_all.sh`
+
+#### 工具使用
+
+- 检查队列状态：`python -m scripts.check_queues`
+- 清空队列：`python -m scripts.clear_queues`
 
 ### 注意事项
 
