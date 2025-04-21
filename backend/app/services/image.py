@@ -58,42 +58,22 @@ class ImageGenerationService:
         Returns:
             宽度和高度
         """
-        # 目标总像素数
         target_pixels = 1024 * 1024
 
-        # 如果是其他比例，计算宽高
         parts = ratio.split(":")
         if len(parts) == 2:
-            width_ratio = float(parts[0])
-            height_ratio = float(parts[1])
+            try:
+                width_ratio = float(parts[0])
+                height_ratio = float(parts[1])
+                x = math.sqrt(target_pixels / (width_ratio * height_ratio))
+                width = width_ratio * x
+                height = height_ratio * x
+                width = round(width / 8) * 8
+                height = round(height / 8) * 8
+                return int(width), int(height)
+            except Exception as e:
+                logger.warning(f"计算比例 {ratio} 的尺寸时出错: {str(e)}")
 
-            # 计算比例因子
-            ratio_factor = width_ratio / height_ratio
-
-            # 计算宽高，保持总像素数接近目标值
-            height = int(math.sqrt(target_pixels / ratio_factor))
-            width = int(height * ratio_factor)
-
-            # 确保宽高是8的倍数
-            width = (width // 8) * 8
-            height = (height // 8) * 8
-
-            # 确保宽高不超过1024
-            if width > 1024:
-                width = 1024
-                height = int(width / ratio_factor)
-                height = (height // 8) * 8
-            elif height > 1024:
-                height = 1024
-                width = int(height * ratio_factor)
-                width = (width // 8) * 8
-
-            # 记录计算结果
-            logger.info(f"根据比例 {ratio} 计算宽高: {width}x{height}, 总像素数: {width*height}")
-            return width, height
-
-        # 如果比例格式不正确，返回默认宽高
-        logger.warning(f"比例格式不正确: {ratio}，使用默认宽高: 1024x1024")
         return 1024, 1024
 
     # ===== 核心图像生成功能 =====
