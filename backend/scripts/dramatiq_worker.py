@@ -184,14 +184,14 @@ def get_processing_tasks_count() -> int:
             # 引入必要的模块
             import pymongo
             from app.core.config import settings
-            from app.models.dramatiq_task import DramatiqTaskStatus
+            from app.models.subtask import SubTaskStatus
 
             # 连接MongoDB
             mongo_client = pymongo.MongoClient(settings.MONGODB_URL, serverSelectionTimeoutMS=5000)
             db = mongo_client[settings.MONGODB_DB]
 
             # 查询处理中的任务数量
-            mongo_active_count = db.dramatiq_tasks.count_documents({"status": DramatiqTaskStatus.PROCESSING.value})
+            mongo_active_count = db.dramatiq_tasks.count_documents({"status": SubTaskStatus.PROCESSING.value})
             logger.debug(f"MongoDB中有 {mongo_active_count} 个处理中任务")
 
             # 关闭MongoDB连接

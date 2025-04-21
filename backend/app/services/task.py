@@ -9,7 +9,7 @@ from app.db.redis import get_redis_cache
 from app.crud import task as task_crud
 from app.crud import dramatiq_task as dramatiq_task_crud
 from app.models.task import TaskStatus
-from app.models.dramatiq_task import DramatiqTaskStatus
+from app.models.subtask import SubTaskStatus
 from app.services.task_processor import create_and_submit_subtasks, monitor_task_progress, calculate_combinations
 from app.core.config import settings
 
@@ -64,8 +64,8 @@ async def get_task(db: Any, task_id: str) -> Optional[Dict[str, Any]]:
 
         # 计算进度
         total_tasks = len(all_dramatiq_tasks)
-        completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value)
-        failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.FAILED.value)
+        completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.COMPLETED.value)
+        failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.FAILED.value)
 
         # 添加计算出的进度到任务
         if total_tasks > 0:
@@ -90,7 +90,7 @@ async def get_task(db: Any, task_id: str) -> Optional[Dict[str, Any]]:
         if task.get("status") in [TaskStatus.COMPLETED.value, TaskStatus.PROCESSING.value]:
             # 获取已完成的子任务
             all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
-            completed_dramatiq_tasks = [dt for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value]
+            completed_dramatiq_tasks = [dt for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.COMPLETED.value]
 
             # 整理结果
             raw_results = {}
@@ -218,8 +218,8 @@ async def list_tasks(
 
             # 计算进度
             total_tasks = len(all_dramatiq_tasks)
-            completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value)
-            failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.FAILED.value)
+            completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.COMPLETED.value)
+            failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.FAILED.value)
 
             # 记录子任务状态
             logger.debug(f"任务 {task_id} 的子任务状态: 总数={total_tasks}, 已完成={completed_tasks}, 失败={failed_tasks}")
@@ -250,7 +250,7 @@ async def list_tasks(
                 all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
 
             # 获取已完成的子任务
-            completed_dramatiq_tasks = [dt for dt in all_dramatiq_tasks if dt.get("status") == DramatiqTaskStatus.COMPLETED.value]
+            completed_dramatiq_tasks = [dt for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.COMPLETED.value]
 
             # 整理结果
             raw_results = {}

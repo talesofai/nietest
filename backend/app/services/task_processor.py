@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 import random
 
 from app.db.mongodb import get_database
-from app.models.dramatiq_task import DramatiqTaskStatus
+from app.models.subtask import SubTaskStatus
 from app.services.image import create_image_generator
 from app.services.task_executor import get_task_executor, submit_task, get_task_result
 from app.core.config import settings
@@ -124,7 +124,7 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
     logger.debug(f"任务 {task_id} 的变量索引数组: {variable_indices}")
 
     # 更新任务状态为处理中
-    await update_dramatiq_task_status(db, task_id, DramatiqTaskStatus.PROCESSING.value)
+    await update_dramatiq_task_status(db, task_id, SubTaskStatus.PROCESSING.value)
 
     # 提取任务参数
     prompts = task_data.get("prompts", [])
@@ -173,7 +173,7 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
     # 记录当前耗时
     current_time = time.time()
     elapsed_time = current_time - start_time
-    await update_dramatiq_task_result(db, task_id, DramatiqTaskStatus.COMPLETED.value, result_item)
+    await update_dramatiq_task_result(db, task_id, SubTaskStatus.COMPLETED.value, result_item)
 
     # 记录总耗时
     total_time = time.time() - start_time
@@ -613,7 +613,7 @@ async def prepare_subtask_data(
     subtask_data = {
         "id": subtask_id,
         "parent_task_id": task_data.get("id"),
-        "status": DramatiqTaskStatus.PENDING.value,
+        "status": SubTaskStatus.PENDING.value,
         "prompts": all_prompts,  # 所有提示词、角色和元素的有序列表
         "ratio": ratio,
         "seed": seed,
@@ -735,9 +735,9 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
         logger.debug(f"获取子任务状态: {task_id}")
         sub_tasks = await get_dramatiq_tasks_by_parent_id(db, task_id)
         total_tasks = len(sub_tasks)
-        completed_tasks = sum(1 for task in sub_tasks if task.get("status") == DramatiqTaskStatus.COMPLETED.value)
-        failed_tasks = sum(1 for task in sub_tasks if task.get("status") == DramatiqTaskStatus.FAILED.value)
-        processing_tasks = sum(1 for task in sub_tasks if task.get("status") == DramatiqTaskStatus.PROCESSING.value)
+        completed_tasks = sum(1 for task in sub_tasks if task.get("status") == SubTaskStatus.COMPLETED.value)
+        failed_tasks = sum(1 for task in sub_tasks if task.get("status") == SubTaskStatus.FAILED.value)
+        processing_tasks = sum(1 for task in sub_tasks if task.get("status") == SubTaskStatus.PROCESSING.value)
         pending_tasks = total_tasks - completed_tasks - failed_tasks - processing_tasks
 
         logger.debug(f"子任务状态: 总数={total_tasks}, 完成={completed_tasks}, 失败={failed_tasks}, 处理中={processing_tasks}, 等待中={pending_tasks}, 任务ID: {task_id}")

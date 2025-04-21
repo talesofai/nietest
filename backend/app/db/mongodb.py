@@ -83,11 +83,6 @@ async def create_indexes(db_instance):
         await db_instance.dramatiq_tasks.create_index("status")
         await db_instance.dramatiq_tasks.create_index("created_at")
 
-        # 为Worker集合创建索引
-        await db_instance.workers.create_index("worker_id", unique=True)
-        await db_instance.workers.create_index("status")
-        await db_instance.workers.create_index("last_active_at")
-
         logger.info("Database indexes created successfully")
     except Exception as e:
         logger.error(f"Failed to create indexes: {str(e)}")

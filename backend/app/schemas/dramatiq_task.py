@@ -2,9 +2,9 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 
-from app.models.dramatiq_task import DramatiqTaskStatus
+from app.models.subtask import SubTaskStatus
 
-class DramatiqTaskBase(BaseModel):
+class SubTaskBase(BaseModel):
     """Dramatiq任务基础模式"""
     parent_task_id: str
     combination_key: str
@@ -15,21 +15,21 @@ class DramatiqTaskBase(BaseModel):
     variables: Dict[str, str] = {}
     combination: Dict[str, Dict[str, str]] = {}
 
-class DramatiqTaskCreate(DramatiqTaskBase):
+class SubTaskCreate(SubTaskBase):
     """Dramatiq任务创建模式"""
     pass
 
-class DramatiqTaskUpdate(BaseModel):
+class SubTaskUpdate(BaseModel):
     """Dramatiq任务更新模式"""
-    status: Optional[DramatiqTaskStatus] = None
+    status: Optional[SubTaskStatus] = None
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     retry_count: Optional[int] = None
 
-class DramatiqTaskInDB(DramatiqTaskBase):
+class SubTaskInDB(SubTaskBase):
     """数据库中的Dramatiq任务模式"""
     id: str  # UUID作为主键
-    status: DramatiqTaskStatus
+    status: SubTaskStatus
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     retry_count: int
@@ -39,12 +39,12 @@ class DramatiqTaskInDB(DramatiqTaskBase):
     class Config:
         from_attributes = True
 
-class DramatiqTaskResponse(BaseModel):
+class SubTaskResponse(BaseModel):
     """Dramatiq任务响应模式"""
     id: str  # UUID作为主键
     parent_task_id: str
     combination_key: str
-    status: DramatiqTaskStatus
+    status: SubTaskStatus
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     retry_count: int

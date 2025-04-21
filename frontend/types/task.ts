@@ -19,7 +19,7 @@ export enum TaskStatus {
 /**
  * 任务详情接口
  */
-export interface DramatiqTask {
+export interface SubTask {
   id: string;
   parent_task_id: string;
   status: string;
@@ -73,7 +73,7 @@ export interface TaskDetail {
   variables: Variables;
   settings: Record<string, any>;
   results?: any;
-  dramatiq_tasks?: DramatiqTask[];
+  dramatiq_tasks?: SubTask[];
 }
 
 /**

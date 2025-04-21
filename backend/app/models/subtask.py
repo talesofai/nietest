@@ -1,18 +1,18 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
-class DramatiqTaskStatus(str, Enum):
-    """Dramatiq任务状态枚举"""
+class SubTaskStatus(str, Enum):
+    """子任务状态枚举"""
     PENDING = "pending"       # 等待中
     PROCESSING = "processing" # 处理中
     COMPLETED = "completed"   # 已完成
     FAILED = "failed"         # 失败
     CANCELLED = "cancelled"   # 已取消
 
-class DramatiqTask(BaseModel):
-    """Dramatiq任务模型"""
+class SubTask(BaseModel):
+    """子任务模型"""
     id: str                                                                # 使用UUID作为主键
     parent_task_id: str                                                     # 关联原始任务ID
     # 使用变量索引数组作为唯一标识
@@ -21,7 +21,7 @@ class DramatiqTask(BaseModel):
     variable_types_map: Dict[str, str] = {}                                # 变量类型映射，例如{"v0": "polish", "v1": "ratio"}
     # 按类型访问变量的映射
     type_to_variable: Dict[str, str] = {}                                  # 类型到变量的映射，例如{"polish": "v0", "ratio": "v1"}
-    status: DramatiqTaskStatus = DramatiqTaskStatus.PENDING                 # 任务状态
+    status: SubTaskStatus = SubTaskStatus.PENDING                           # 任务状态
     result: Optional[Dict[str, Any]] = None                                 # 任务结果
     error: Optional[str] = None                                             # 错误信息
     retry_count: int = 0                                                    # 重试次数
@@ -29,13 +29,13 @@ class DramatiqTask(BaseModel):
     ratio: str = "1:1"                                                      # 比例
     seed: Optional[int] = None                                              # 种子
     use_polish: bool = False                                                # 是否使用润色
-    created_at: datetime = Field(default_factory=datetime.utcnow)           # 创建时间
-    updated_at: datetime = Field(default_factory=datetime.utcnow)           # 更新时间
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # 创建时间
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # 更新时间
 
     def mark_as_processing(self):
         """将任务标记为处理中"""
-        self.status = DramatiqTaskStatus.PROCESSING
-        self.updated_at = datetime.utcnow()
+        self.status = SubTaskStatus.PROCESSING
+        self.updated_at = datetime.now(timezone.utc)
 
     def mark_as_completed(self, result: Dict[str, Any]):
         """将任务标记为已完成
@@ -43,9 +43,9 @@ class DramatiqTask(BaseModel):
         Args:
             result: 任务结果
         """
-        self.status = DramatiqTaskStatus.COMPLETED
+        self.status = SubTaskStatus.COMPLETED
         self.result = result
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def mark_as_failed(self, error: str):
         """将任务标记为失败
@@ -53,15 +53,15 @@ class DramatiqTask(BaseModel):
         Args:
             error: 错误信息
         """
-        self.status = DramatiqTaskStatus.FAILED
+        self.status = SubTaskStatus.FAILED
         self.error = error
         self.retry_count += 1
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def mark_as_cancelled(self):
         """将任务标记为已取消"""
-        self.status = DramatiqTaskStatus.CANCELLED
-        self.updated_at = datetime.utcnow()
+        self.status = SubTaskStatus.CANCELLED
+        self.updated_at = datetime.now(timezone.utc)
 
     def is_cancelled(self) -> bool:
         """检查任务是否已取消
@@ -69,4 +69,4 @@ class DramatiqTask(BaseModel):
         Returns:
             是否已取消
         """
-        return self.status == DramatiqTaskStatus.CANCELLED
+        return self.status == SubTaskStatus.CANCELLED
