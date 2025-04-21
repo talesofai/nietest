@@ -323,8 +323,14 @@ async def prepare_subtask_data(
 
             # 查找与标签关联的变量
             variables = task_data.get("variables", {})
+            tag_name = tag.get("name", "")
+            logger.debug(f"查找变量标签 {tag_id}(类型:{tag_type}) 的关联变量，标签名称: {tag_name}")
+
             for v_name, v_data in variables.items():
-                if v_data.get("tag_id") == tag_id:
+                var_name_in_data = v_data.get("name", "")
+
+                # 当标签是变量时，通过name字段匹配变量
+                if tag_name and var_name_in_data and tag_name == var_name_in_data:
                     # 找到关联变量，记录变量类型映射
                     variable_types_map[v_name] = tag_type
                     if tag_type not in type_to_variable:
@@ -335,7 +341,21 @@ async def prepare_subtask_data(
                         var_name = v_name
                         var_data = combination[v_name]
                         var_value = var_data.get("value")
-                        logger.debug(f"找到变量标签 {tag_id} 关联的变量: {var_name}, 值: {var_value}")
+                        logger.debug(f"找到变量标签 {tag_id}(名称:{tag_name}) 关联的变量: {var_name}, 值: {var_value}")
+                        break
+                # 兼容旧逻辑，通过tag_id匹配
+                elif v_data.get("tag_id") == tag_id:
+                    # 找到关联变量，记录变量类型映射
+                    variable_types_map[v_name] = tag_type
+                    if tag_type not in type_to_variable:
+                        type_to_variable[tag_type] = v_name
+
+                    # 从组合中获取该变量的值
+                    if v_name in combination:
+                        var_name = v_name
+                        var_data = combination[v_name]
+                        var_value = var_data.get("value")
+                        logger.debug(f"通过tag_id找到变量标签 {tag_id} 关联的变量: {var_name}, 值: {var_value}")
                         break
 
             # 如果没有找到变量值，跳过
