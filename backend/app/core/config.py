@@ -35,10 +35,12 @@ class Settings(BaseSettings):
 
     # Redis配置
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    REDIS_KEY_PREFIX: str = os.getenv("REDIS_KEY_PREFIX", "app:")
 
     # 缓存配置
-    CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "True").lower() == "true"
+    CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "False").lower() == "true"  # 默认禁用缓存
     CACHE_TASK_TTL: int = int(os.getenv("CACHE_TASK_TTL", "300"))  # 5分钟
+    CACHE_CLEANUP_AFTER_PERSIST: bool = os.getenv("CACHE_CLEANUP_AFTER_PERSIST", "True").lower() == "true"
 
     # 日志配置
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")

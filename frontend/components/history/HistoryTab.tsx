@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Select, SelectItem, Card, CardBody, CardHeader, Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Image, useDisclosure, Chip, Spinner } from "@heroui/react";
 import { motion } from "framer-motion";
-// 不再需要认证信息
 import { TaskStatus, TaskDetail } from "@/app/api/client";
 import { getTaskList, getTaskDetail } from "@/utils/taskService";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,7 +22,6 @@ interface ResultViewData {
 const PLACEHOLDER_IMAGE_URL = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256' viewBox='0 0 256 256'%3E%3Crect width='256' height='256' fill='%23f0f0f0'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='24' fill='%23aaaaaa' text-anchor='middle' dominant-baseline='middle'%3E无图片%3C/text%3E%3C/svg%3E";
 
 const HistoryTab: React.FC = () => {
-    // 不再需要用户信息，因为任务是所有账户共用的
     const router = useRouter();
     const searchParams = useSearchParams();
     const initialLoadDone = useRef(false);

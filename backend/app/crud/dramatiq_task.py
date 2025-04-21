@@ -4,6 +4,8 @@ from bson import ObjectId
 
 from app.models.dramatiq_task import DramatiqTaskStatus
 
+import uuid
+
 async def create_dramatiq_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     创建新的Dramatiq任务
@@ -15,10 +17,13 @@ async def create_dramatiq_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, 
     Returns:
         创建的Dramatiq任务
     """
+    # 使用提供的ID或生成新的UUID
+    task_id = task_data.get("id") or str(uuid.uuid4())
+
     # 准备任务数据
     task = {
+        "id": task_id,  # 使用提供的ID或UUID作为主键
         "parent_task_id": task_data.get("parent_task_id"),
-        "dramatiq_message_id": task_data.get("dramatiq_message_id"),
         "v0": task_data.get("v0"),
         "v1": task_data.get("v1"),
         "v2": task_data.get("v2"),
@@ -40,8 +45,7 @@ async def create_dramatiq_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, 
     }
 
     # 插入任务
-    result = await db.dramatiq_tasks.insert_one(task)
-    task_id = str(result.inserted_id)
+    await db.dramatiq_tasks.insert_one(task)
 
     # 返回创建的任务
     created_task = await get_dramatiq_task(db, task_id)
@@ -59,31 +63,7 @@ async def get_dramatiq_task(db: Any, task_id: str) -> Optional[Dict[str, Any]]:
         Dramatiq任务详情，如果不存在则返回None
     """
     # 查询任务
-    task = await db.dramatiq_tasks.find_one({"_id": ObjectId(task_id)})
-
-    if task:
-        # 转换ID为字符串
-        task["id"] = str(task.pop("_id"))
-
-    return task
-
-async def get_dramatiq_task_by_message_id(db: Any, message_id: str) -> Optional[Dict[str, Any]]:
-    """
-    通过Dramatiq消息ID获取任务详情
-
-    Args:
-        db: 数据库连接
-        message_id: Dramatiq消息ID
-
-    Returns:
-        Dramatiq任务详情，如果不存在则返回None
-    """
-    # 查询任务
-    task = await db.dramatiq_tasks.find_one({"dramatiq_message_id": message_id})
-
-    if task:
-        # 转换ID为字符串
-        task["id"] = str(task.pop("_id"))
+    task = await db.dramatiq_tasks.find_one({"id": task_id})  # 直接使用id字段查询
 
     return task
 
@@ -124,10 +104,6 @@ async def get_dramatiq_task_by_variables(db: Any, parent_task_id: str, v0: Optio
     # 查询任务
     task = await db.dramatiq_tasks.find_one(query)
 
-    if task:
-        # 转换ID为字符串
-        task["id"] = str(task.pop("_id"))
-
     return task
 
 
@@ -157,10 +133,6 @@ async def get_dramatiq_tasks_by_parent_id(
     cursor = db.dramatiq_tasks.find(query)
     tasks = await cursor.to_list(length=None)
 
-    # 转换ID为字符串
-    for task in tasks:
-        task["id"] = str(task.pop("_id"))
-
     return tasks
 
 async def update_dramatiq_task(db: Any, task_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -180,7 +152,7 @@ async def update_dramatiq_task(db: Any, task_id: str, update_data: Dict[str, Any
 
     # 更新任务
     result = await db.dramatiq_tasks.update_one(
-        {"_id": ObjectId(task_id)},
+        {"id": task_id},  # 直接使用id字段查询
         {"$set": update_data}
     )
 
@@ -205,7 +177,7 @@ async def update_dramatiq_task_status(db: Any, task_id: str, status: str) -> boo
     """
     # 更新任务
     result = await db.dramatiq_tasks.update_one(
-        {"_id": ObjectId(task_id)},
+        {"id": task_id},  # 直接使用id字段查询
         {
             "$set": {
                 "status": status,
@@ -231,7 +203,7 @@ async def update_dramatiq_task_result(db: Any, task_id: str, status: str, result
     """
     # 更新任务
     update_result = await db.dramatiq_tasks.update_one(
-        {"_id": ObjectId(task_id)},
+        {"id": task_id},  # 直接使用id字段查询
         {
             "$set": {
                 "status": status,
@@ -258,7 +230,7 @@ async def update_dramatiq_task_error(db: Any, task_id: str, status: str, error: 
     """
     # 更新任务
     result = await db.dramatiq_tasks.update_one(
-        {"_id": ObjectId(task_id)},
+        {"id": task_id},  # 直接使用id字段查询
         {
             "$set": {
                 "status": status,
@@ -267,31 +239,6 @@ async def update_dramatiq_task_error(db: Any, task_id: str, status: str, error: 
             },
             "$inc": {
                 "retry_count": 1
-            }
-        }
-    )
-
-    return result.modified_count > 0
-
-async def update_dramatiq_task_message_id(db: Any, task_id: str, message_id: str) -> bool:
-    """
-    更新Dramatiq任务的消息ID
-
-    Args:
-        db: 数据库连接
-        task_id: 任务ID
-        message_id: 消息ID
-
-    Returns:
-        更新是否成功
-    """
-    # 更新任务
-    result = await db.dramatiq_tasks.update_one(
-        {"_id": ObjectId(task_id)},
-        {
-            "$set": {
-                "dramatiq_message_id": message_id,
-                "updated_at": datetime.now(timezone.utc)
             }
         }
     )
@@ -328,10 +275,6 @@ async def get_oldest_pending_dramatiq_task(db: Any) -> Optional[Dict[str, Any]]:
         {"status": DramatiqTaskStatus.PENDING.value},
         sort=[("created_at", 1)]
     )
-
-    if task:
-        # 转换ID为字符串
-        task["id"] = str(task.pop("_id"))
 
     return task
 

@@ -36,16 +36,16 @@ $schedulerJob = Start-Job -ScriptBlock {
 }
 Write-Host "[√] 任务调度器已在后台启动 (JobId: $($schedulerJob.Id))" -ForegroundColor Green
 
-# 启动Worker（后台运行）
+# 启动图像生成Worker（后台运行）
 Write-Host ""
 Write-Host "===================================" -ForegroundColor Cyan
-Write-Host "正在启动Dramatiq Worker..." -ForegroundColor Cyan
+Write-Host "正在启动图像生成Worker..." -ForegroundColor Cyan
 Write-Host "===================================" -ForegroundColor Cyan
-$workerJob = Start-Job -ScriptBlock {
+$imageWorkerJob = Start-Job -ScriptBlock {
     Set-Location $using:PWD
-    python -m scripts.dramatiq_worker --processes 2 app.dramatiq.tasks
+    python -m scripts.dramatiq_worker --processes 2 --threads 8
 }
-Write-Host "[√] Dramatiq Worker已在后台启动 (JobId: $($workerJob.Id))" -ForegroundColor Green
+Write-Host "[√] 图像生成Worker（处理actor-make-image队列）已在后台启动 (JobId: $($imageWorkerJob.Id))" -ForegroundColor Green
 
 # 等待几秒钟，确保Worker和调度器已经启动
 Start-Sleep -Seconds 3
@@ -76,9 +76,9 @@ try {
     if ($closeAll -eq "Y" -or $closeAll -eq "y") {
         Write-Host "正在关闭所有后台服务..." -ForegroundColor Yellow
         Stop-Job -Job $schedulerJob
-        Stop-Job -Job $workerJob
+        Stop-Job -Job $imageWorkerJob
         Remove-Job -Job $schedulerJob
-        Remove-Job -Job $workerJob
+        Remove-Job -Job $imageWorkerJob
         Write-Host "[√] 所有服务已关闭" -ForegroundColor Green
     } else {
         Write-Host "[!] 后台服务仍在运行，您可以通过以下命令查看和停止它们:" -ForegroundColor Yellow

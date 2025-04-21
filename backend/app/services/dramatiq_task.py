@@ -10,38 +10,51 @@ Dramatiq任务处理服务模块
 from typing import Dict, Any
 import logging
 import asyncio
+import time
+import os
+import json
 from datetime import datetime, timezone
 
-from app.db.mongodb import get_database, get_database_sync
+from app.db.mongodb import get_database
+from app.db.redis import get_redis_cache
 from app.models.dramatiq_task import DramatiqTaskStatus
 from app.services.image import create_image_generator, format_prompt_for_api
+from app.core.config import settings
 
 # 配置日志
 logger = logging.getLogger(__name__)
 
-async def process_image_task(task_id: str) -> Dict[str, Any]:
+async def process_image_task(dramatiq_task_id: str) -> Dict[str, Any]:
     """
     处理图像生成任务
 
     Args:
-        task_id: Dramatiq任务ID
+        dramatiq_task_id: Dramatiq任务ID（UUID）
 
     Returns:
         处理结果
     """
+    # 记录开始时间，用于计算总耗时
+    start_time = time.time()
     # 在当前事件循环中创建所有异步对象
     # 获取数据库连接
     db = await get_database()
 
     # 获取任务数据
     from app.crud.dramatiq_task import get_dramatiq_task, update_dramatiq_task_status
-    task_data = await get_dramatiq_task(db, task_id)
+    logger.info(f"开始获取任务数据: {dramatiq_task_id}")
+    task_data = await get_dramatiq_task(db, dramatiq_task_id)
 
     if not task_data:
-        raise ValueError(f"找不到任务 {task_id}")
+        logger.error(f"找不到任务 {dramatiq_task_id}")
+        raise ValueError(f"找不到任务 {dramatiq_task_id}")
+
+    logger.info(f"成功获取任务数据: {dramatiq_task_id}, 父任务ID: {task_data.get('parent_task_id')}")
 
     # 更新任务状态为处理中
-    await update_dramatiq_task_status(db, task_id, DramatiqTaskStatus.PROCESSING.value)
+    logger.info(f"更新任务状态为处理中: {dramatiq_task_id}")
+    await update_dramatiq_task_status(db, dramatiq_task_id, DramatiqTaskStatus.PROCESSING.value)
+    logger.info(f"任务状态已更新为处理中: {dramatiq_task_id}")
 
 
 
@@ -83,16 +96,49 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
             all_prompts = [{"type": "freetext", "weight": 1, "value": "placeholder"}]
 
         # 生成图像
-        result = await image_generator.generate_image(
-            prompts=all_prompts,
-            width=width,
-            height=height,
-            seed=seed,
-            advanced_translator=use_polish
-        )
+        logger.info(f"开始生成图像: {dramatiq_task_id}, 宽度={width}, 高度={height}, 种子={seed}, 使用文本润色={use_polish}")
+
+        # 记录当前耗时
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+        logger.info(f"生成图像前耗时: {elapsed_time:.2f} 秒, 任务ID: {dramatiq_task_id}")
+
+        logger.info(f"发送图像生成请求: {dramatiq_task_id}, 提示词数量: {len(all_prompts)}")
+        try:
+            result = await image_generator.generate_image(
+                prompts=all_prompts,
+                width=width,
+                height=height,
+                seed=seed,
+                advanced_translator=use_polish
+            )
+            logger.info(f"图像生成请求已发送并返回结果: {dramatiq_task_id}")
+            logger.info(f"图像生成结果数据结构: {type(result)}, 包含字段: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
+            logger.info(f"图像生成结果: {json.dumps(result, ensure_ascii=False)}")
+        except Exception as e:
+            logger.error(f"图像生成请求失败: {dramatiq_task_id}, 错误: {str(e)}")
+            # 打印异常堆栈
+            import traceback
+            logger.error(f"图像生成异常堆栈:\n{traceback.format_exc()}")
+            raise
 
         # 提取图像URL
-        image_url = await image_generator.extract_image_url(result)
+        logger.info(f"开始提取图像URL: {dramatiq_task_id}")
+
+        # 记录当前耗时
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+        logger.info(f"提取图像URL前耗时: {elapsed_time:.2f} 秒, 任务ID: {dramatiq_task_id}")
+
+        try:
+            image_url = await image_generator.extract_image_url(result)
+            logger.info(f"成功提取图像URL: {dramatiq_task_id}, URL: {image_url[:50] if image_url else 'None'}")
+        except Exception as e:
+            logger.error(f"提取图像URL失败: {dramatiq_task_id}, 错误: {str(e)}")
+            # 打印异常堆栈
+            import traceback
+            logger.error(f"提取URL异常堆栈:\n{traceback.format_exc()}")
+            raise
 
         # 创建结果项
         result_item = {
@@ -104,8 +150,35 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
         }
 
         # 更新任务状态为已完成
-        from app.crud.dramatiq_task import update_dramatiq_task_result
-        await update_dramatiq_task_result(db, task_id, DramatiqTaskStatus.COMPLETED.value, result_item)
+        from app.crud.dramatiq_task import update_dramatiq_task_result, get_dramatiq_task
+        logger.info(f"开始更新任务状态为已完成: {dramatiq_task_id}")
+
+        # 记录当前耗时
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+        logger.info(f"更新任务状态前耗时: {elapsed_time:.2f} 秒, 任务ID: {dramatiq_task_id}")
+
+        await update_dramatiq_task_result(db, dramatiq_task_id, DramatiqTaskStatus.COMPLETED.value, result_item)
+        logger.info(f"任务状态已更新为已完成: {dramatiq_task_id}")
+
+        # 获取任务
+        logger.debug(f"获取更新后的任务数据: {dramatiq_task_id}")
+        dramatiq_task = await get_dramatiq_task(db, dramatiq_task_id)
+        logger.debug(f"成功获取更新后的任务数据: {dramatiq_task_id}")
+
+        # 任务完成后始终清除Redis缓存
+        # 清除Dramatiq结果
+        logger.info(f"开始清除Dramatiq结果: {dramatiq_task_id}")
+        redis_cache = get_redis_cache()
+        cleaned = await redis_cache.clear_dramatiq_results(dramatiq_task_id)  # 直接使用dramatiq_task_id
+        if cleaned:
+            logger.info(f"清除了任务 {dramatiq_task_id} 的Dramatiq结果")
+        else:
+            logger.info(f"没有找到任务 {dramatiq_task_id} 的Dramatiq结果")
+
+        # 记录总耗时
+        total_time = time.time() - start_time
+        logger.info(f"任务处理完成，总耗时: {total_time:.2f} 秒, 任务ID: {dramatiq_task_id}")
 
         return {
             "status": "completed",
@@ -113,13 +186,20 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
         }
     except Exception as e:
         # 记录错误并更新任务状态
-        logger.error(f"生成图像时出错: {str(e)}")
+        total_time = time.time() - start_time
+        logger.error(f"生成图像时出错: {str(e)}, 耗时: {total_time:.2f} 秒, 任务ID: {dramatiq_task_id}")
+
+        # 打印异常堆栈
+        import traceback
+        logger.error(f"异常堆栈:\n{traceback.format_exc()}")
 
         try:
             from app.crud.dramatiq_task import update_dramatiq_task_error
-            await update_dramatiq_task_error(db, task_id, DramatiqTaskStatus.FAILED.value, str(e))
+            logger.info(f"开始更新任务状态为失败: {dramatiq_task_id}")
+            await update_dramatiq_task_error(db, dramatiq_task_id, DramatiqTaskStatus.FAILED.value, str(e))
+            logger.info(f"任务状态已更新为失败: {dramatiq_task_id}")
         except Exception as update_error:
-            logger.error(f"更新任务状态时出错: {str(update_error)}")
+            logger.error(f"更新任务状态时出错: {str(update_error)}, 任务ID: {dramatiq_task_id}")
 
         raise
 
@@ -149,61 +229,119 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
         from app.crud.dramatiq_task import get_dramatiq_tasks_by_parent_id
 
         # 获取子任务
+        logger.info(f"开始获取子任务: {task_id}")
         sub_tasks = await get_dramatiq_tasks_by_parent_id(db, task_id)
+        logger.info(f"子任务获取结果: 找到 {len(sub_tasks)} 个子任务, 任务ID: {task_id}")
 
         # 如果子任务未创建，创建子任务
         if not sub_tasks:
+            logger.info(f"子任务不存在，开始创建子任务: {task_id}")
             # 创建子任务
             from app.services.task import prepare_dramatiq_tasks
             preparation_result = await prepare_dramatiq_tasks(task_id)
 
             if preparation_result.get("status") == "failed":
-                raise Exception(f"创建子任务失败: {preparation_result.get('error')}")
+                error_msg = f"创建子任务失败: {preparation_result.get('error')}"
+                logger.error(error_msg)
+                raise Exception(error_msg)
 
+            logger.info(f"子任务创建成功，开始重新获取子任务: {task_id}")
             # 重新获取子任务
             sub_tasks = await get_dramatiq_tasks_by_parent_id(db, task_id)
+            logger.info(f"重新获取子任务结果: 找到 {len(sub_tasks)} 个子任务, 任务ID: {task_id}")
 
             if not sub_tasks:
-                raise Exception(f"无法创建任务 {task_id} 的子任务")
+                error_msg = f"无法创建任务 {task_id} 的子任务"
+                logger.error(error_msg)
+                raise Exception(error_msg)
 
         # 监控子任务执行
+        logger.info(f"开始监控子任务执行: {task_id}")
+        monitoring_start_time = time.time()
+        monitoring_iteration = 0
+
         while True:
+            monitoring_iteration += 1
+            elapsed_time = time.time() - monitoring_start_time
+            logger.info(f"监控循环第 {monitoring_iteration} 次迭代, 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_id}")
+
             # 获取最新的任务状态
+            logger.debug(f"获取最新的任务状态: {task_id}")
             task_data = await get_task(db, task_id)
 
             # 如果任务已取消，停止执行
             from app.models.task import TaskStatus
             if task_data.get("status") == TaskStatus.CANCELLED.value:
+                logger.info(f"任务已取消，停止监控: {task_id}")
                 return {"status": "cancelled", "message": "任务已取消"}
 
             # 获取子任务状态
+            logger.debug(f"获取子任务状态: {task_id}")
             sub_tasks = await get_dramatiq_tasks_by_parent_id(db, task_id)
             total_tasks = len(sub_tasks)
             completed_tasks = sum(1 for task in sub_tasks if task.get("status") == DramatiqTaskStatus.COMPLETED.value)
             failed_tasks = sum(1 for task in sub_tasks if task.get("status") == DramatiqTaskStatus.FAILED.value)
+            processing_tasks = sum(1 for task in sub_tasks if task.get("status") == DramatiqTaskStatus.PROCESSING.value)
+            pending_tasks = total_tasks - completed_tasks - failed_tasks - processing_tasks
+
+            logger.info(f"子任务状态: 总数={total_tasks}, 完成={completed_tasks}, 失败={failed_tasks}, 处理中={processing_tasks}, 等待中={pending_tasks}, 任务ID: {task_id}")
 
             # 检查是否所有子任务已完成或失败
             all_completed = (completed_tasks + failed_tasks) >= total_tasks
+            logger.debug(f"所有子任务是否已完成或失败: {all_completed}, 任务ID: {task_id}")
 
             # 如果所有子任务已完成或失败
             if all_completed:
+                logger.info(f"所有子任务已完成或失败，开始更新任务状态: {task_id}")
                 # 更新子任务完成状态
+                logger.info(f"更新子任务完成状态: {task_id}")
                 await update_subtasks_completion(db, task_id, True)
+                logger.info(f"子任务完成状态已更新: {task_id}")
 
                 # 更新任务状态
                 from app.models.task import TaskStatus
+                total_time = time.time() - monitoring_start_time
 
                 # 如果所有子任务都失败，则任务失败
                 if failed_tasks == total_tasks:
+                    logger.info(f"所有子任务均失败，更新任务状态为失败: {task_id}, 总耗时: {total_time:.2f}秒")
                     await update_task_status(db, task_id, TaskStatus.FAILED.value)
                     return {"status": "failed", "message": "所有子任务均失败"}
                 # 如果有一些子任务失败，但不是全部，则任务部分完成
                 elif failed_tasks > 0:
+                    logger.info(f"部分子任务失败，更新任务状态为已完成: {task_id}, 失败数: {failed_tasks}/{total_tasks}, 总耗时: {total_time:.2f}秒")
                     await update_task_status(db, task_id, TaskStatus.COMPLETED.value)
                     return {"status": "completed_with_failures", "message": "任务已完成，但有部分子任务失败"}
                 # 如果所有子任务都成功，则任务成功
                 else:
+                    logger.info(f"所有子任务均成功，更新任务状态为已完成: {task_id}, 完成数: {completed_tasks}/{total_tasks}, 总耗时: {total_time:.2f}秒")
                     await update_task_status(db, task_id, TaskStatus.COMPLETED.value)
+
+                    # 如果配置了持久化后清除Redis缓存，则清除任务缓存
+                    if settings.CACHE_CLEANUP_AFTER_PERSIST:
+                        logger.info(f"开始清除任务缓存: {task_id}")
+                        # 清除任务缓存
+                        redis_cache = get_redis_cache()
+                        deleted_count = await redis_cache.clear_task_cache(task_id)
+                        if deleted_count > 0:
+                            logger.info(f"清除了任务 {task_id} 的 {deleted_count} 个缓存项")
+                        else:
+                            logger.info(f"任务 {task_id} 没有缓存项需要清除")
+
+                        # 清除所有子任务的Dramatiq结果
+                        logger.info(f"开始清除子任务的Dramatiq结果: {task_id}, 子任务数量: {len(sub_tasks)}")
+                        cleaned_count = 0
+                        for sub_task in sub_tasks:
+                            sub_task_id = sub_task.get("id")
+                            if sub_task_id:
+                                cleaned = await redis_cache.clear_dramatiq_results(sub_task_id)  # 直接使用id字段
+                                if cleaned:
+                                    cleaned_count += 1
+                                    logger.debug(f"清除了子任务 {sub_task_id} 的Dramatiq结果")
+
+                        logger.info(f"完成清除子任务的Dramatiq结果: {task_id}, 清除数量: {cleaned_count}/{len(sub_tasks)}")
+
+                    logger.info(f"任务已成功完成: {task_id}, 总耗时: {total_time:.2f}秒")
                     return {"status": "completed", "message": "任务已成功完成"}
 
             # 等待一段时间再检查
@@ -226,6 +364,7 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
 async def cleanup_expired_task_data() -> Dict[str, Any]:
     """
     清理过期的任务数据
+    只清理make_images队列中的任务
 
     Returns:
         清理结果
@@ -241,7 +380,7 @@ async def cleanup_expired_task_data() -> Dict[str, Any]:
 
         # 查找过期的任务
         from app.crud.task import list_tasks, delete_task
-        from app.crud.dramatiq_task import delete_dramatiq_tasks_by_parent_id
+        from app.crud.dramatiq_task import delete_dramatiq_tasks_by_parent_id, get_dramatiq_tasks_by_parent_id
 
         # 获取30天前的任务
         result = await list_tasks(
@@ -255,10 +394,28 @@ async def cleanup_expired_task_data() -> Dict[str, Any]:
         expired_tasks = result.get("items", [])
         deleted_count = 0
 
+        # 只清理Redis中的actor-make-image队列任务
+        redis_cache = get_redis_cache()
+        # 清除dramatiq:actor-make-image相关的键
+        make_images_keys_deleted = await redis_cache.delete_pattern("dramatiq:actor-make-image*")
+        logger.info(f"清除了 {make_images_keys_deleted} 个actor-make-image队列相关的Redis键")
+
+        # 注意：不清理actor-tasks队列
+
         # 标记为已删除
         for task in expired_tasks:
             task_id = task.get("id")
             if task_id:
+                # 获取子任务
+                sub_tasks = await get_dramatiq_tasks_by_parent_id(db, task_id)
+
+                # 清除子任务的Dramatiq结果（只清除make_images队列中的结果）
+                for sub_task in sub_tasks:
+                    sub_task_id = sub_task.get("id")
+                    if sub_task_id:
+                        # 清除结果
+                        await redis_cache.clear_dramatiq_results(sub_task_id)
+
                 # 删除任务
                 await delete_task(db, task_id)
 
@@ -269,6 +426,7 @@ async def cleanup_expired_task_data() -> Dict[str, Any]:
 
         return {
             "deleted_count": deleted_count,
+            "make_images_keys_deleted": make_images_keys_deleted,
             "expiration_date": expiration_date.isoformat()
         }
     except Exception as e:

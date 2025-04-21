@@ -43,8 +43,7 @@ class TaskUpdate(BaseModel):
 
 class TaskInDB(TaskBase):
     """数据库中的任务模式"""
-    id: str
-    task_uuid: str
+    id: str  # UUID作为主键
     status: TaskStatus
     created_at: datetime
     updated_at: datetime
@@ -59,8 +58,7 @@ class TaskInDB(TaskBase):
 
 class TaskResponse(BaseModel):
     """任务响应模式"""
-    id: str
-    task_uuid: str
+    id: str  # UUID作为主键
     task_name: str
     username: str
     status: TaskStatus

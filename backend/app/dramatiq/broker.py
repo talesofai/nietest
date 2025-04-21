@@ -34,6 +34,9 @@ class DetailedTaskMiddleware(Middleware):
         logger.info(f"任务名称: {actor_name}")
         logger.info(f"任务参数: args={args}, kwargs={kwargs}")
 
+        # 忽略未使用的broker参数
+        _ = broker
+
     def after_process_message(self, broker, message, *, result=None, exception=None):
         # 从存储中获取开始时间
         start_time = self._task_start_times.pop(message.message_id, None)
@@ -41,6 +44,9 @@ class DetailedTaskMiddleware(Middleware):
         # 记录任务完成的详细信息
         logger.info(f"===== 任务执行完成 =====")
         logger.info(f"任务ID: {message.message_id}")
+
+        # 忽略未使用的broker参数
+        _ = broker
 
         if start_time:
             duration = time.time() - start_time
@@ -61,15 +67,43 @@ class DetailedTaskMiddleware(Middleware):
                     result_str = result_str[:1000] + "... (结果过长已截断)"
                 logger.info(f"任务结果: {result_str}")
 
+        # 任务完成后记录状态
+        if not exception:
+            # 记录任务完成状态
+            set_task_status(message.message_id, {
+                "status": "completed",
+                "completed_at": time.time()
+            })
+            logger.debug(f"任务 {message.message_id} 已完成")
+
 # 创建Redis结果后端
 result_backend = RedisBackend(url=settings.REDIS_URL)
 
 # 创建Redis消息代理
-redis_broker = RedisBroker(url=settings.REDIS_URL)
+# 使用默认中间件，但排除Prometheus中间件
+from dramatiq.middleware import AgeLimit, TimeLimit, Callbacks, Pipelines, Retries
+
+# 创建默认中间件列表，但排除Prometheus中间件
+from dramatiq.middleware import CurrentMessage
+default_middleware = [
+    AgeLimit(),
+    TimeLimit(),
+    Callbacks(),
+    Pipelines(),
+    Retries(min_backoff=1000, max_backoff=900000, max_retries=10),
+    CurrentMessage(),  # 添加CurrentMessage中间件
+]
+
+# 创建Redis消息代理
+redis_broker = RedisBroker(url=settings.REDIS_URL, middleware=default_middleware)
 
 # 添加结果后端和自定义中间件
 redis_broker.add_middleware(Results(backend=result_backend))
 redis_broker.add_middleware(DetailedTaskMiddleware())
+
+# 注册队列
+# 我们只需要actor-make-image队列，因为我们不再使用actor-tasks队列
+redis_broker.declare_queue("actor-make-image")
 
 # 设置Dramatiq使用Redis消息代理
 dramatiq.set_broker(redis_broker)

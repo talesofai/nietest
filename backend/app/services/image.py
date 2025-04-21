@@ -35,8 +35,8 @@ class ImageGenerationService:
         self.task_status_url = "https://api.talesofai.cn/v1/artifact/task/{task_uuid}"
 
         # 轮询配置
-        self.max_polling_attempts = int(os.environ.get("IMAGE_MAX_POLLING_ATTEMPTS", "30"))  # 最大轮询次数
-        self.polling_interval = float(os.environ.get("IMAGE_POLLING_INTERVAL", "2.0"))  # 轮询间隔（秒）
+        self.max_polling_attempts = int(os.environ.get("IMAGE_MAX_POLLING_ATTEMPTS", "15"))  # 最大轮询次数，默认15次
+        self.polling_interval = float(os.environ.get("IMAGE_POLLING_INTERVAL", "1.0"))  # 轮询间隔（秒），默认1秒
 
         # 默认请求头
         self.default_headers = {
@@ -129,7 +129,20 @@ class ImageGenerationService:
         logger.info(f"获取到图像任务UUID: {task_uuid}")
 
         # 轮询任务状态直到完成
-        task_result = await self._poll_task_status(task_uuid)
+        logger.info(f"开始轮询任务状态: {task_uuid}")
+        try:
+            task_result = await self._poll_task_status(task_uuid)
+            if task_result:
+                logger.info(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}")
+                logger.info(f"轮询任务结果: {json.dumps(task_result, ensure_ascii=False)}")
+            else:
+                logger.warning(f"轮询任务状态超时: {task_uuid}, 未能获取结果")
+        except Exception as e:
+            logger.error(f"轮询任务状态失败: {task_uuid}, 错误: {str(e)}")
+            # 打印异常堆栈
+            import traceback
+            logger.error(f"轮询异常堆栈:\n{traceback.format_exc()}")
+            raise
 
         # 构建结果
         result = {
@@ -160,18 +173,29 @@ class ImageGenerationService:
         Returns:
             图像URL
         """
+        logger.info(f"开始从结果中提取图像URL")
+
+        # 输出完整的响应以便调试
+        logger.info(f"完整的API响应类型: {type(result)}, 包含字段: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
+        logger.info(f"完整的API响应: {json.dumps(result, ensure_ascii=False)}")
+
         # 处理新的轮询响应格式
         if "artifacts" in result and isinstance(result["artifacts"], list) and len(result["artifacts"]) > 0:
-            for artifact in result["artifacts"]:
+            logger.info(f"发现artifacts字段，包含 {len(result['artifacts'])} 个项目")
+            for i, artifact in enumerate(result["artifacts"]):
+                logger.info(f"检查artifact[{i}]: {json.dumps(artifact, ensure_ascii=False)}")
                 if isinstance(artifact, dict) and "url" in artifact and artifact.get("status") == "SUCCESS":
+                    logger.info(f"从 artifacts[{i}] 中提取到URL: {artifact['url'][:50]}...")
                     return artifact["url"]
 
         # 如果数据已经包含在data字段中
-        if "data" in result and isinstance(result["data"], dict) and "image_url" in result["data"]:
-            return result["data"]["image_url"]
+        if "data" in result and isinstance(result["data"], dict):
+            logger.info(f"发现data字段: {json.dumps(result['data'], ensure_ascii=False)}")
+            if "image_url" in result["data"]:
+                logger.info(f"从 data 字段中提取到URL: {result['data']['image_url'][:50]}...")
+                return result["data"]["image_url"]
 
-        # 输出完整的响应以便调试
-        logger.debug(f"完整的API响应: {json.dumps(result, ensure_ascii=False)}")
+        logger.warning(f"无法从结果中提取图像URL")
         return ""
 
     # ===== 内部辅助方法 =====
@@ -218,9 +242,13 @@ class ImageGenerationService:
         """
         status_url = self.task_status_url.format(task_uuid=task_uuid)
         logger.info(f"开始轮询任务状态: {status_url}")
+        start_time = time.time()
 
         for attempt in range(self.max_polling_attempts):
             try:
+                elapsed_time = time.time() - start_time
+                logger.info(f"轮询任务状态 (第{attempt+1}/{self.max_polling_attempts}次), 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_uuid}")
+
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.get(
                         status_url,
@@ -233,24 +261,35 @@ class ImageGenerationService:
                     # 解析响应数据
                     result = response.json()
                     task_status = result.get("task_status")
+                    artifacts_count = len(result.get('artifacts', []))
 
-                    logger.debug(f"轮询任务状态 (第{attempt+1}次): {task_status}")
+                    # 记录完整的轮询结果
+                    logger.info(f"轮询任务状态结果 (第{attempt+1}次): {task_status}, 任务ID: {task_uuid}")
+                    logger.info(f"轮询响应详情 (第{attempt+1}次): {json.dumps(result, ensure_ascii=False)}")
+                    logger.info(f"轮询简要信息 (第{attempt+1}次): task_status={task_status}, artifacts_count={artifacts_count}, 任务ID: {task_uuid}")
 
                     # 如果任务完成或失败，返回结果
                     if task_status in ["SUCCESS", "FAILED", "ERROR", "TIMEOUT"]:
-                        logger.info(f"任务完成，状态: {task_status}")
+                        total_time = time.time() - start_time
+                        logger.info(f"任务完成，状态: {task_status}, 总耗时: {total_time:.2f}秒, 任务ID: {task_uuid}")
                         return result
 
                     # 如果任务仍在进行中，等待一段时间后再次轮询
+                    logger.info(f"任务仍在进行中，等待 {self.polling_interval} 秒后再次轮询, 任务ID: {task_uuid}")
                     await asyncio.sleep(self.polling_interval)
 
             except Exception as e:
-                logger.error(f"轮询任务状态时出错: {str(e)}")
+                logger.error(f"轮询任务状态时出错 (第{attempt+1}次): {str(e)}, 任务ID: {task_uuid}")
+                # 打印异常堆栈
+                import traceback
+                logger.error(f"轮询异常堆栈 (第{attempt+1}次):\n{traceback.format_exc()}")
                 # 出错后等待一段时间再重试
+                logger.info(f"出错后等待 {self.polling_interval} 秒再重试, 任务ID: {task_uuid}")
                 await asyncio.sleep(self.polling_interval)
 
         # 超过最大轮询次数仍未完成
-        logger.warning(f"轮询任务状态超时: {task_uuid}")
+        total_time = time.time() - start_time
+        logger.warning(f"轮询任务状态超时: {task_uuid}, 总耗时: {total_time:.2f}秒, 尝试次数: {self.max_polling_attempts}")
         return None
 
     async def _send_api_request(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -263,9 +302,18 @@ class ImageGenerationService:
         Returns:
             API响应
         """
-        try:
-            logger.info(f"调用图像生成API: {json.dumps(payload, ensure_ascii=False)}")
+        # 提取任务标识信息，用于日志
+        task_info = ""
+        if "rawPrompt" in payload and isinstance(payload["rawPrompt"], list):
+            for prompt in payload["rawPrompt"]:
+                if isinstance(prompt, dict) and prompt.get("type") == "oc_vtoken_adaptor" and "name" in prompt:
+                    task_info = f"[角色: {prompt.get('name')}]"
+                    break
 
+        start_time = time.time()
+        logger.info(f"开始调用图像生成API {task_info}: {json.dumps(payload, ensure_ascii=False)}")
+
+        try:
             # 发送API请求
             async with httpx.AsyncClient(timeout=300.0) as client:  # 5分钟超时
                 response = await client.post(
@@ -279,28 +327,40 @@ class ImageGenerationService:
 
                 # 解析响应数据
                 result = response.json()
-                logger.info(f"图像生成请求成功: {result}")
+                elapsed_time = time.time() - start_time
+                logger.info(f"图像生成API请求成功 {task_info}, 耗时: {elapsed_time:.2f}秒")
+                logger.info(f"图像生成API响应: {json.dumps(result, ensure_ascii=False)}")
 
                 return result
 
         except httpx.HTTPStatusError as e:
-            error_msg = f"图像生成API返回错误状态码: {e.response.status_code}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"图像生成API返回错误状态码 {task_info}: {e.response.status_code}, 耗时: {elapsed_time:.2f}秒"
             logger.error(error_msg)
             try:
                 error_data = e.response.json()
-                logger.error(f"错误详情: {error_data}")
-            except:
-                pass
+                logger.error(f"错误详情 {task_info}: {error_data}")
+            except Exception as json_error:
+                logger.error(f"无法解析错误响应 {task_info}: {str(json_error)}")
+                try:
+                    logger.error(f"原始响应内容 {task_info}: {e.response.text}")
+                except:
+                    pass
             raise Exception(error_msg)
 
         except httpx.RequestError as e:
-            error_msg = f"请求图像生成API时出错: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"请求图像生成API时出错 {task_info}: {str(e)}, 耗时: {elapsed_time:.2f}秒"
             logger.error(error_msg)
             raise Exception(error_msg)
 
         except Exception as e:
-            error_msg = f"生成图像时出错: {str(e)}"
+            elapsed_time = time.time() - start_time
+            error_msg = f"生成图像时出错 {task_info}: {str(e)}, 耗时: {elapsed_time:.2f}秒"
             logger.error(error_msg)
+            # 打印异常堆栈
+            import traceback
+            logger.error(f"异常堆栈 {task_info}:\n{traceback.format_exc()}")
             raise Exception(error_msg)
 
 # ===== 工具函数 =====

@@ -21,7 +21,6 @@ class DramatiqTaskCreate(DramatiqTaskBase):
 
 class DramatiqTaskUpdate(BaseModel):
     """Dramatiq任务更新模式"""
-    dramatiq_message_id: Optional[str] = None
     status: Optional[DramatiqTaskStatus] = None
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
@@ -29,8 +28,7 @@ class DramatiqTaskUpdate(BaseModel):
 
 class DramatiqTaskInDB(DramatiqTaskBase):
     """数据库中的Dramatiq任务模式"""
-    id: str
-    dramatiq_message_id: Optional[str] = None
+    id: str  # UUID作为主键
     status: DramatiqTaskStatus
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
@@ -43,9 +41,8 @@ class DramatiqTaskInDB(DramatiqTaskBase):
 
 class DramatiqTaskResponse(BaseModel):
     """Dramatiq任务响应模式"""
-    id: str
+    id: str  # UUID作为主键
     parent_task_id: str
-    dramatiq_message_id: Optional[str] = None
     combination_key: str
     status: DramatiqTaskStatus
     result: Optional[Dict[str, Any]] = None

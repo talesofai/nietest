@@ -3,6 +3,9 @@ from typing import Dict, Any, List, Optional, Union
 from bson import ObjectId
 import uuid
 
+from app.db.redis import get_redis_cache
+from app.core.config import settings
+
 from app.models.task import TaskStatus
 from app.schemas.task import TaskCreate, TaskUpdate
 
@@ -18,7 +21,7 @@ async def create_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, Any]:
         创建的任务
     """
     # 生成任务UUID
-    task_uuid = str(uuid.uuid4())
+    task_id = str(uuid.uuid4())
 
     # 计算图片总数
     total_images = 1
@@ -46,7 +49,7 @@ async def create_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, Any]:
 
     # 准备任务数据
     task = {
-        "task_uuid": task_uuid,
+        "id": task_id,  # 使用UUID作为主键
         "task_name": task_data.get("task_name", "无标题任务"),
         "username": task_data.get("username", ""),
         "tags": task_data.get("tags", []),
@@ -63,8 +66,7 @@ async def create_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
     # 插入任务
-    result = await db.tasks.insert_one(task)
-    task_id = str(result.inserted_id)
+    await db.tasks.insert_one(task)
 
     # 返回创建的任务
     created_task = await get_task(db, task_id)
@@ -81,32 +83,22 @@ async def get_task(db: Any, task_id: str) -> Optional[Dict[str, Any]]:
     Returns:
         任务详情，如果不存在则返回None
     """
+    # 如果启用了缓存，先从缓存中获取
+    if settings.CACHE_ENABLED:
+        redis_cache = get_redis_cache()
+        cache_key = f"task:{task_id}"
+        cached_task = await redis_cache.get(cache_key)
+        if cached_task:
+            return cached_task
+
     # 查询任务
-    task = await db.tasks.find_one({"_id": ObjectId(task_id)})
+    task = await db.tasks.find_one({"id": task_id})  # 直接使用id字段查询
 
-    if task:
-        # 转换ID为字符串
-        task["id"] = str(task.pop("_id"))
-
-    return task
-
-async def get_task_by_uuid(db: Any, task_uuid: str) -> Optional[Dict[str, Any]]:
-    """
-    通过UUID获取任务详情
-
-    Args:
-        db: 数据库连接
-        task_uuid: 任务UUID
-
-    Returns:
-        任务详情，如果不存在则返回None
-    """
-    # 查询任务
-    task = await db.tasks.find_one({"task_uuid": task_uuid})
-
-    if task:
-        # 转换ID为字符串
-        task["id"] = str(task.pop("_id"))
+    if task and settings.CACHE_ENABLED:
+        # 如果启用了缓存，将任务存入缓存
+        redis_cache = get_redis_cache()
+        cache_key = f"task:{task_id}"
+        await redis_cache.set(cache_key, task, settings.CACHE_TASK_TTL)
 
     return task
 
@@ -149,10 +141,6 @@ async def list_tasks(
     cursor = db.tasks.find(query).sort("created_at", -1).skip(skip).limit(page_size)
     tasks = await cursor.to_list(length=page_size)
 
-    # 转换ID为字符串
-    for task in tasks:
-        task["id"] = str(task.pop("_id"))
-
     return {
         "items": tasks,
         "total": total,
@@ -177,12 +165,18 @@ async def update_task(db: Any, task_id: str, update_data: Dict[str, Any]) -> Opt
 
     # 更新任务
     result = await db.tasks.update_one(
-        {"_id": ObjectId(task_id)},
+        {"id": task_id},  # 直接使用id字段查询
         {"$set": update_data}
     )
 
     if result.modified_count == 0:
         return None
+
+    # 如果启用了缓存，清除缓存
+    if settings.CACHE_ENABLED:
+        redis_cache = get_redis_cache()
+        cache_key = f"task:{task_id}"
+        await redis_cache.delete(cache_key)
 
     # 获取更新后的任务
     updated_task = await get_task(db, task_id)
@@ -216,7 +210,7 @@ async def update_task_status(db: Any, task_id: str, status: str, error: Optional
 
     # 更新任务
     result = await db.tasks.update_one(
-        {"_id": ObjectId(task_id)},
+        {"id": task_id},  # 直接使用id字段查询
         {"$set": update_data}
     )
 
@@ -236,7 +230,7 @@ async def update_subtasks_completion(db: Any, task_id: str, all_completed: bool)
     """
     # 更新任务
     result = await db.tasks.update_one(
-        {"_id": ObjectId(task_id)},
+        {"id": task_id},  # 直接使用id字段查询
         {
             "$set": {
                 "all_subtasks_completed": all_completed,
@@ -261,7 +255,7 @@ async def update_task_total_images(db: Any, task_id: str, total_images: int) -> 
     """
     # 更新任务
     result = await db.tasks.update_one(
-        {"_id": ObjectId(task_id)},
+        {"id": task_id},  # 直接使用id字段查询
         {
             "$set": {
                 "total_images": total_images,
@@ -298,7 +292,7 @@ async def delete_task(db: Any, task_id: str) -> bool:
     """
     # 更新任务
     result = await db.tasks.update_one(
-        {"_id": ObjectId(task_id)},
+        {"id": task_id},  # 直接使用id字段查询
         {
             "$set": {
                 "is_deleted": True,
@@ -306,5 +300,11 @@ async def delete_task(db: Any, task_id: str) -> bool:
             }
         }
     )
+
+    # 如果启用了缓存，清除缓存
+    if settings.CACHE_ENABLED and result.modified_count > 0:
+        redis_cache = get_redis_cache()
+        # 清除任务缓存
+        await redis_cache.clear_task_cache(task_id)
 
     return result.modified_count > 0

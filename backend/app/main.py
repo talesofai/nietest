@@ -25,10 +25,25 @@ async def lifespan(app_instance: FastAPI):
     logger.info("Database connection established")
 
     # 初始化Redis缓存
-    if settings.CACHE_ENABLED:
-        redis_cache = get_redis_cache()
-        await redis_cache.connect()
-        logger.info("Redis cache initialized")
+    redis_cache = get_redis_cache()
+    await redis_cache.connect()
+    logger.info("Redis cache initialized")
+
+    # 清理Redis中的任务缓存
+    from app.services.task import clear_all_task_cache
+    deleted_count = await clear_all_task_cache()
+    logger.info(f"应用启动时清理了 {deleted_count} 个任务缓存键")
+
+    # 初始化任务执行器
+    from app.services.task_processor import start_task_executor
+    await start_task_executor(
+        min_concurrent_tasks=5,
+        max_concurrent_tasks=50,
+        scale_up_step=5,
+        scale_up_interval=120,  # 扩容间隔为两分钟
+        scale_down_interval=300
+    )
+    logger.info("任务执行器已初始化")
 
     yield
 
@@ -36,10 +51,9 @@ async def lifespan(app_instance: FastAPI):
     logger.info("Application shutting down...")
 
     # 关闭Redis缓存
-    if settings.CACHE_ENABLED:
-        redis_cache = get_redis_cache()
-        await redis_cache.disconnect()
-        logger.info("Redis cache connection closed")
+    redis_cache = get_redis_cache()
+    await redis_cache.disconnect()
+    logger.info("Redis cache connection closed")
 
     # 关闭数据库连接
     await close_mongo_connection()

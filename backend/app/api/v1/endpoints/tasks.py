@@ -1,12 +1,11 @@
 from typing import Optional
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, Path, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, Path
 
 from app.api.deps import get_current_user, get_optional_current_user
 from app.schemas.task import TaskCreate, TaskResponse, TaskListResponse, TaskDetail
 from app.schemas.common import APIResponse
 from app.services.task import create_task, get_task, list_tasks, cancel_task, delete_task
-from app.dramatiq.tasks import generate_images
 from app.core.config import settings
 
 # 配置日志
@@ -18,7 +17,6 @@ router = APIRouter()
 @router.post("", response_model=APIResponse[TaskResponse])
 async def create_new_task(
     task_data: TaskCreate,
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user)
 ):
     """
@@ -62,7 +60,7 @@ async def create_new_task(
     if not task:
         raise HTTPException(status_code=500, detail="创建任务失败")
 
-    # 立即准备Dramatiq子任务
+    # 立即准备子任务
     from app.services.task import prepare_dramatiq_tasks
     preparation_result = await prepare_dramatiq_tasks(task["id"])
 
@@ -71,8 +69,11 @@ async def create_new_task(
     else:
         logger.info(f"子任务准备成功: {preparation_result.get('message')}")
 
-    # 在后台启动任务监控
-    background_tasks.add_task(generate_images.send, task["id"])
+    # 启动任务监控
+    from app.services.task_processor import monitor_task_progress
+    import asyncio
+    # 异步启动任务监控，不等待结果
+    asyncio.create_task(monitor_task_progress(task["id"]))
 
     # 动态计算processed_images和progress字段
     # 初始创建时这些值都是0

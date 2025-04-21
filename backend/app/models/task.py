@@ -13,7 +13,7 @@ class TaskStatus(str, Enum):
 
 class Task(BaseModel):
     """任务模型"""
-    task_uuid: str
+    id: str  # 使用UUID作为主键
     task_name: str
     username: str
     tags: List[Dict[str, Any]] = []
