@@ -113,7 +113,10 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
     }, [name, isVariable]);
 
     // 处理提交
-    const handleSubmit = useCallback(() => {
+    const handleSubmit = useCallback((e?: React.FormEvent) => {
+        // 阻止表单默认提交行为
+        if (e) e.preventDefault();
+
         // 清除之前的错误
         setFormError(null);
 
@@ -158,7 +161,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onSubmit={handleSubmit}
+            onSubmit={(e) => handleSubmit(e)}
             className="flex flex-col gap-3 p-3 border rounded-lg bg-white shadow-md w-64"
         >
             <div className="flex justify-between items-center">
@@ -299,9 +302,10 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
                 </Button>
                 <Button
                     color="primary"
-                    type="submit"
+                    type="button"
                     startContent={<Icon icon="solar:check-circle-linear" />}
-                    isDisabled={!name}
+                    isDisabled={isVariable && !name}
+                    onPress={() => handleSubmit()}
                 >
                     添加
                 </Button>

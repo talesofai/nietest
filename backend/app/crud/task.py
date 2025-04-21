@@ -75,6 +75,14 @@ async def create_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, Any]:
 
     # 返回创建的任务
     created_task = await get_task(db, task_id)
+
+    # 如果created_task不为None，移除processed_images和progress字段，以避免与默认值冲突
+    if created_task:
+        if "processed_images" in created_task:
+            del created_task["processed_images"]
+        if "progress" in created_task:
+            del created_task["progress"]
+
     return created_task
 
 async def get_task(db: Any, task_id: str) -> Optional[Dict[str, Any]]:

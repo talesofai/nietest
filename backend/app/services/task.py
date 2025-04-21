@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional, Tuple
 import logging
 import uuid
 import random
+import json
 
 from app.db.mongodb import get_database
 from app.db.redis import get_redis_cache
@@ -9,7 +10,7 @@ from app.crud import task as task_crud
 from app.crud import dramatiq_task as dramatiq_task_crud
 from app.models.task import TaskStatus
 from app.models.dramatiq_task import DramatiqTaskStatus
-from app.services.task_processor import create_and_submit_subtasks, monitor_task_progress
+from app.services.task_processor import create_and_submit_subtasks, monitor_task_progress, calculate_combinations
 from app.core.config import settings
 
 # 配置日志
@@ -19,15 +20,11 @@ async def clear_all_task_cache():
     """
     清理Redis中的所有任务缓存
     """
-    try:
-        redis_cache = get_redis_cache()
-        # 清除所有task:开头的键
-        deleted_count = await redis_cache.delete_pattern("task:*")
-        logger.info(f"清除了 {deleted_count} 个任务缓存键")
-        return deleted_count
-    except Exception as e:
-        logger.error(f"清理任务缓存时出错: {str(e)}")
-        return 0
+    redis_cache = get_redis_cache()
+    # 清除所有task:开头的键
+    deleted_count = await redis_cache.delete_pattern("task:*")
+    logger.info(f"清除了 {deleted_count} 个任务缓存键")
+    return deleted_count
 
 async def create_task(task_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -355,257 +352,31 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
     Returns:
         准备结果
     """
-    try:
-        logger.info(f"开始准备任务 {task_id} 的子任务")
-        db = await get_database()
-
-        # 获取任务
-        task_data = await task_crud.get_task(db, task_id)
-        if not task_data:
-            logger.error(f"找不到任务 {task_id}")
-            return {"status": "failed", "error": f"找不到任务 {task_id}"}
-
-        # 计算变量组合
-        logger.info(f"开始计算任务 {task_id} 的变量组合")
-        combinations = await calculate_combinations(task_id, task_data)
-        logger.info(f"任务 {task_id} 共有 {len(combinations)} 个变量组合")
-
-        # 更新任务状态为处理中
-        await task_crud.update_task_status(db, task_id, TaskStatus.PROCESSING.value)
-
-        # 使用新的任务处理器创建和提交子任务
-        # 将计算好的变量组合传递给create_and_submit_subtasks函数
-        result = await create_and_submit_subtasks(task_id, combinations)
-
-        if result.get("status") == "success":
-            logger.info(f"任务 {task_id} 已成功创建子任务: {result.get('message')}")
-            return result
-        else:
-            logger.error(f"创建子任务失败: {result.get('error')}")
-            await task_crud.update_task_status(db, task_id, TaskStatus.FAILED.value, result.get('error'))
-            return result
-
-    except Exception as e:
-        logger.error(f"准备任务时出错: {str(e)}")
-        try:
-            db = await get_database()
-            await task_crud.update_task_status(db, task_id, TaskStatus.FAILED.value, str(e))
-        except Exception as update_error:
-            logger.error(f"更新任务状态时出错: {str(update_error)}")
-        return {"status": "failed", "error": str(e)}
-
-async def calculate_combinations(
-    task_id: str,
-    task_data: Dict[str, Any]
-) -> List[Dict[str, Dict[str, str]]]:
-    """
-    计算所有变量组合
-
-    Args:
-        task_id: 任务ID
-        task_data: 任务数据
-
-    Returns:
-        变量组合列表
-    """
+    logger.info(f"开始准备任务 {task_id} 的子任务")
     db = await get_database()
 
-    # 获取变量
-    variables = task_data.get("variables", {})
+    # 获取任务
+    task_data = await task_crud.get_task(db, task_id)
+    if not task_data:
+        logger.error(f"找不到任务 {task_id}")
+        raise ValueError(f"找不到任务 {task_id}")
 
-    # 记录变量结构
-    logger.debug(f"任务 {task_id} 的变量结构: {variables}")
+    # 计算变量组合
+    logger.info(f"开始计算任务 {task_id} 的变量组合")
+    combinations = await calculate_combinations(task_id, task_data)
+    logger.info(f"任务 {task_id} 共有 {len(combinations)} 个变量组合")
 
-    # 手动计算组合数量
-    manual_count = 1
-    for var_key, var_data in variables.items():
-        if var_key.startswith('v'):
-            # 优先使用values_count字段
-            values_count = var_data.get('values_count')
-            if values_count is None and var_data.get('values'):
-                values_count = len(var_data.get('values'))
+    # 更新任务状态为处理中
+    await task_crud.update_task_status(db, task_id, TaskStatus.PROCESSING.value)
 
-            if values_count and values_count > 0:
-                manual_count *= values_count
+    # 使用新的任务处理器创建和提交子任务
+    # 将计算好的变量组合传递给create_and_submit_subtasks函数
+    result = await create_and_submit_subtasks(task_id, combinations)
 
-    logger.info(f"手动计算的组合数量: {manual_count}")
-
-    # 计算组合
-    # 在这里我们需要实现一个简单的组合计算逻辑
-    import itertools
-
-    # 准备变量值列表
-    var_values = []
-    var_names = []
-
-    for var_name, var_data in sorted(variables.items()):
-        if var_name.startswith('v'):
-            values = var_data.get('values', [])
-            if values:
-                var_names.append(var_name)
-                var_values.append(values)
-
-    # 计算笛卡尔积
-    combinations = []
-    if var_values:
-        for values in itertools.product(*var_values):
-            combination = {}
-            for i, var_name in enumerate(var_names):
-                # 保留变量值的完整信息，包括value、uuid等
-                combination[var_name] = values[i]
-            combinations.append(combination)
-    else:
-        # 如果没有变量，返回一个空组合
-        combinations = [{}]
-
-    # 记录组合详情
-    logger.debug(f"计算出的组合详情: {combinations}")
-
-    # 更新任务的图片总数
-    total_images = len(combinations)
-    logger.info(f"计算出的组合数量: {total_images}")
-
-    # 如果计算出的组合数量与手动计算的不一致，使用手动计算的结果
-    if total_images != manual_count and manual_count > 0:
-        logger.warning(f"计算出的组合数量 ({total_images}) 与手动计算的 ({manual_count}) 不一致，使用手动计算的结果")
-
-        # 如果组合为空或数量不正确，创建正确数量的组合
-        if not combinations or len(combinations) != manual_count:
-            logger.warning(f"组合数量不正确，创建 {manual_count} 个组合")
-
-            # 如果有现有组合，使用第一个作为模板
-            template_combination = combinations[0] if combinations else {}
-
-            # 创建新的组合列表
-            new_combinations = []
-            for i in range(manual_count):
-                if i < len(combinations):
-                    new_combinations.append(combinations[i])
-                else:
-                    # 复制模板并修改ID以避免重复
-                    new_combination = template_combination.copy()
-                    for var_name in new_combination:
-                        if isinstance(new_combination[var_name], dict):
-                            new_dict = new_combination[var_name].copy()
-                            if 'variable_id' in new_dict:
-                                new_dict['variable_id'] = f"{new_dict['variable_id']}_{i}"
-                            new_combination[var_name] = new_dict
-                    new_combinations.append(new_combination)
-
-            combinations = new_combinations
-
-    # 记录组合详情
-    for i, combination in enumerate(combinations):
-        logger.debug(f"组合 {i+1}: {combination}")
-
-    # 更新任务的图片总数
-    await task_crud.update_task_total_images(db, task_id, total_images)
-
-    return combinations
-
-async def extract_parameters(
-    tags: List[Dict[str, Any]],
-    combination: Dict[str, Dict[str, Any]]
-) -> Tuple[List[str], str, Optional[int], bool]:
-    """
-    从标签和组合中提取参数
-
-    Args:
-        tags: 标签列表
-        combination: 变量组合
-
-    Returns:
-        提示词、比例、种子和是否使用润色
-    """
-    try:
-        # 记录输入参数
-        logger.debug(f"提取参数输入: tags={tags}, combination={combination}")
-
-        # 初始化参数
-        prompts = []
-        ratio = "1:1"  # 默认比例
-        seed = random.randint(1, 2147483647)  # 默认随机种子
-        use_polish = False  # 默认不使用润色
-
-        # 创建标签ID到标签类型的映射
-        tag_id_to_type = {}
-        for tag in tags:
-            if tag.get("id") and tag.get("type"):
-                tag_id_to_type[tag.get("id")] = tag.get("type")
-
-        # 从组合中提取变量值
-        for var_key, var_data in combination.items():
-            if var_key.startswith('v') and isinstance(var_data, dict):
-                # 获取变量值和标签ID
-                var_value = var_data.get("value", "")
-                var_tag_id = var_data.get("tag_id", "")
-
-                # 如果没有值或标签ID，跳过
-                if not var_value or not var_tag_id:
-                    continue
-
-                # 获取标签类型
-                var_type = tag_id_to_type.get(var_tag_id)
-
-                # 根据标签类型处理变量值
-                if var_type == "prompt":
-                    # 提示词变量
-                    prompts.append(var_value)
-                elif var_type == "ratio":
-                    # 比例变量
-                    ratio = var_value
-                elif var_type == "seed":
-                    # 种子变量
-                    try:
-                        seed = int(var_value)
-                    except (ValueError, TypeError):
-                        pass
-                elif var_type == "polish":
-                    # 润色变量
-                    use_polish = var_value.lower() == "true"
-                elif var_type == "character":
-                    # 角色变量 - 不在这里处理，在create_and_submit_subtasks中处理
-                    pass
-                elif var_type == "element":
-                    # 元素变量 - 不在这里处理，在create_and_submit_subtasks中处理
-                    pass
-
-        # 处理非变量标签
-        for tag in tags:
-            tag_type = tag.get("type")
-            is_variable = tag.get("is_variable", False)
-
-            # 只处理非变量标签
-            if is_variable:
-                continue
-
-            if tag_type == "prompt":
-                # 提示词标签
-                tag_value = tag.get("value", "")
-                if tag_value:
-                    prompts.append(tag_value)
-            elif tag_type == "ratio" and ratio == "1:1":  # 只有当没有变量覆盖时才使用
-                # 比例标签
-                ratio = tag.get("value", "1:1")
-            elif tag_type == "seed" and seed == random.randint(1, 2147483647):  # 只有当没有变量覆盖时才使用
-                # 种子标签
-                try:
-                    seed_value = tag.get("value")
-                    if seed_value:
-                        seed = int(seed_value)
-                except (ValueError, TypeError):
-                    pass
-            elif tag_type == "polish" and not use_polish:  # 只有当没有变量覆盖时才使用
-                # 润色标签
-                use_polish = tag.get("value", "false").lower() == "true"
-
-        result = (prompts, ratio, seed, use_polish)
-
-        # 记录提取结果
-        logger.debug(f"提取参数结果: {result}")
-
+    if result.get("status") == "success":
+        logger.info(f"任务 {task_id} 已成功创建子任务: {result.get('message')}")
         return result
-    except Exception as e:
-        logger.error(f"提取参数时出错: {str(e)}")
-        # 返回默认值
-        return [], "1:1", random.randint(1, 2147483647), False
+    else:
+        logger.error(f"创建子任务失败: {result.get('error')}")
+        await task_crud.update_task_status(db, task_id, TaskStatus.FAILED.value, result.get('error'))
+        raise ValueError(f"创建子任务失败: {result.get('error')}")

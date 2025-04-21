@@ -92,11 +92,17 @@ async def create_new_task(
 
     # 动态计算processed_images和progress字段
     # 初始创建时这些值都是0
-    task_response = TaskResponse(
-        **task,
-        processed_images=0,
-        progress=0
-    )
+    task_response = None
+    if "processed_images" in task and "progress" in task:
+        # 如果task中已包含所需字段，直接使用
+        task_response = TaskResponse(**task)
+    else:
+        # 如果task中没有这些字段，额外添加它们
+        task_response = TaskResponse(
+            **task,
+            processed_images=0,
+            progress=0
+        )
 
     return APIResponse[TaskResponse](
         code=200,

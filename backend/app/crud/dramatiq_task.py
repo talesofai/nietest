@@ -22,25 +22,23 @@ async def create_dramatiq_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, 
 
     # 准备任务数据
     # 构建变量索引数组
-    variable_indices = []
-    for i in range(6):
-        var_key = f"v{i}"
-        if var_key in task_data and task_data[var_key] is not None:
-            variable_indices.append(task_data[var_key])
-        else:
-            variable_indices.append(None)
+    variable_indices = task_data.get("variable_indices", [None] * 6)
+
+    # 变量类型映射，使类型不与位置绑定
+    variable_types_map = task_data.get("variable_types_map", {})
+    type_to_variable = task_data.get("type_to_variable", {})
 
     task = {
         "id": task_id,  # 使用提供的ID或UUID作为主键
         "parent_task_id": task_data.get("parent_task_id"),
         "variable_indices": variable_indices,  # 使用变量索引数组
+        "variable_types_map": variable_types_map,  # 变量类型映射
+        "type_to_variable": type_to_variable,  # 类型到变量的映射
         "status": task_data.get("status", DramatiqTaskStatus.PENDING.value),
         "result": task_data.get("result"),
         "error": task_data.get("error"),
         "retry_count": task_data.get("retry_count", 0),
-        "prompt": task_data.get("prompt", []),
-        "characters": task_data.get("characters", []),
-        "elements": task_data.get("elements", []),
+        "prompts": task_data.get("prompts", []),  # 使用单一的prompts字段
         "ratio": task_data.get("ratio", "1:1"),
         "seed": task_data.get("seed"),
         "use_polish": task_data.get("use_polish", False),

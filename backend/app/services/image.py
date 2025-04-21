@@ -61,22 +61,6 @@ class ImageGenerationService:
         # 目标总像素数
         target_pixels = 1024 * 1024
 
-        # 如果比例是"3:5"，返回608x1024
-        if ratio == "3:5":
-            return 608, 1024
-
-        # 如果比例是"2:3"，返回680x1024
-        if ratio == "2:3":
-            return 680, 1024
-
-        # 如果比例是"16:9"，返回1024x576
-        if ratio == "16:9":
-            return 1024, 576
-
-        # 如果比例是"1:1"，返回1024x1024
-        if ratio == "1:1":
-            return 1024, 1024
-
         # 如果是其他比例，计算宽高
         parts = ratio.split(":")
         if len(parts) == 2:
@@ -152,15 +136,8 @@ class ImageGenerationService:
             "advanced_translator": advanced_translator
         }
 
-        # 记录请求载荷
-        logger.info(f"请求载荷结构: width={width}, height={height}, seed={seed}, advanced_translator={advanced_translator}")
-        logger.info(f"提示词数量: {len(prompts)}")
-        for i, prompt in enumerate(prompts):
-            prompt_type = prompt.get("type", "unknown")
-            prompt_value = prompt.get("value", "")
-            prompt_weight = prompt.get("weight", 1)
-            prompt_name = prompt.get("name", "")
-            logger.info(f"提示词[{i}]: type={prompt_type}, value={prompt_value}, weight={prompt_weight}, name={prompt_name}")
+        # 记录请求载荷基本信息
+        logger.info(f"请求载荷结构: width={width}, height={height}, seed={seed}, advanced_translator={advanced_translator}, 提示词数量: {len(prompts)}")
 
         # 发送API请求获取任务ID
         task_response = await self._send_api_request(payload)
@@ -178,7 +155,7 @@ class ImageGenerationService:
             task_result = await self._poll_task_status(task_uuid)
             if task_result:
                 logger.info(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}")
-                logger.info(f"轮询任务结果: {json.dumps(task_result, ensure_ascii=False)}")
+                logger.debug(f"轮询任务结果: {json.dumps(task_result, ensure_ascii=False)}")
             else:
                 logger.warning(f"轮询任务状态超时: {task_uuid}, 未能获取结果")
         except Exception as e:
@@ -217,26 +194,23 @@ class ImageGenerationService:
         Returns:
             图像URL
         """
-        logger.info(f"开始从结果中提取图像URL")
+        logger.debug(f"开始从结果中提取图像URL")
 
         # 输出完整的响应以便调试
         logger.debug(f"完整的API响应类型: {type(result)}, 包含字段: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
-        logger.debug(f"完整的API响应: {json.dumps(result, ensure_ascii=False)}")
 
         # 处理新的轮询响应格式
         if "artifacts" in result and isinstance(result["artifacts"], list) and len(result["artifacts"]) > 0:
-            logger.info(f"发现artifacts字段，包含 {len(result['artifacts'])} 个项目")
+            logger.debug(f"发现artifacts字段，包含 {len(result['artifacts'])} 个项目")
             for i, artifact in enumerate(result["artifacts"]):
-                logger.debug(f"检查artifact[{i}]: {json.dumps(artifact, ensure_ascii=False)}")
                 if isinstance(artifact, dict) and "url" in artifact and artifact.get("status") == "SUCCESS":
-                    logger.info(f"从 artifacts[{i}] 中提取到URL: {artifact['url'][:50]}...")
+                    logger.debug(f"从 artifacts[{i}] 中提取到URL: {artifact['url'][:50]}...")
                     return artifact["url"]
 
         # 如果数据已经包含在data字段中
         if "data" in result and isinstance(result["data"], dict):
-            logger.debug(f"发现data字段: {json.dumps(result['data'], ensure_ascii=False)}")
             if "image_url" in result["data"]:
-                logger.info(f"从 data 字段中提取到URL: {result['data']['image_url'][:50]}...")
+                logger.debug(f"从 data 字段中提取到URL: {result['data']['image_url'][:50]}...")
                 return result["data"]["image_url"]
 
         logger.warning(f"无法从结果中提取图像URL")
@@ -285,13 +259,13 @@ class ImageGenerationService:
             任务结果，如果超时则返回None
         """
         status_url = self.task_status_url.format(task_uuid=task_uuid)
-        logger.info(f"开始轮询任务状态: {status_url}")
+        logger.debug(f"开始轮询任务状态: {status_url}")
         start_time = time.time()
 
         for attempt in range(self.max_polling_attempts):
             try:
                 elapsed_time = time.time() - start_time
-                logger.info(f"轮询任务状态 (第{attempt+1}/{self.max_polling_attempts}次), 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_uuid}")
+                logger.debug(f"轮询任务状态 (第{attempt+1}/{self.max_polling_attempts}次), 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_uuid}")
 
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.get(
@@ -307,10 +281,9 @@ class ImageGenerationService:
                     task_status = result.get("task_status")
                     artifacts_count = len(result.get('artifacts', []))
 
-                    # 记录完整的轮询结果
-                    logger.info(f"轮询任务状态结果 (第{attempt+1}次): {task_status}, 任务ID: {task_uuid}")
-                    logger.debug(f"轮询响应详情 (第{attempt+1}次): {json.dumps(result, ensure_ascii=False)}")
-                    logger.info(f"轮询简要信息 (第{attempt+1}次): task_status={task_status}, artifacts_count={artifacts_count}, 任务ID: {task_uuid}")
+                    # 记录轮询结果，但减少日志量
+                    if attempt % 3 == 0 or task_status in ["SUCCESS", "FAILED", "ERROR", "TIMEOUT"]:
+                        logger.debug(f"轮询状态 (第{attempt+1}次): {task_status}, artifacts={artifacts_count}, 任务ID: {task_uuid}")
 
                     # 如果任务完成或失败，返回结果
                     if task_status in ["SUCCESS", "FAILED", "ERROR", "TIMEOUT"]:
@@ -319,7 +292,6 @@ class ImageGenerationService:
                         return result
 
                     # 如果任务仍在进行中，等待一段时间后再次轮询
-                    logger.info(f"任务仍在进行中，等待 {self.polling_interval} 秒后再次轮询, 任务ID: {task_uuid}")
                     await asyncio.sleep(self.polling_interval)
 
             except Exception as e:
@@ -328,7 +300,6 @@ class ImageGenerationService:
                 import traceback
                 logger.error(f"轮询异常堆栈 (第{attempt+1}次):\n{traceback.format_exc()}")
                 # 出错后等待一段时间再重试
-                logger.info(f"出错后等待 {self.polling_interval} 秒再重试, 任务ID: {task_uuid}")
                 await asyncio.sleep(self.polling_interval)
 
         # 超过最大轮询次数仍未完成

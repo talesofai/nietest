@@ -17,13 +17,15 @@ class DramatiqTask(BaseModel):
     parent_task_id: str                                                     # 关联原始任务ID
     # 使用变量索引数组作为唯一标识
     variable_indices: List[Optional[int]] = []                              # 变量索引数组，最多六个元素，对应v0-v5
+    # 变量类型映射，使变量类型不再与位置绑定
+    variable_types_map: Dict[str, str] = {}                                # 变量类型映射，例如{"v0": "polish", "v1": "ratio"}
+    # 按类型访问变量的映射
+    type_to_variable: Dict[str, str] = {}                                  # 类型到变量的映射，例如{"polish": "v0", "ratio": "v1"}
     status: DramatiqTaskStatus = DramatiqTaskStatus.PENDING                 # 任务状态
     result: Optional[Dict[str, Any]] = None                                 # 任务结果
     error: Optional[str] = None                                             # 错误信息
     retry_count: int = 0                                                    # 重试次数
-    prompt: Dict[str, Any] = {"value": "", "weight": 1.0}                  # 提示词，包含value和weight键
-    characters: List[Dict[str, Any]] = []                                   # 角色列表，每项是字典，包含value(实际为uuid)、name、weight和header_url键
-    elements: List[Dict[str, Any]] = []                                     # 元素列表，每项是字典，包含value(实际为uuid)、name、weight和header_url键
+    prompts: List[Dict[str, Any]] = []                                      # 提示词列表，包含所有提示词、角色和元素
     ratio: str = "1:1"                                                      # 比例
     seed: Optional[int] = None                                              # 种子
     use_polish: bool = False                                                # 是否使用润色

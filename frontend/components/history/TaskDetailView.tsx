@@ -55,13 +55,6 @@ interface MatrixImageData {
 // 矩阵数据接口
 interface MatrixData {
     task_id: string;
-    matrix: Record<string, MatrixImageData>;
-    variables: Record<string, any>;
-}
-
-// 矩阵数据接口
-interface MatrixData {
-    task_id: string;
     task_name: string;
     created_at: string;
     variables: Record<string, any>;
@@ -212,85 +205,33 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null; // 例如，从 'v0' 提取 0
         const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null; // 例如，从 'v1' 提取 1
 
-        // 获取变量值对应的索引
-        const xValueIndices: number[] = [];
-        const yValueIndices: number[] = [];
-
-        const xAxisVar = xAxis ? matrixData.variables[xAxis] : null;
-        const yAxisVar = yAxis ? matrixData.variables[yAxis] : null;
-
-        if (xAxisVar?.values) {
-            xAxisVar.values.forEach((v: any, idx: number) => {
-                if (v.value === xValue) xValueIndices.push(idx);
-            });
-        }
-
-        if (yAxisVar?.values) {
-            yAxisVar.values.forEach((v: any, idx: number) => {
-                if (v.value === yValue) yValueIndices.push(idx);
-            });
-        }
-
-        console.log(`[${debugId}] 变量索引:`, {
-            xVarIndex, yVarIndex,
-            xValueIndices, yValueIndices
-        });
-
         // 从坐标映射中查找匹配的图片URL
         if (Object.keys(matrixData.coordinates).length > 0) {
             console.log(`[${debugId}] 从坐标映射中查找匹配的图片`);
 
             // 遍历所有坐标映射
             for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
-                // 将坐标字符串分解为数组，例如 "0,1,,2,," => ["0", "1", "", "2", "", ""]
+                // 将坐标字符串分解为数组，例如 "值1,值2,,值4,," => ["值1", "值2", "", "值4", "", ""]
                 const coordParts = coordKey.split(',');
 
-                // 根据选择的轴数量决定查找策略
+                // 根据选择的轴决定查找策略
                 if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
                     // 两个轴都有值
-                    if (xValueIndices.length > 0 && yValueIndices.length > 0) {
-                        // 获取坐标中的X和Y索引值
-                        const coordXValue = coordParts[xVarIndex];
-                        const coordYValue = coordParts[yVarIndex];
-
-                        // 检查是否匹配当前的X和Y值
-                        if (coordXValue !== "" && coordYValue !== "") {
-                            const coordXIdx = parseInt(coordXValue);
-                            const coordYIdx = parseInt(coordYValue);
-
-                            if (xValueIndices.includes(coordXIdx) && yValueIndices.includes(coordYIdx)) {
-                                console.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
-                                return url;
-                            }
-                        }
+                    if (coordParts[xVarIndex] === xValue && coordParts[yVarIndex] === yValue) {
+                        console.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
+                        return url;
                     }
                 } else if (xAxis && xVarIndex !== null) {
                     // 只有X轴有值
-                    if (xValueIndices.length > 0) {
-                        const coordXValue = coordParts[xVarIndex];
-
-                        if (coordXValue !== "") {
-                            const coordXIdx = parseInt(coordXValue);
-
-                            if (xValueIndices.includes(coordXIdx)) {
-                                console.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
-                                return url;
-                            }
-                        }
+                    if (coordParts[xVarIndex] === xValue) {
+                        console.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
+                        return url;
                     }
                 } else if (yAxis && yVarIndex !== null) {
                     // 只有Y轴有值
-                    if (yValueIndices.length > 0) {
-                        const coordYValue = coordParts[yVarIndex];
-
-                        if (coordYValue !== "") {
-                            const coordYIdx = parseInt(coordYValue);
-
-                            if (yValueIndices.includes(coordYIdx)) {
-                                console.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
-                                return url;
-                            }
-                        }
+                    if (coordParts[yVarIndex] === yValue) {
+                        console.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
+                        return url;
                     }
                 }
             }
@@ -316,12 +257,6 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
         if (!task) {
             console.error("无法生成表格数据：任务对象不存在");
-            return [];
-        }
-
-        // 确保选择了变量
-        if (!xAxis && !yAxis) {
-            console.error("无法生成表格数据：未选择任何变量");
             return [];
         }
 
@@ -422,8 +357,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         // 使用多维坐标系统构建图片映射
         const coordToUrlMap: Record<string, string> = {};
 
-        // 遍历所有子任务，按选定的坐标系构建映射
-        if (task.dramatiq_tasks && task.dramatiq_tasks.length > 0) {
+        // 如果有矩阵数据，直接使用
+        if (matrixData && matrixData.coordinates) {
+            // 所有映射都已经在matrixData.coordinates中
+            console.log(`[${debugId}] 直接使用矩阵数据中的坐标映射`);
+        }
+        // 否则尝试使用旧的方法构建映射
+        else if (task.dramatiq_tasks && task.dramatiq_tasks.length > 0) {
             task.dramatiq_tasks.forEach(subtask => {
                 if (subtask.result && subtask.result.url) {
                     // 根据选择的轴构建坐标键
@@ -470,56 +410,19 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 }
 
                 if (cacheKey && !imageUrlCache[cacheKey]) {
-                    // 使用多维坐标系统查找图片URL
-                    let found = false;
+                    // 使用getImageUrl函数查找图片URL
+                    let imageUrl = null;
 
-                    if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
-                        const xIndices = xValueToIndexMap[colValue] || [];
-                        const yIndices = yValueToIndexMap[rowValue] || [];
-
-                        // 尝试所有可能的索引组合
-                        for (const xIdx of xIndices) {
-                            for (const yIdx of yIndices) {
-                                const coordKey = `${xAxis}_${xIdx}:${yAxis}_${yIdx}`;
-                                if (coordToUrlMap[coordKey]) {
-                                    imageUrlCache[cacheKey] = coordToUrlMap[coordKey];
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if (found) break;
-                        }
-                    } else if (xAxis && xVarIndex !== null) {
-                        const xIndices = xValueToIndexMap[colValue] || [];
-                        for (const xIdx of xIndices) {
-                            const coordKey = `${xAxis}_${xIdx}`;
-                            if (coordToUrlMap[coordKey]) {
-                                imageUrlCache[cacheKey] = coordToUrlMap[coordKey];
-                                found = true;
-                                break;
-                            }
-                        }
-                    } else if (yAxis && yVarIndex !== null) {
-                        const yIndices = yValueToIndexMap[rowValue] || [];
-                        for (const yIdx of yIndices) {
-                            const coordKey = `${yAxis}_${yIdx}`;
-                            if (coordToUrlMap[coordKey]) {
-                                imageUrlCache[cacheKey] = coordToUrlMap[coordKey];
-                                found = true;
-                                break;
-                            }
-                        }
+                    if (xAxis && yAxis) {
+                        imageUrl = getImageUrl(colValue, rowValue);
+                    } else if (xAxis) {
+                        imageUrl = getImageUrl(colValue, '');
+                    } else if (yAxis) {
+                        imageUrl = getImageUrl('', rowValue);
                     }
 
-                    // 如果从坐标系统中没有找到，使用通用方法
-                    if (!found) {
-                        if (xAxis && yAxis) {
-                            imageUrlCache[cacheKey] = getImageUrl(colValue, rowValue);
-                        } else if (xAxis) {
-                            imageUrlCache[cacheKey] = getImageUrl(colValue, '');
-                        } else if (yAxis) {
-                            imageUrlCache[cacheKey] = getImageUrl('', rowValue);
-                        }
+                    if (imageUrl) {
+                        imageUrlCache[cacheKey] = imageUrl;
                     }
                 }
             }
