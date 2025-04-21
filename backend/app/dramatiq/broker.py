@@ -12,9 +12,9 @@ from app.core.config import settings
 # 配置日志
 logger = logging.getLogger(__name__)
 
-# 自定义中间件，用于记录任务执行时间
-class TaskTimeMiddleware(Middleware):
-    """记录任务执行时间的中间件"""
+# 自定义中间件，用于记录任务执行时间和详细信息
+class DetailedTaskMiddleware(Middleware):
+    """记录任务执行的详细信息的中间件"""
 
     # 使用类变量存储任务开始时间
     _task_start_times = {}
@@ -23,12 +23,43 @@ class TaskTimeMiddleware(Middleware):
         # 使用message_id作为键存储开始时间
         self._task_start_times[message.message_id] = time.time()
 
+        # 记录任务开始执行的详细信息
+        actor_name = message.actor_name
+        args = message.args
+        kwargs = message.kwargs
+
+        # 打印详细的任务信息
+        logger.info(f"===== 开始执行任务 =====")
+        logger.info(f"任务ID: {message.message_id}")
+        logger.info(f"任务名称: {actor_name}")
+        logger.info(f"任务参数: args={args}, kwargs={kwargs}")
+
     def after_process_message(self, broker, message, *, result=None, exception=None):
         # 从存储中获取开始时间
         start_time = self._task_start_times.pop(message.message_id, None)
+
+        # 记录任务完成的详细信息
+        logger.info(f"===== 任务执行完成 =====")
+        logger.info(f"任务ID: {message.message_id}")
+
         if start_time:
             duration = time.time() - start_time
-            logger.info(f"任务 {message.message_id} 执行时间: {duration:.2f}秒")
+            logger.info(f"执行时间: {duration:.2f}秒")
+
+        if exception:
+            logger.error(f"任务失败: {str(exception)}")
+            # 打印异常详情
+            import traceback
+            logger.error(f"异常详情:\n{traceback.format_exc()}")
+        else:
+            logger.info(f"任务成功完成")
+
+            # 打印结果摘要（如果结果过大，只打印部分）
+            if result:
+                result_str = str(result)
+                if len(result_str) > 1000:
+                    result_str = result_str[:1000] + "... (结果过长已截断)"
+                logger.info(f"任务结果: {result_str}")
 
 # 创建Redis结果后端
 result_backend = RedisBackend(url=settings.REDIS_URL)
@@ -38,7 +69,7 @@ redis_broker = RedisBroker(url=settings.REDIS_URL)
 
 # 添加结果后端和自定义中间件
 redis_broker.add_middleware(Results(backend=result_backend))
-redis_broker.add_middleware(TaskTimeMiddleware())
+redis_broker.add_middleware(DetailedTaskMiddleware())
 
 # 设置Dramatiq使用Redis消息代理
 dramatiq.set_broker(redis_broker)
