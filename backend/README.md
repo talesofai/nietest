@@ -13,7 +13,7 @@ Backend2 API 是基于 FastAPI 和 MongoDB 构建的后端 API 系统，使用�
 - **基于角色的访问控制**：每个角色具有不同的权限
 - **精细化的权限控制**：支持读取、写入、删除和管理四种操作权限
 - **API 接口的统一响应格式**：标准化 API 响应
-- **基于 Dramatiq 的异步任务队列**：支持长时间运行的任务处理
+- **内置异步任务执行器**：支持长时间运行的任务处理和自动扩缩容
 - **任务进度跟踪和管理**：支持任务创建、查询、取消和删除
 
 ## 技术栈
@@ -24,8 +24,6 @@ Backend2 API 是基于 FastAPI 和 MongoDB 构建的后端 API 系统，使用�
 - **Pydantic**：数据验证和设置管理
 - **Python-jose**：JWT 认证
 - **Passlib**：密码哈希
-- **Dramatiq**：简单高效的分布式任务队列
-- **Redis**：缓存和消息代理
 
 ## 系统架构
 
@@ -50,8 +48,7 @@ backend2/
 │   │   ├── security.py     # 安全相关
 │   │   └── logging.py      # 日志配置
 │   ├── db/                 # 数据库相关
-│   │   ├── mongodb.py      # MongoDB连接
-│   │   └── redis.py        # Redis连接
+│   │   └── mongodb.py      # MongoDB连接
 │   ├── models/             # 数据模型
 │   │   ├── user.py         # 用户模型
 │   │   ├── task.py         # 任务模型
@@ -71,12 +68,12 @@ backend2/
 │   ├── utils/              # 工具函数
 │   │   ├── make_image.py   # 图片生成工具
 │   │   └── common.py       # 通用工具
-│   ├── dramatiq/           # Dramatiq任务
-│   │   ├── broker.py       # 消息代理配置
-│   │   └── tasks.py        # 任务定义
+│   ├── services/           # 业务服务
+│   │   ├── task_executor.py  # 任务执行器
+│   │   └── task_processor.py # 任务处理器
 │   └── main.py             # 应用入口
 ├── docs/                   # 文档
-├── dramatiq_worker.py      # Dramatiq工作进程
+├── start.py                # 启动脚本
 └── requirements.txt        # 依赖项
 ```
 
@@ -93,7 +90,6 @@ backend2/
 
 - Python 3.11+
 - MongoDB
-- Redis
 
 ### 安装依赖
 
@@ -125,21 +121,9 @@ start_web.bat
 
 # Linux/Mac
 uvicorn app.main:app --reload
-
-# 启动 Dramatiq Worker
-# Windows
-start_worker.bat
-
-# Linux/Mac
-python dramatiq_worker.py --processes 2 app.dramatiq.tasks
-
-# 启动定时任务调度器
-# Windows
-start_scheduler.bat
-
-# Linux/Mac
-python dramatiq_worker.py --scheduler
 ```
+
+服务启动后会自动初始化内置的任务执行器，无需单独启动其他组件。
 
 服务将在 http://localhost:8000 上运行，API 文档可在 http://localhost:8000/docs 访问。
 

@@ -14,13 +14,16 @@
 ## 启动脚本
 
 - `start_web.ps1` / `start_web.sh` - 启动Web服务
-- `start_all.ps1` / `start_all.sh` - 一键启动所有服务（Web服务、Worker和调度器）
+
+注意：`start_all.ps1` / `start_all.sh` 脚本已过时，现在只需要启动Web服务即可，任务执行器会自动初始化。
 
 ## 工具脚本
 
-- `check_queues.py` - 检查Dramatiq队列状态
-- `clear_queues.py` - 清空Dramatiq队列
-- `dramatiq_worker.py` - Dramatiq Worker启动脚本
+以下脚本已过时，仅供参考：
+
+- `check_queues.py` - (已过时) 检查Redis中的队列状态
+- `clear_queues.py` - (已过时) 清空Redis中的队列
+- `dramatiq_worker.py` - (已过时) 旧版任务处理脚本
 
 ## 使用方法
 
@@ -31,17 +34,11 @@
 1. 打开 PowerShell 窗口，进入 `backend\scripts` 目录
 2. 运行 `./create_env.ps1` 创建虚拟环境并安装依赖
 3. 运行 `./init_db.ps1` 初始化数据库
-4. 运行 `./start_all.ps1` 启动所有服务
+4. 运行 `./start_web.ps1` 启动Web服务
 
 #### 日常使用
 
-- 如果只需要启动Web服务，运行 `./start_web.ps1`
-- 如果需要启动所有服务，运行 `./start_all.ps1`
-
-#### 工具使用
-
-- 检查队列状态：`python -m scripts.check_queues`
-- 清空队列：`python -m scripts.clear_queues`
+- 启动Web服务：运行 `./start_web.ps1`
 
 ### Linux/macOS 环境
 
@@ -51,21 +48,14 @@
 2. 运行 `chmod +x *.sh` 设置脚本执行权限
 3. 运行 `./create_env.sh` 创建虚拟环境并安装依赖
 4. 运行 `./init_db.sh` 初始化数据库
-5. 运行 `./start_all.sh` 启动所有服务
+5. 运行 `./start_web.sh` 启动Web服务
 
 #### 日常使用
 
-- 如果只需要启动Web服务，运行 `./start_web.sh`
-- 如果需要启动所有服务，运行 `./start_all.sh`
-
-#### 工具使用
-
-- 检查队列状态：`python -m scripts.check_queues`
-- 清空队列：`python -m scripts.clear_queues`
+- 启动Web服务：运行 `./start_web.sh`
 
 ### 注意事项
 
 - 所有脚本应该在 `backend/scripts` 目录下运行
-- `start_all.ps1` / `start_all.sh` 会在前台运行Web服务，在后台运行Worker和调度器
-- 关闭 `start_all.ps1` / `start_all.sh` 窗口时，会询问是否关闭所有后台服务
+- Web服务启动后会自动初始化内置的任务执行器，无需单独启动其他组件
 - 日志文件保存在 `backend/logs` 目录下

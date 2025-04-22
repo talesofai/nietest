@@ -6,20 +6,19 @@
 
 ```
 .
-├── front/            # 前端项目 (Next.js)
+├── frontend/         # 前端项目 (Next.js)
 ├── backend/          # 后端项目 (FastAPI)
 └── openapi.json      # API规范文件
 ```
 
 ## 后端启动步骤
 
-后端是基于FastAPI和MongoDB构建的API系统，使用了领域驱动设计(DDD)架构。
+后端是基于FastAPI和MongoDB构建的API系统，使用常规架构实现。
 
 ### 环境要求
 
 - Python 3.11+
 - MongoDB
-- Redis (用于任务队列)
 
 ### 安装依赖
 
@@ -52,7 +51,11 @@ cp .env.example .env
 ### 初始化数据库
 
 ```bash
-python -m app.infrastructure.database.init_db
+# Windows
+init_db.bat
+
+# Linux/Mac
+python app/db/init_db.py
 ```
 
 系统初始化时会创建一个管理员用户：
@@ -61,22 +64,17 @@ python -m app.infrastructure.database.init_db
 
 ### 启动服务
 
-后端服务包含三个部分，需要分别启动：
+启动后端 Web 服务：
 
-1. **Web服务**：
 ```bash
+# Windows
+start_web.bat
+
+# Linux/Mac
 uvicorn app.main:app --reload
 ```
 
-2. **任务队列Worker**：
-```bash
-python dramatiq_worker.py --processes 4 app.infrastructure.dramatiq.tasks
-```
-
-3. **定时任务调度器**：
-```bash
-python dramatiq_worker.py --scheduler
-```
+服务启动后会自动初始化内置的任务执行器，无需单独启动其他组件。
 
 服务将在 http://localhost:8000 上运行，API文档可在 http://localhost:8000/docs 访问。
 
@@ -93,7 +91,7 @@ python dramatiq_worker.py --scheduler
 
 ```bash
 # 进入前端目录
-cd front
+cd frontend
 
 # 使用pnpm安装依赖
 pnpm install
@@ -134,16 +132,13 @@ pnpm start
 
 推荐的完整启动流程如下：
 
-1. 启动MongoDB和Redis服务（如使用Docker或本地安装）
-2. 启动后端的三个组件：
-   - Web服务
-   - 任务队列Worker
-   - 定时任务调度器
+1. 启动MongoDB服务（如使用Docker或本地安装）
+2. 启动后端 Web 服务（会自动初始化任务执行器）
 3. 启动前端开发服务器
 
 ## 问题排查
 
-- **后端启动失败**：确保MongoDB和Redis服务已启动，且`.env`文件中的连接信息正确
+- **后端启动失败**：确保MongoDB服务已启动，且`.env`文件中的连接信息正确
 - **前端启动失败**：检查Node.js版本是否兼容，以及是否正确安装了所有依赖
 - **API连接错误**：确保后端服务正在运行，且前端的API基础URL配置正确
 
