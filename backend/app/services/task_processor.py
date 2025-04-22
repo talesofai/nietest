@@ -14,6 +14,7 @@ import time
 import os
 import json
 import uuid
+import copy
 from datetime import datetime, timezone
 import random
 
@@ -89,6 +90,20 @@ async def calculate_combinations(
     # 获取变量
     variables = task_data.get("variables", {})
 
+    # 检查是否有batch标签
+    batch_size = 1
+    batch_tag = None
+    for tag in task_data.get("tags", []):
+        if tag.get("type") == "batch" and not tag.get("isVariable", False):
+            try:
+                batch_value = int(tag.get("value", "1"))
+                if batch_value > 1:
+                    batch_size = batch_value
+                    batch_tag = tag
+                    logger.info(f"检测到batch标签，值为: {batch_size}")
+            except (ValueError, TypeError):
+                logger.warning(f"无法将batch标签值 '{tag.get('value')}' 转换为整数，使用默认值1")
+
     # 计算组合
     import itertools
 
@@ -104,7 +119,7 @@ async def calculate_combinations(
                 var_values.append(values)
 
     # 计算笛卡尔积
-    combinations = []
+    base_combinations = []
     if var_values:
         logger.info(f"开始计算 {len(var_names)} 个变量的笛卡尔积")
         for values in itertools.product(*var_values):
@@ -124,12 +139,23 @@ async def calculate_combinations(
                     value_data["index"] = idx
 
                 combination[var_name] = value_data
-            combinations.append(combination)
-
-
+            base_combinations.append(combination)
     else:
         # 如果没有变量，返回一个空组合
-        combinations = [{}]
+        base_combinations = [{}]
+
+    # 处理batch参数，为每个组合创建batch_size个副本
+    combinations = []
+    if batch_size > 1:
+        logger.info(f"应用batch参数: {batch_size}，为每个组合创建{batch_size}个副本")
+        for base_combo in base_combinations:
+            for batch_index in range(batch_size):
+                # 创建组合的副本，并添加batch索引
+                combo_copy = copy.deepcopy(base_combo)
+                combo_copy["_batch_index"] = {"value": str(batch_index), "index": batch_index}
+                combinations.append(combo_copy)
+    else:
+        combinations = base_combinations
 
     # 记录组合数量
     total_images = len(combinations)
@@ -720,6 +746,16 @@ def calculate_variable_indices(variables: Dict[str, Any], combination: Dict[str,
                 except (ValueError, IndexError):
                     logger.warning(f"无法解析变量名 {var_name} 或访问值列表")
                     continue
+        # 处理batch索引，如果存在
+        if "_batch_index" in combination and isinstance(combination["_batch_index"], dict):
+            batch_index = combination["_batch_index"].get("index", 0)
+            # 将batch索引存储在变量索引数组的最后一个位置（v5）
+            # 如果v5已经被使用，则不覆盖它
+            if variable_indices[5] is None:
+                variable_indices[5] = batch_index
+                logger.debug(f"将batch索引 {batch_index} 存储在v5位置")
+            else:
+                logger.warning(f"v5已被使用，无法存储batch索引 {batch_index}")
     except Exception as e:
         logger.warning(f"计算变量索引时发生错误: {str(e)}")
 

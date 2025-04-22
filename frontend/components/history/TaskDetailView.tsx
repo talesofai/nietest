@@ -7,10 +7,6 @@ import {
     SelectItem,
     Image,
     Button,
-    Dropdown,
-    DropdownTrigger,
-    DropdownMenu,
-    DropdownItem,
     Modal,
     ModalContent,
     ModalHeader,
@@ -31,6 +27,7 @@ interface TaskDetailViewProps {
 
 interface TableCellData {
     url: string;
+    urls?: string[];  // 所有匹配的URL，用于显示同一参数组合下的多个batch图片
     xValue: string;
     yValue: string;
     coordinates: Record<string, number>;
@@ -42,15 +39,7 @@ interface TableRowData {
     [columnKey: string]: TableCellData | string | null;
 }
 
-// 坐标系统中的图片数据
-interface MatrixImageData {
-    url: string;
-    coordinates: Record<string, number>;
-    width?: number;
-    height?: number;
-    seed?: number;
-    created_at?: string;
-}
+
 
 // 矩阵数据接口
 interface MatrixData {
@@ -71,18 +60,24 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
     const [currentImageUrl, setCurrentImageUrl] = useState<string>("");
     const [currentImageTitle, setCurrentImageTitle] = useState<string>("");
+    const [currentImageUrls, setCurrentImageUrls] = useState<string[]>([]);
+    const [isGridView, setIsGridView] = useState<boolean>(false);
 
     // 矩阵数据 - 从后端获取的六维空间坐标系统
     const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
-    // 查看大图函数（在当前页面显示模态框）
+    // 查看单张图片函数（在当前页面显示模态框）
     const viewImageInModal = (imageUrl: string, title: string = "") => {
         setCurrentImageUrl(imageUrl);
         setCurrentImageTitle(title);
+        setCurrentImageUrls([imageUrl]);
+        setIsGridView(false);
         setIsImageModalOpen(true);
     };
+
+
 
     // 获取图片的多维坐标信息
     const getCoordinateInfo = (imageUrl: string): string => {
@@ -125,6 +120,16 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
         return coordInfo || "无坐标信息";
     };
+
+    // 根据图片数量确定网格列数
+    const getGridColumns = (imageCount: number): string => {
+        if (imageCount <= 1) return 'grid-cols-1';
+        if (imageCount <= 4) return 'grid-cols-2';
+        if (imageCount <= 9) return 'grid-cols-3';
+        if (imageCount <= 16) return 'grid-cols-4';
+        return 'grid-cols-5'; // 如果超过16张，使用5列
+    };
+
 
     // 从后端获取矩阵数据
     const fetchMatrixData = useCallback(async () => {
@@ -205,6 +210,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null; // 例如，从 'v0' 提取 0
         const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null; // 例如，从 'v1' 提取 1
 
+        // 存储匹配的图片URL
+        const matchingUrls: string[] = [];
+
         // 从坐标映射中查找匹配的图片URL
         if (Object.keys(matrixData.coordinates).length > 0) {
             console.log(`[${debugId}] 从坐标映射中查找匹配的图片`);
@@ -219,22 +227,30 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                     // 两个轴都有值
                     if (coordParts[xVarIndex] === xValue && coordParts[yVarIndex] === yValue) {
                         console.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
-                        return url;
+                        matchingUrls.push(url);
                     }
                 } else if (xAxis && xVarIndex !== null) {
                     // 只有X轴有值
                     if (coordParts[xVarIndex] === xValue) {
                         console.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
-                        return url;
+                        matchingUrls.push(url);
                     }
                 } else if (yAxis && yVarIndex !== null) {
                     // 只有Y轴有值
                     if (coordParts[yVarIndex] === yValue) {
                         console.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
-                        return url;
+                        matchingUrls.push(url);
                     }
                 }
             }
+        }
+
+        // 如果找到了匹配的URL，返回第一个
+        if (matchingUrls.length > 0) {
+            console.log(`[${debugId}] 找到 ${matchingUrls.length} 个匹配的图片URL`);
+            // 如果有多个匹配的URL，返回第一个
+            // 注意：这里可以扩展为返回所有匹配的URL，但需要修改返回类型和调用代码
+            return matchingUrls[0];
         }
 
         // 如果所有方法都失败，尝试返回第一个图片URL
@@ -248,6 +264,48 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
         console.log(`[${debugId}] 未找到 [${xValue}][${yValue}] 的图片URL`);
         return null;
+    };
+
+    // 获取所有匹配的图片URL - 用于显示同一参数组合下的多个batch图片
+    const getAllMatchingImageUrls = (xValue: string, yValue: string): string[] => {
+        if (!matrixData || !task) {
+            return [];
+        }
+
+        // 获取变量索引
+        const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null;
+        const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null;
+
+        // 存储匹配的图片URL
+        const matchingUrls: string[] = [];
+
+        // 从坐标映射中查找匹配的图片URL
+        if (Object.keys(matrixData.coordinates).length > 0) {
+            // 遍历所有坐标映射
+            for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
+                const coordParts = coordKey.split(',');
+
+                // 根据选择的轴决定查找策略
+                if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
+                    // 两个轴都有值
+                    if (coordParts[xVarIndex] === xValue && coordParts[yVarIndex] === yValue) {
+                        matchingUrls.push(url);
+                    }
+                } else if (xAxis && xVarIndex !== null) {
+                    // 只有X轴有值
+                    if (coordParts[xVarIndex] === xValue) {
+                        matchingUrls.push(url);
+                    }
+                } else if (yAxis && yVarIndex !== null) {
+                    // 只有Y轴有值
+                    if (coordParts[yVarIndex] === yValue) {
+                        matchingUrls.push(url);
+                    }
+                }
+            }
+        }
+
+        return matchingUrls;
     };
 
     // 生成表格数据
@@ -469,10 +527,21 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                     }
                 }
 
+                // 获取所有匹配的URL
+                let matchingUrls: string[] = [];
+                if (xAxis && yAxis) {
+                    matchingUrls = getAllMatchingImageUrls(originalColValue, originalRowValue);
+                } else if (xAxis) {
+                    matchingUrls = getAllMatchingImageUrls(originalColValue, '');
+                } else if (yAxis) {
+                    matchingUrls = getAllMatchingImageUrls('', originalRowValue);
+                }
+
                 // 如果找到URL，创建单元格对象
-                if (imageUrl) {
+                if (imageUrl || matchingUrls.length > 0) {
                     rowData[processedColValue] = {
-                        url: imageUrl,
+                        url: imageUrl || matchingUrls[0],  // 使用第一个URL作为主图片
+                        urls: matchingUrls.length > 0 ? matchingUrls : (imageUrl ? [imageUrl] : []),  // 存储所有匹配的URL
                         xValue: originalColValue || '',
                         yValue: originalRowValue || '',
                         coordinates: {}
@@ -798,57 +867,55 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                                         <td key={`cell-${rowIndex}-${colIndex}-${colKey}`} className="border p-2 text-center" style={{ width: '256px', height: '256px', minWidth: '256px', minHeight: '256px', maxWidth: '256px', borderRadius: 0 }}>
                                                             {imageUrl ? (
                                                                 <div className="flex flex-col items-center">
-                                                                    <div
-                                                                        className="w-64 h-64 flex items-center justify-center bg-default-50 overflow-hidden mb-1 cursor-pointer"
-                                                                        onClick={() => viewImageInModal(imageUrl, cellTitle)}
-                                                                    >
-                                                                        <Image
-                                                                            src={imageUrl}
-                                                                            alt={cellTitle}
-                                                                            width={256}
-                                                                            height={256}
-                                                                            radius="none"
-                                                                            className="max-w-full max-h-full object-contain"
-                                                                            onError={() => {
-                                                                                // 当图片加载失败时使用占位图片
-                                                                                console.log('图片加载失败:', imageUrl);
-                                                                                const imgElements = document.querySelectorAll('img[src="' + imageUrl + '"]');
-                                                                                imgElements.forEach(img => {
-                                                                                    img.setAttribute('src', PLACEHOLDER_IMAGE_URL);
-                                                                                });
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                    <div className="flex gap-1">
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="flat"
-                                                                            color="primary"
-                                                                            onPress={() => viewImageInModal(imageUrl, cellTitle)}
+                                                                    {/* 如果有多张图片，显示网格 */}
+                                                                    {cell.urls && cell.urls.length > 1 ? (
+                                                                        <div className={`grid gap-1 ${getGridColumns(cell.urls.length)} w-64 h-64 bg-default-50 overflow-hidden`}>
+                                                                            {cell.urls.map((url, index) => (
+                                                                                <div
+                                                                                    key={index}
+                                                                                    className="relative aspect-square overflow-hidden cursor-pointer"
+                                                                                    onClick={() => viewImageInModal(url, `${cellTitle} - 批次 ${index + 1}`)}
+                                                                                >
+                                                                                    <Image
+                                                                                        src={url}
+                                                                                        alt={`${cellTitle} - 批次 ${index + 1}`}
+                                                                                        width="100%"
+                                                                                        height="100%"
+                                                                                        radius="none"
+                                                                                        className="object-cover"
+                                                                                        onError={() => {
+                                                                                            console.log('图片加载失败:', url);
+                                                                                            const imgElements = document.querySelectorAll(`img[src="${url}"]`);
+                                                                                            imgElements.forEach(img => {
+                                                                                                img.setAttribute('src', PLACEHOLDER_IMAGE_URL);
+                                                                                            });
+                                                                                        }}
+                                                                                    />
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div
+                                                                            className="w-64 h-64 flex items-center justify-center bg-default-50 overflow-hidden cursor-pointer"
+                                                                            onClick={() => viewImageInModal(imageUrl, cellTitle)}
                                                                         >
-                                                                            查看
-                                                                        </Button>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="flat"
-                                                                            color="secondary"
-                                                                            startContent={<Icon icon="solar:info-circle-linear" width={16} />}
-                                                                            onPress={() => {
-                                                                                // 显示坐标信息
-                                                                                let coordInfo = "";
-                                                                                if (cell?.coordinates) {
-                                                                                    coordInfo = getCoordinateInfo(imageUrl);
-                                                                                } else {
-                                                                                    coordInfo = "无坐标信息";
-                                                                                }
-
-                                                                                // 使用浏览器alert显示，简单实现
-                                                                                alert(`多维坐标信息:\n${coordInfo}`);
-                                                                            }}
-                                                                        >
-                                                                            坐标
-                                                                        </Button>
-                                                                    </div>
+                                                                            <Image
+                                                                                src={imageUrl}
+                                                                                alt={cellTitle}
+                                                                                width={256}
+                                                                                height={256}
+                                                                                radius="none"
+                                                                                className="max-w-full max-h-full object-contain"
+                                                                                onError={() => {
+                                                                                    console.log('图片加载失败:', imageUrl);
+                                                                                    const imgElements = document.querySelectorAll('img[src="' + imageUrl + '"]');
+                                                                                    imgElements.forEach(img => {
+                                                                                        img.setAttribute('src', PLACEHOLDER_IMAGE_URL);
+                                                                                    });
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             ) : (
                                                                 <div className="flex flex-col items-center">
@@ -912,26 +979,74 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                             <ModalHeader className="flex justify-between items-center">
                                 <div>
                                     <h3 className="text-lg font-semibold">{currentImageTitle || "图片查看"}</h3>
-                                    {currentImageUrl && (
+                                    {!isGridView && currentImageUrl && (
                                         <p className="text-xs text-default-500 mt-1">
                                             {getCoordinateInfo(currentImageUrl)}
                                         </p>
                                     )}
+                                    {isGridView && (
+                                        <p className="text-xs text-default-500 mt-1">
+                                            批量图片: {currentImageUrls.length} 张
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    {currentImageUrls.length > 1 && (
+                                        <Button
+                                            size="sm"
+                                            variant="flat"
+                                            color="primary"
+                                            onPress={() => setIsGridView(!isGridView)}
+                                        >
+                                            {isGridView ? "单张查看" : "网格查看"}
+                                        </Button>
+                                    )}
                                 </div>
                             </ModalHeader>
-                            <ModalBody className="flex items-center justify-center bg-default-900 p-0 overflow-hidden" style={{ minHeight: "60vh" }}>
-                                {currentImageUrl && (
-                                    <Image
-                                        src={currentImageUrl}
-                                        alt={currentImageTitle}
-                                        width="100%"
-                                        height="auto"
-                                        className="max-w-full max-h-full object-contain"
-                                        style={{ maxHeight: "70vh" }}
-                                        onError={() => {
-                                            console.log('大图加载失败:', currentImageUrl);
-                                        }}
-                                    />
+                            <ModalBody className="bg-default-900 p-4 overflow-auto" style={{ minHeight: "60vh" }}>
+                                {!isGridView && currentImageUrl && (
+                                    <div className="flex items-center justify-center">
+                                        <Image
+                                            src={currentImageUrl}
+                                            alt={currentImageTitle}
+                                            width="100%"
+                                            height="auto"
+                                            className="max-w-full max-h-full object-contain"
+                                            style={{ maxHeight: "70vh" }}
+                                            onError={() => {
+                                                console.log('大图加载失败:', currentImageUrl);
+                                            }}
+                                        />
+                                    </div>
+                                )}
+
+                                {isGridView && currentImageUrls.length > 0 && (
+                                    <div className={`grid gap-4 ${getGridColumns(currentImageUrls.length)}`}>
+                                        {currentImageUrls.map((url, index) => (
+                                            <div
+                                                key={index}
+                                                className="relative aspect-square overflow-hidden border border-default-200 cursor-pointer"
+                                                onClick={() => {
+                                                    setCurrentImageUrl(url);
+                                                    setIsGridView(false);
+                                                }}
+                                            >
+                                                <Image
+                                                    src={url}
+                                                    alt={`${currentImageTitle} - 批次 ${index + 1}`}
+                                                    width="100%"
+                                                    height="100%"
+                                                    className="object-cover"
+                                                    onError={() => {
+                                                        console.log('网格图片加载失败:', url);
+                                                    }}
+                                                />
+                                                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">
+                                                    批次 {index + 1}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </ModalBody>
                             <ModalFooter>
