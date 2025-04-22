@@ -12,7 +12,8 @@ import {
     ModalHeader,
     ModalBody,
     ModalFooter,
-    Spinner
+    Spinner,
+    Slider
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { TaskDetail } from "@/types/task";
@@ -20,6 +21,20 @@ import { getTaskMatrix } from "@/utils/taskService";
 
 // 占位图片URL
 const PLACEHOLDER_IMAGE_URL = "/placeholder-image.png";
+
+// 获取调整尺寸后的图片URL
+const getResizedImageUrl = (url: string, size: number): string => {
+    if (!url) return url;
+
+    // 检查URL是否已经包含OSS处理参数
+    if (url.includes('x-oss-process=')) {
+        return url; // 已经有处理参数，不再添加
+    }
+
+    // 添加OSS处理参数
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}x-oss-process=image/resize,l_${size}/quality,q_80/format,webp`;
+};
 
 interface TaskDetailViewProps {
     task: TaskDetail;
@@ -62,17 +77,36 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     const [currentImageTitle, setCurrentImageTitle] = useState<string>("");
     const [currentImageUrls, setCurrentImageUrls] = useState<string[]>([]);
     const [isGridView, setIsGridView] = useState<boolean>(false);
+    const [hasBatchTag, setHasBatchTag] = useState<boolean>(false);
 
     // 矩阵数据 - 从后端获取的六维空间坐标系统
     const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
+    // 表格缩放控制
+    const [tableScale, setTableScale] = useState<number>(100);
+
     // 查看单张图片函数（在当前页面显示模态框）
     const viewImageInModal = (imageUrl: string, title: string = "") => {
         setCurrentImageUrl(imageUrl);
         setCurrentImageTitle(title);
         setCurrentImageUrls([imageUrl]);
+        setIsGridView(false);
+        setIsImageModalOpen(true);
+    };
+
+    // 查看多张图片函数（用于批次任务）
+    const viewMultipleImagesInModal = (urls: string[], title: string = "") => {
+        if (!hasBatchTag || urls.length <= 1) {
+            // 如果不是批次任务或只有一张图片，则只显示第一张图片
+            viewImageInModal(urls[0], title);
+            return;
+        }
+
+        setCurrentImageUrl(urls[0]);
+        setCurrentImageTitle(title);
+        setCurrentImageUrls(urls);
         setIsGridView(false);
         setIsImageModalOpen(true);
     };
@@ -128,6 +162,15 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         if (imageCount <= 9) return 'grid-cols-3';
         if (imageCount <= 16) return 'grid-cols-4';
         return 'grid-cols-5'; // 如果超过16张，使用5列
+    };
+
+    // 根据批次图片数量确定图片尺寸
+    const getImageSizeByBatchCount = (imageCount: number): number => {
+        if (imageCount <= 1) return 180; // 调整为更合适的尺寸
+        if (imageCount <= 4) return 90;  // 调整为更合适的尺寸
+        if (imageCount <= 9) return 60;  // 调整为更合适的尺寸
+        if (imageCount <= 16) return 45; // 调整为更合适的尺寸
+        return 20; // 如果超过16张，使用更小的尺寸
     };
 
 
@@ -190,10 +233,22 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         }
     }, [task]);
 
-    // 当任务变化时，获取矩阵数据
+    // 当任务变化时，获取矩阵数据并检查批次标签
     useEffect(() => {
         fetchMatrixData();
-    }, [fetchMatrixData]);
+
+        // 检查是否有batch标签
+        if (task && task.tags) {
+            const batchTag = task.tags.find(tag =>
+                tag.type === "batch" &&
+                !tag.isVariable &&
+                parseInt(tag.value) > 1
+            );
+            setHasBatchTag(!!batchTag);
+        } else {
+            setHasBatchTag(false);
+        }
+    }, [fetchMatrixData, task]);
 
     // 获取图片URL - 基于六维空间坐标
     const getImageUrl = (xValue: string, yValue: string) => {
@@ -774,7 +829,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                 <Button
                                     size="sm"
                                     color="primary"
-                                    variant="flat"
+                                    variant="bordered"
+                                    startContent={<Icon icon="solar:refresh-linear" width={16} />}
                                     onPress={() => {
                                         // 强制刷新表格数据
                                         console.log('手动刷新表格数据');
@@ -803,16 +859,33 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 <Card>
                     <CardHeader className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold">结果表格</h3>
-                        <Button
-                            size="sm"
-                            variant="flat"
-                            onPress={toggleFullscreen}
-                            startContent={
-                                <Icon icon={isFullscreen ? "solar:exit-bold-linear" : "solar:maximize-bold-linear"} width={18} />
-                            }
-                        >
-                            {isFullscreen ? "退出全屏" : "全屏查看"}
-                        </Button>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-default-500">缩放：</span>
+                                <Slider
+                                    size="sm"
+                                    step={5}
+                                    minValue={30}
+                                    maxValue={100}
+                                    defaultValue={100}
+                                    value={tableScale}
+                                    onChange={(value) => setTableScale(typeof value === 'number' ? value : value[0])}
+                                    className="w-32"
+                                    aria-label="表格缩放比例"
+                                />
+                                <span className="text-xs text-default-500">{tableScale}%</span>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant="bordered"
+                                onPress={toggleFullscreen}
+                                startContent={
+                                    <Icon icon={isFullscreen ? "solar:exit-bold-linear" : "solar:maximize-bold-linear"} width={18} />
+                                }
+                            >
+                                {isFullscreen ? "退出全屏" : "全屏查看"}
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardBody>
                         <div
@@ -824,14 +897,17 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                 style={{
                                     tableLayout: 'fixed',
                                     width: 'auto',
-                                    borderSpacing: 0,
-                                    borderCollapse: 'collapse',
-                                    borderRadius: 0
+                                    borderSpacing: '8px',
+                                    borderCollapse: 'separate',
+                                    borderRadius: 0,
+                                    transform: `scale(${tableScale / 100})`,
+                                    transformOrigin: 'top left',
+                                    transition: 'transform 0.2s ease'
                                 }}
                             >
                                 <thead>
                                     <tr>
-                                        <th className="border p-1 bg-default-100 text-xs w-20" style={{ minWidth: '80px', borderRadius: 0 }}>
+                                        <th className="border p-1 bg-default-100 text-xs w-20" style={{ minWidth: '80px', borderRadius: 0, border: '1px solid #e0e0e0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                                             {xAxis && yAxis
                                                 ? `${xAxis}:${variableNames[xAxis] || ''} / ${yAxis}:${variableNames[yAxis] || ''}`
                                                 : xAxis
@@ -845,7 +921,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                         {tableData.length > 0 && Object.keys(tableData[0])
                                             .filter(key => key !== 'key' && key !== 'rowTitle')
                                             .map((colKey, colIndex) => (
-                                                <th key={`col-${colIndex}-${colKey}`} className="border p-1 bg-default-100 text-xs" style={{ width: '256px', minWidth: '256px', maxWidth: '256px', borderRadius: 0 }}>
+                                                <th key={`col-${colIndex}-${colKey}`} className="border p-1 bg-default-100 text-xs" style={{ width: '200px', minWidth: '200px', maxWidth: '200px', borderRadius: 0, border: '1px solid #e0e0e0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                                                     {colKey}
                                                 </th>
                                             ))}
@@ -854,7 +930,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                 <tbody>
                                     {tableData.map((row: TableRowData, rowIndex: number) => (
                                         <tr key={`row-${rowIndex}-${row.key}`}>
-                                            <td className="border p-1 font-medium bg-default-50 text-xs w-20" style={{ minWidth: '80px', borderRadius: 0 }}>
+                                            <td className="border p-1 font-medium bg-default-50 text-xs w-20" style={{ minWidth: '80px', borderRadius: 0, border: '1px solid #e0e0e0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                                                 {row.rowTitle}
                                             </td>
                                             {Object.keys(row)
@@ -864,62 +940,68 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                                     const imageUrl = cell?.url;
                                                     const cellTitle = `${row.rowTitle}-${colKey}`;
                                                     return (
-                                                        <td key={`cell-${rowIndex}-${colIndex}-${colKey}`} className="border p-2 text-center" style={{ width: '256px', height: '256px', minWidth: '256px', minHeight: '256px', maxWidth: '256px', borderRadius: 0 }}>
+                                                        <td key={`cell-${rowIndex}-${colIndex}-${colKey}`} className="border p-0 text-center" style={{ width: '200px', height: '200px', minWidth: '200px', minHeight: '200px', borderRadius: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e0e0e0', padding: 0 }}>
                                                             {imageUrl ? (
-                                                                <div className="flex flex-col items-center">
-                                                                    {/* 如果有多张图片，显示网格 */}
-                                                                    {cell.urls && cell.urls.length > 1 ? (
-                                                                        <div className={`grid gap-1 ${getGridColumns(cell.urls.length)} w-64 h-64 bg-default-50 overflow-hidden`}>
+                                                                <div className="w-full h-full">
+                                                                    {/* 如果有多张图片且是批次任务，显示网格 */}
+                                                                    {cell.urls && cell.urls.length > 1 && hasBatchTag ? (
+                                                                        <div className={`grid gap-1 ${getGridColumns(cell.urls.length)} w-full h-full bg-default-50 overflow-hidden`} style={{ gridAutoRows: '1fr' }}>
                                                                             {cell.urls.map((url, index) => (
                                                                                 <div
                                                                                     key={index}
-                                                                                    className="relative aspect-square overflow-hidden cursor-pointer"
+                                                                                    className="relative overflow-hidden cursor-pointer bg-default-50"
                                                                                     onClick={() => viewImageInModal(url, `${cellTitle} - 批次 ${index + 1}`)}
                                                                                 >
-                                                                                    <Image
-                                                                                        src={url}
-                                                                                        alt={`${cellTitle} - 批次 ${index + 1}`}
-                                                                                        width="100%"
-                                                                                        height="100%"
-                                                                                        radius="none"
-                                                                                        className="object-cover"
-                                                                                        onError={() => {
-                                                                                            console.log('图片加载失败:', url);
-                                                                                            const imgElements = document.querySelectorAll(`img[src="${url}"]`);
-                                                                                            imgElements.forEach(img => {
-                                                                                                img.setAttribute('src', PLACEHOLDER_IMAGE_URL);
-                                                                                            });
-                                                                                        }}
-                                                                                    />
+                                                                                    <div className="w-full h-full flex items-center justify-center">
+                                                                                        <Image
+                                                                                            src={getResizedImageUrl(url, getImageSizeByBatchCount(cell.urls?.length || 1))}
+                                                                                            alt={`${cellTitle} - 批次 ${index + 1}`}
+                                                                                            width="auto"
+                                                                                            height="auto"
+                                                                                            radius="none"
+                                                                                            className="max-w-full max-h-full"
+                                                                                            style={{ objectFit: 'none', width: 'auto', height: 'auto' }}
+                                                                                            onError={() => {
+                                                                                                console.log('图片加载失败:', url);
+                                                                                                const imgElements = document.querySelectorAll(`img[src="${getResizedImageUrl(url, getImageSizeByBatchCount(cell.urls?.length || 1))}"]`);
+                                                                                                imgElements.forEach(img => {
+                                                                                                    img.setAttribute('src', PLACEHOLDER_IMAGE_URL);
+                                                                                                });
+                                                                                            }}
+                                                                                        />
+                                                                                    </div>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
                                                                     ) : (
                                                                         <div
-                                                                            className="w-64 h-64 flex items-center justify-center bg-default-50 overflow-hidden cursor-pointer"
-                                                                            onClick={() => viewImageInModal(imageUrl, cellTitle)}
+                                                                            className="w-full h-full bg-default-50 overflow-hidden cursor-pointer"
+                                                                            onClick={() => cell.urls && cell.urls.length > 0 ? viewMultipleImagesInModal(cell.urls, cellTitle) : viewImageInModal(imageUrl, cellTitle)}
                                                                         >
-                                                                            <Image
-                                                                                src={imageUrl}
-                                                                                alt={cellTitle}
-                                                                                width={256}
-                                                                                height={256}
-                                                                                radius="none"
-                                                                                className="max-w-full max-h-full object-contain"
-                                                                                onError={() => {
-                                                                                    console.log('图片加载失败:', imageUrl);
-                                                                                    const imgElements = document.querySelectorAll('img[src="' + imageUrl + '"]');
-                                                                                    imgElements.forEach(img => {
-                                                                                        img.setAttribute('src', PLACEHOLDER_IMAGE_URL);
-                                                                                    });
-                                                                                }}
-                                                                            />
+                                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                                <Image
+                                                                                    src={getResizedImageUrl(imageUrl, 180)}
+                                                                                    alt={cellTitle}
+                                                                                    width="auto"
+                                                                                    height="auto"
+                                                                                    radius="none"
+                                                                                    className="max-w-full max-h-full"
+                                                                                    style={{ objectFit: 'none', width: 'auto', height: 'auto' }}
+                                                                                    onError={() => {
+                                                                                        console.log('图片加载失败:', imageUrl);
+                                                                                        const imgElements = document.querySelectorAll(`img[src="${getResizedImageUrl(imageUrl, 180)}"]`);
+                                                                                        imgElements.forEach(img => {
+                                                                                            img.setAttribute('src', PLACEHOLDER_IMAGE_URL);
+                                                                                        });
+                                                                                    }}
+                                                                                />
+                                                                            </div>
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                             ) : (
-                                                                <div className="flex flex-col items-center">
-                                                                    <div className="w-64 h-64 flex items-center justify-center bg-default-50 overflow-hidden mb-1">
+                                                                <div className="w-full h-full">
+                                                                    <div className="w-full h-full flex items-center justify-center bg-default-50 overflow-hidden">
                                                                         <div className="text-center p-4">
                                                                             <p className="text-default-400 text-sm">未找到图片</p>
                                                                             {xAxis && (
@@ -991,11 +1073,12 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                     )}
                                 </div>
                                 <div className="flex gap-2">
-                                    {currentImageUrls.length > 1 && (
+                                    {currentImageUrls.length > 1 && hasBatchTag && (
                                         <Button
                                             size="sm"
-                                            variant="flat"
+                                            variant="bordered"
                                             color="primary"
+                                            startContent={<Icon icon={isGridView ? "solar:square-single-linear" : "solar:square-multiple-linear"} width={16} />}
                                             onPress={() => setIsGridView(!isGridView)}
                                         >
                                             {isGridView ? "单张查看" : "网格查看"}
@@ -1007,12 +1090,12 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                 {!isGridView && currentImageUrl && (
                                     <div className="flex items-center justify-center">
                                         <Image
-                                            src={currentImageUrl}
+                                            src={currentImageUrl} // 使用原始URL，不添加缩放参数
                                             alt={currentImageTitle}
-                                            width="100%"
+                                            width="auto"
                                             height="auto"
                                             className="max-w-full max-h-full object-contain"
-                                            style={{ maxHeight: "70vh" }}
+                                            style={{ maxHeight: "70vh", objectFit: 'contain' }}
                                             onError={() => {
                                                 console.log('大图加载失败:', currentImageUrl);
                                             }}
@@ -1020,27 +1103,31 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                     </div>
                                 )}
 
-                                {isGridView && currentImageUrls.length > 0 && (
-                                    <div className={`grid gap-4 ${getGridColumns(currentImageUrls.length)}`}>
+                                {isGridView && currentImageUrls.length > 0 && hasBatchTag && (
+                                    <div className={`grid gap-4 ${getGridColumns(currentImageUrls.length)}`} style={{ gridAutoRows: 'minmax(300px, auto)' }}>
                                         {currentImageUrls.map((url, index) => (
                                             <div
                                                 key={index}
-                                                className="relative aspect-square overflow-hidden border border-default-200 cursor-pointer"
+                                                className="relative overflow-hidden border border-default-200 cursor-pointer flex items-center justify-center bg-default-50"
+                                                style={{ minHeight: '300px' }}
                                                 onClick={() => {
                                                     setCurrentImageUrl(url);
                                                     setIsGridView(false);
                                                 }}
                                             >
-                                                <Image
-                                                    src={url}
-                                                    alt={`${currentImageTitle} - 批次 ${index + 1}`}
-                                                    width="100%"
-                                                    height="100%"
-                                                    className="object-cover"
-                                                    onError={() => {
-                                                        console.log('网格图片加载失败:', url);
-                                                    }}
-                                                />
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <Image
+                                                        src={getResizedImageUrl(url, getImageSizeByBatchCount(currentImageUrls.length))}
+                                                        alt={`${currentImageTitle} - 批次 ${index + 1}`}
+                                                        width="auto"
+                                                        height="auto"
+                                                        className="object-contain max-w-full max-h-full"
+                                                        style={{ objectFit: 'contain' }}
+                                                        onError={() => {
+                                                            console.log('网格图片加载失败:', url);
+                                                        }}
+                                                    />
+                                                </div>
                                                 <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 text-center">
                                                     批次 {index + 1}
                                                 </div>
@@ -1052,7 +1139,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                             <ModalFooter>
                                 <Button
                                     color="primary"
-                                    variant="light"
+                                    variant="bordered"
                                     onPress={onClose}
                                     startContent={<Icon icon="solar:close-circle-linear" width={18} />}
                                 >

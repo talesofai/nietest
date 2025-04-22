@@ -20,6 +20,11 @@
     }
 }
 
+/* 确保所有图片保持原始比例 */
+img, .heroui-image, [class*="object-"] {
+    object-fit: contain !important;
+}
+
 /* DND Kit 拖拽样式覆盖 */
 [data-dnd-draggable] {
     transform: none !important;

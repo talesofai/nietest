@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardBody, CardHeader, Progress, Chip, Button, Spinner } from "@heroui/react";
 import { motion } from "framer-motion";
+import { Icon } from "@iconify/react";
 import { TaskStatus, TaskDetail } from "@/app/api/client";
 import { getTaskList, cancelTask } from "@/utils/taskService";
 import { alertService } from "@/utils/alertService";
@@ -122,8 +123,9 @@ const ProgressTab: React.FC = () => {
                 <Button
                     size="sm"
                     color="primary"
-                    variant="light"
+                    variant="bordered"
                     isDisabled={loading}
+                    startContent={<Icon icon="solar:refresh-linear" width={16} />}
                     onPress={() => setRefreshKey(prev => prev + 1)}
                 >
                     刷新
@@ -184,7 +186,8 @@ const ProgressTab: React.FC = () => {
                                                 <Button
                                                     size="sm"
                                                     color="danger"
-                                                    variant="flat"
+                                                    variant="bordered"
+                                                    startContent={<Icon icon="solar:close-circle-linear" width={16} />}
                                                     onPress={() => handleCancelTask(task.id)}
                                                 >
                                                     取消
@@ -194,7 +197,8 @@ const ProgressTab: React.FC = () => {
                                                 <Button
                                                     size="sm"
                                                     color="danger"
-                                                    variant="flat"
+                                                    variant="bordered"
+                                                    startContent={<Icon icon="solar:close-circle-linear" width={16} />}
                                                     onPress={() => handleCancelTask(task.id)}
                                                 >
                                                     取消
@@ -204,7 +208,8 @@ const ProgressTab: React.FC = () => {
                                                 <Button
                                                     size="sm"
                                                     color="primary"
-                                                    variant="flat"
+                                                    variant="bordered"
+                                                    startContent={<Icon icon="solar:eye-linear" width={16} />}
                                                     onPress={() => handleViewResults(task.id)}
                                                 >
                                                     查看结果

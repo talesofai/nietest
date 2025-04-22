@@ -7,6 +7,7 @@ import { TaskStatus, TaskDetail } from "@/app/api/client";
 import { getTaskList } from "@/utils/taskService";
 import { useRouter } from "next/navigation";
 import { SearchIcon, CloseIcon } from "@/components/icons";
+import { Icon } from "@iconify/react";
 
 const HistoryTab: React.FC = () => {
     const router = useRouter();
@@ -247,8 +248,9 @@ const HistoryTab: React.FC = () => {
                         <Button
                             size="sm"
                             color="primary"
-                            variant="light"
+                            variant="bordered"
                             isDisabled={loading}
+                            startContent={<Icon icon="solar:refresh-linear" width={16} />}
                             onPress={() => {
                                 initialLoadDone.current = false;
                                 setRefreshKey(prev => prev + 1);
@@ -288,9 +290,11 @@ const HistoryTab: React.FC = () => {
                         </div>
                         <Button
                             color="primary"
+                            variant="bordered"
                             className="ml-2"
                             onPress={() => handleSearch(searchTerm)}
                             isDisabled={loading}
+                            startContent={<Icon icon="solar:magnifer-linear" width={16} />}
                         >
                             搜索
                         </Button>

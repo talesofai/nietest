@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader, Spinner, Button } from "@heroui/react";
 import { motion } from "framer-motion";
+import { Icon } from "@iconify/react";
 import { getTaskDetail } from "@/utils/taskService";
 import { alertService } from "@/utils/alertService";
 import { TaskDetailView } from "@/components/history/TaskDetailView";
@@ -71,18 +72,20 @@ const TaskDetailPage = () => {
                     <div className="flex gap-2">
                         <Button
                             color="secondary"
-                            variant="light"
+                            variant="bordered"
                             as="a"
                             href={`/history/${params.task_id}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            startContent={<Icon icon="solar:square-top-right-linear" width={16} />}
                         >
                             新标签页打开
                         </Button>
                         <Button
                             color="primary"
-                            variant="light"
+                            variant="bordered"
                             onPress={handleBack}
+                            startContent={<Icon icon="solar:arrow-left-linear" width={16} />}
                         >
                             返回列表
                         </Button>
