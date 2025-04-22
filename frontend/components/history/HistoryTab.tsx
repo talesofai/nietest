@@ -138,36 +138,70 @@ const HistoryTab: React.FC = () => {
             <div className="flex flex-col space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {tasks.map((task) => (
-                        <Card key={task.id} className="shadow-sm hover:shadow-md transition-shadow">
-                            <CardHeader className="pb-0">
-                                <h3 className="text-base font-medium">{task.task_name || `任务 ${task.id.substring(0, 8)}`}</h3>
+                        <Card key={task.id} className="border border-default-200 shadow-sm hover:shadow-md transition-all">
+                            <CardHeader className="flex justify-between items-center pb-2">
+                                <div>
+                                    <h3 className="text-lg font-semibold">{task.task_name || `任务 ${task.id.substring(0, 8)}`}</h3>
+                                    <p className="text-xs text-default-500">
+                                        ID: {task.id.substring(0, 8)}...
+                                    </p>
+                                </div>
+                                <Chip
+                                    size="sm"
+                                    color={
+                                        task.status === TaskStatus.COMPLETED ? "success" :
+                                        task.status === TaskStatus.FAILED ? "danger" :
+                                        task.status === TaskStatus.CANCELLED ? "warning" : "default"
+                                    }
+                                    variant="flat"
+                                >
+                                    {
+                                        task.status === TaskStatus.COMPLETED ? "已完成" :
+                                        task.status === TaskStatus.FAILED ? "失败" :
+                                        task.status === TaskStatus.CANCELLED ? "已取消" : task.status
+                                    }
+                                </Chip>
                             </CardHeader>
                             <CardBody className="pt-0">
-                                <div className="mb-3">
-                                    <h5 className="text-xs font-semibold mb-1">状态</h5>
-                                    <Chip
-                                        size="sm"
-                                        color={
-                                            task.status === TaskStatus.COMPLETED ? "success" :
-                                            task.status === TaskStatus.FAILED ? "danger" :
-                                            task.status === TaskStatus.CANCELLED ? "warning" : "default"
-                                        }
-                                        variant="flat"
-                                    >
-                                        {
-                                            task.status === TaskStatus.COMPLETED ? "已完成" :
-                                            task.status === TaskStatus.FAILED ? "失败" :
-                                            task.status === TaskStatus.CANCELLED ? "已取消" : task.status
-                                        }
-                                    </Chip>
-                                </div>
-                                <div className="mb-3">
-                                    <h5 className="text-xs font-semibold mb-1">图片数量</h5>
-                                    <div className="text-xs">
-                                        {task.total_images || 0} 张图片
+                                <div className="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <h5 className="text-xs font-semibold mb-1 text-default-600">创建时间</h5>
+                                        <div className="text-sm">
+                                            {new Date(task.created_at).toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h5 className="text-xs font-semibold mb-1 text-default-600">更新时间</h5>
+                                        <div className="text-sm">
+                                            {task.updated_at ? new Date(task.updated_at).toLocaleString() : "-"}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex justify-end">
+
+                                <div className="mb-4">
+                                    <h5 className="text-xs font-semibold mb-1 text-default-600">图片数量</h5>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-sm font-medium">
+                                            {task.total_images || 0} 张图片
+                                        </div>
+                                        {task.processed_images !== undefined && (
+                                            <Chip size="sm" variant="flat" color="primary">
+                                                已处理: {task.processed_images} 张
+                                            </Chip>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {task.error && (
+                                    <div className="mb-4">
+                                        <h5 className="text-xs font-semibold mb-1 text-danger">错误信息</h5>
+                                        <div className="text-sm text-danger bg-danger-50 p-2 rounded-md">
+                                            {task.error}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end mt-2">
                                     <Button
                                         color="primary"
                                         size="sm"

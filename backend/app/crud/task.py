@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional, Union
-from bson import ObjectId
+from typing import Dict, Any, List, Optional
 import uuid
 import logging
 
@@ -8,7 +7,6 @@ from app.db.redis import get_redis_cache
 from app.core.config import settings
 
 from app.models.task import TaskStatus
-from app.schemas.task import TaskCreate, TaskUpdate
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -121,7 +119,8 @@ async def list_tasks(
     status: Optional[str] = None,
     task_name: Optional[str] = None,
     page: int = 1,
-    page_size: int = 10
+    page_size: int = 10,
+    created_before: Optional[datetime] = None
 ) -> Dict[str, Any]:
     """
     获取任务列表
@@ -133,6 +132,7 @@ async def list_tasks(
         task_name: 任务名称搜索
         page: 页码
         page_size: 每页大小
+        created_before: 创建时间在此之前（可选）
 
     Returns:
         任务列表和分页信息
@@ -159,6 +159,10 @@ async def list_tasks(
         # 使用正则表达式进行模糊搜索，忽略大小写
         query["task_name"] = {"$regex": task_name, "$options": "i"}
 
+    # 添加创建时间过滤
+    if created_before:
+        query["created_at"] = {"$lt": created_before}
+
     # 记录查询条件
     logger.info(f"任务列表查询条件: {query}")
 
@@ -177,6 +181,64 @@ async def list_tasks(
     logger.info(f"返回 {len(tasks)} 个任务")
     if tasks:
         logger.info(f"第一个任务ID: {tasks[0].get('id')}, 状态: {tasks[0].get('status')}")
+
+    # 对每个任务计算进度
+    # 在函数内部导入，避免循环导入
+    from app.models.subtask import SubTaskStatus
+
+    for task in tasks:
+        # 确保必要字段存在
+        if "priority" not in task:
+            task["priority"] = 1
+        if "total_images" not in task:
+            task["total_images"] = 0
+        if "processed_images" not in task:
+            task["processed_images"] = 0
+        if "progress" not in task:
+            task["progress"] = 0
+
+        # 获取任务状态
+        task_status = task.get("status")
+        task_id = task.get("id")
+
+        # 如果任务状态为已完成/失败/取消，则不需要重新计算进度
+        if task_status in [TaskStatus.COMPLETED.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value]:
+            # 如果是已完成状态，确保进度为100%
+            if task_status == TaskStatus.COMPLETED.value:
+                task["processed_images"] = task.get("total_images", 0)
+                task["progress"] = 100
+            continue
+
+        # 只对未完成的任务计算进度
+        if task_id:
+            # 在这里导入，避免循环导入
+            from app.crud.dramatiq_task import get_dramatiq_tasks_by_parent_id
+            # 获取子任务
+            all_dramatiq_tasks = await get_dramatiq_tasks_by_parent_id(db, task_id)
+
+            # 计算进度
+            total_tasks = len(all_dramatiq_tasks)
+            completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.COMPLETED.value)
+            failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.FAILED.value)
+
+            # 记录子任务状态
+            logger.debug(f"任务 {task_id} 的子任务状态: 总数={total_tasks}, 已完成={completed_tasks}, 失败={failed_tasks}")
+
+            # 添加计算出的进度到任务
+            if total_tasks > 0:
+                task["processed_images"] = completed_tasks + failed_tasks
+                task["progress"] = int((completed_tasks + failed_tasks) / total_tasks * 100)
+
+                # 如果任务未完成，检查是否所有子任务都已完成
+                if completed_tasks + failed_tasks == total_tasks:
+                    # 更新任务状态为已完成
+                    await update_task_status(db, task_id, TaskStatus.COMPLETED.value)
+                    task["status"] = TaskStatus.COMPLETED.value
+                    logger.info(f"任务 {task_id} 已完成，更新状态")
+            else:
+                # 如果没有子任务，设置进度为0
+                task["processed_images"] = 0
+                task["progress"] = 0
 
     return {
         "items": tasks,

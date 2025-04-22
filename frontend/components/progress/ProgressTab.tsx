@@ -154,7 +154,7 @@ const ProgressTab: React.FC = () => {
             ) : (
                 <div className="space-y-4">
                     {tasks.map((task) => (
-                        <Card key={task.id} className="w-full">
+                        <Card key={task.id} className="w-full border border-default-200 shadow-sm hover:shadow-md transition-all">
                             <CardHeader className="flex justify-between items-center">
                                 <h3 className="text-lg font-semibold">{task.task_name}</h3>
                                 <Chip color={getStatusColor(task.status as TaskStatus)} variant="flat">

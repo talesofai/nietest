@@ -178,137 +178,13 @@ async def list_tasks(
     db = await get_database()
 
     # 查询最新的任务列表
+    # 这里直接调用task_crud.list_tasks，它已经包含了进度计算逻辑
     result = await task_crud.list_tasks(db, username, status, task_name, page, page_size)
 
     # 记录查询结果
     logger.info(f"任务列表查询结果: 总数={result.get('total', 0)}, 项目数={len(result.get('items', []))}")
 
-    # 对每个任务计算进度
-    for task in result.get("items", []):
-        # 确保必要字段存在
-        if "priority" not in task:
-            task["priority"] = 1
-        if "total_images" not in task:
-            task["total_images"] = 0
-        if "processed_images" not in task:
-            task["processed_images"] = 0
-        if "progress" not in task:
-            task["progress"] = 0
-
-        # 获取任务状态
-        task_status = task.get("status")
-        task_id = task.get("id")
-
-        # 如果任务状态为已完成/失败/取消，则不需要重新计算进度
-        if task_status in [TaskStatus.COMPLETED.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value]:
-            # 如果是已完成状态，确保进度为100%
-            if task_status == TaskStatus.COMPLETED.value:
-                task["processed_images"] = task.get("total_images", 0)
-                task["progress"] = 100
-            continue
-
-        # 只对未完成的任务计算进度
-        if task_id:
-            # 获取子任务
-            all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
-
-            # 计算进度
-            total_tasks = len(all_dramatiq_tasks)
-            completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.COMPLETED.value)
-            failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.FAILED.value)
-
-            # 记录子任务状态
-            logger.debug(f"任务 {task_id} 的子任务状态: 总数={total_tasks}, 已完成={completed_tasks}, 失败={failed_tasks}")
-
-            # 添加计算出的进度到任务
-            if total_tasks > 0:
-                task["processed_images"] = completed_tasks + failed_tasks
-                task["progress"] = int((completed_tasks + failed_tasks) / total_tasks * 100)
-
-                # 如果任务未完成，检查是否所有子任务都已完成
-                if completed_tasks + failed_tasks == total_tasks:
-                    # 更新任务状态为已完成
-                    await task_crud.update_task_status(db, task_id, TaskStatus.COMPLETED.value)
-                    task["status"] = TaskStatus.COMPLETED.value
-                    logger.info(f"任务 {task_id} 已完成，更新状态")
-            else:
-                # 如果没有子任务，设置进度为0
-                task["processed_images"] = 0
-                task["progress"] = 0
-
-        # 记录任务字段
-        logger.debug(f"任务 {task_id} 的字段: {list(task.keys())}")
-
-        # 如果任务状态为已完成或处理中，且有完成的子任务，获取结果
-        if task_id and task.get("status") in [TaskStatus.COMPLETED.value, TaskStatus.PROCESSING.value] and task.get("processed_images", 0) > 0:
-            # 获取子任务（如果还没有获取过）
-            if not locals().get('all_dramatiq_tasks'):
-                all_dramatiq_tasks = await dramatiq_task_crud.get_dramatiq_tasks_by_parent_id(db, task_id)
-
-            # 获取已完成的子任务
-            completed_dramatiq_tasks = [dt for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.COMPLETED.value]
-
-            # 整理结果
-            raw_results = {}
-            for dt in completed_dramatiq_tasks:
-                if dt.get("result"):
-                    # 提取变量索引
-                    v0 = dt.get("v0")
-                    v1 = dt.get("v1")
-                    v2 = dt.get("v2")
-                    v3 = dt.get("v3")
-                    v4 = dt.get("v4")
-                    v5 = dt.get("v5")
-
-                    # 构建组合键
-                    combination_key = dt.get("combination_key", f"v0_{v0}:v1_{v1}")
-                    raw_results[combination_key] = dt.get("result")
-
-                    # 将变量索引添加到结果中
-                    raw_results[combination_key]["v0"] = v0
-                    raw_results[combination_key]["v1"] = v1
-                    raw_results[combination_key]["v2"] = v2
-                    raw_results[combination_key]["v3"] = v3
-                    raw_results[combination_key]["v4"] = v4
-                    raw_results[combination_key]["v5"] = v5
-
-            # 转换结果格式为前端期望的格式
-            if raw_results:
-                # 获取任务变量
-                task_detail = await get_task(db, task_id)
-                variables = task_detail.get("variables", {})
-
-                # 创建矩阵结果结构
-                matrix_results = {}
-
-                # 遍历所有变量
-                for var_name, var_data in variables.items():
-                    if var_name.startswith('v') and var_data.get("values"):
-                        # 创建变量索引映射
-                        var_values = var_data.get("values", [])
-
-                        # 初始化变量结果
-                        matrix_results[var_name] = {}
-
-                        # 遍历所有结果
-                        for combination_key, result in raw_results.items():
-                            # 获取当前变量的索引
-                            current_var_index = result.get(var_name)
-
-                            # 如果有效索引
-                            if current_var_index is not None and current_var_index < len(var_values):
-                                # 获取变量值
-                                var_value = var_values[current_var_index].get("value", "")
-
-                                # 将结果添加到矩阵中
-                                if var_value not in matrix_results[var_name]:
-                                    matrix_results[var_name][var_value] = result.get("url", "")
-
-                # 添加结果到任务
-                task["results"] = {
-                    "matrix": matrix_results,
-                    "raw": raw_results
-                }
+    # 这里不再需要计算进度，因为已经在 task_crud.list_tasks 中完成
 
     return result
 
