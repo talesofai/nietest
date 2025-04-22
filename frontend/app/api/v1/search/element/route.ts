@@ -1,5 +1,5 @@
 // 导入搜索相关类型和函数
-import { search } from '@/utils/searchService';
+import { searchCharacterOrElement, setXToken } from '@/utils/vtokenService';
 import { API_SEARCH_TYPES } from '@/types/api';
 import { SearchResponse } from '@/types/search';
 
@@ -18,8 +18,13 @@ export async function GET(req: Request) {
         const headers = req.headers;
         const xToken = headers.get('x-token');
 
+        // 如果提供了xToken，先设置到本地存储
+        if (xToken) {
+            setXToken(xToken);
+        }
+
         // 搜索元素
-        const searchResults: SearchResponse = await search(keywords, pageIndex, pageSize, xToken, API_SEARCH_TYPES.ELEMENTUM);
+        const searchResults: SearchResponse = await searchCharacterOrElement(keywords, pageIndex, pageSize, API_SEARCH_TYPES.ELEMENTUM);
 
         // 返回结果
         return Response.json(searchResults);
