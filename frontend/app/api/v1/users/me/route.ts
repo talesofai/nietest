@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "@/utils/apiClient";
+
 /**
  * 获取当前用户信息的API路由
  */
@@ -33,7 +35,8 @@ export async function GET(request: Request): Promise<Response> {
     };
 
     // 构建请求发送到实际的后端
-    const backendUrl = "http://localhost:8000/api/v1/users/me";
+    const API_BASE_URL = getApiBaseUrl();
+    const backendUrl = `${API_BASE_URL}/api/v1/users/me`;
 
     console.log(`转发用户信息请求到后端: ${backendUrl}`);
 
