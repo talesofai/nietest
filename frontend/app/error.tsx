@@ -12,11 +12,14 @@ export default function Error({
   useEffect(() => {
     // Log the error to an error reporting service
     /* eslint-disable no-console */
-    console.error('应用错误:', error instanceof Error ? error.message : JSON.stringify(error));
+    console.error(
+      "应用错误:",
+      error instanceof Error ? error.message : JSON.stringify(error),
+    );
   }, [error]);
 
   // 提取错误消息
-  const errorMessage = error instanceof Error ? error.message : '未知错误';
+  const errorMessage = error instanceof Error ? error.message : "未知错误";
 
   return (
     <div className="p-4 border border-red-300 rounded bg-red-50 my-4 mx-auto max-w-lg">

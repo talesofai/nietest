@@ -24,20 +24,25 @@ export interface PaginatedResponse<T> {
 }
 
 // 导出搜索相关类型
-import { SearchType } from '@/types/search';
+import { SearchType } from "@/types/search";
 export { SearchType };
 
 // 导出所有任务相关类型
-export * from './tasks';
+export * from "./tasks";
 
 // 导出用户认证方法
-export { getAuthToken, getXToken, loginApi, getCurrentUser } from '@/utils/apiClient';
+export {
+  getAuthToken,
+  getXToken,
+  loginApi,
+  getCurrentUser,
+} from "@/utils/apiClient";
 
 // 导出任务管理方法 - 从taskService导出，而不是apiClient
 export {
-    getTaskList,
-    getTaskDetail,
-    getTaskByUuid,
-    deleteTask,
-    cancelTask
-} from '@/utils/taskService';
+  getTaskList,
+  getTaskDetail,
+  getTaskByUuid,
+  deleteTask,
+  cancelTask,
+} from "@/utils/taskService";

@@ -39,6 +39,7 @@
     "react-draggable": "^4.4.6"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.12",
     "@next/eslint-plugin-next": "15.0.4",
     "@react-types/shared": "3.25.0",
     "@types/node": "20.5.7",
