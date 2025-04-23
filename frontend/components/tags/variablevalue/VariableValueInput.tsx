@@ -21,9 +21,9 @@ interface VariableValueInputProps {
 }
 
 // 添加类型谓词函数
-const isCharacterType = (type: string): type is "character" =>
-  type === "character";
+const isCharacterType = (type: string): type is "character" => type === "character";
 const isElementType = (type: string): type is "element" => type === "element";
+
 // 这个类型谓词函数当前未被使用
 // const isPromptType = (type: string): type is "prompt" => type === "prompt";
 
@@ -52,9 +52,7 @@ const VariableValueInput: React.FC<VariableValueInputProps> = ({
   if (tag.type === "polish") {
     return (
       <div className="flex items-center gap-2 flex-grow">
-        <span className="text-sm font-medium">
-          {value.value === "true" ? "启用" : "禁用"}
-        </span>
+        <span className="text-sm font-medium">{value.value === "true" ? "启用" : "禁用"}</span>
         <Switch
           className="ml-2"
           isDisabled={true} // 不允许修改，固定为true/false
@@ -120,11 +118,7 @@ const VariableValueInput: React.FC<VariableValueInputProps> = ({
       return (
         <div className="flex items-center gap-2 w-full">
           <div className="flex-grow">
-            <VTokenDisplay
-              header_img={imageUrl}
-              name={value.value}
-              type={tag.type}
-            />
+            <VTokenDisplay header_img={imageUrl} name={value.value} type={tag.type} />
           </div>
           {onWeightChange && (
             <div className="w-[100px] flex-shrink-0">
@@ -137,9 +131,7 @@ const VariableValueInput: React.FC<VariableValueInputProps> = ({
                 size="sm"
                 step={0.05}
                 type="number"
-                value={
-                  value.weight !== undefined ? value.weight.toString() : "1"
-                }
+                value={value.weight !== undefined ? value.weight.toString() : "1"}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
 
@@ -166,12 +158,8 @@ const VariableValueInput: React.FC<VariableValueInputProps> = ({
             onBlur={onBlur}
             onChange={onChange}
             onFocus={onFocus}
-            onSelectCharacter={
-              isCharacterType(tag.type) ? handleCharacterSelect : undefined
-            }
-            onSelectElement={
-              isElementType(tag.type) ? handleElementSelect : undefined
-            }
+            onSelectCharacter={isCharacterType(tag.type) ? handleCharacterSelect : undefined}
+            onSelectElement={isElementType(tag.type) ? handleElementSelect : undefined}
           />
         </div>
         {onWeightChange && (
@@ -249,12 +237,8 @@ const VariableValueInput: React.FC<VariableValueInputProps> = ({
       onBlur={onBlur}
       onChange={onChange}
       onFocus={onFocus}
-      onSelectCharacter={
-        isCharacterType(tag.type) ? handleCharacterSelect : undefined
-      }
-      onSelectElement={
-        isElementType(tag.type) ? handleElementSelect : undefined
-      }
+      onSelectCharacter={isCharacterType(tag.type) ? handleCharacterSelect : undefined}
+      onSelectElement={isElementType(tag.type) ? handleElementSelect : undefined}
     />
   );
 };

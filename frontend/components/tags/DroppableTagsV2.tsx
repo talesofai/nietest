@@ -87,18 +87,13 @@ const DroppableTagsV2: React.FC = () => {
   } = useAddTag(tags, setTags, setVariableValues);
 
   // 使用配置导入导出 Hook
-  const {
-    handleDownloadConfig,
-    handleUploadConfig,
-    clearAllTags,
-    createBaseConfig,
-  } = useConfigIO(
+  const { handleDownloadConfig, handleUploadConfig, clearAllTags, createBaseConfig } = useConfigIO(
     tags,
     variableValues,
     globalSettings,
     setTags,
     setVariableValues,
-    setGlobalSettings,
+    setGlobalSettings
   );
 
   // 使用任务提交 Hook
@@ -134,9 +129,7 @@ const DroppableTagsV2: React.FC = () => {
   } = useDragAndDrop(setTags);
 
   // 获取活动中的标签
-  const activeTag = activeId
-    ? tags.find((tag) => tag.id === activeId) || null
-    : null;
+  const activeTag = activeId ? tags.find((tag) => tag.id === activeId) || null : null;
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-3xl mx-auto">
@@ -215,6 +208,7 @@ const DroppableTagsV2: React.FC = () => {
         isLoginTipOpen={isLoginTipOpen}
         isSecondConfirmOpen={isSecondConfirmOpen}
         isTaskNameModalOpen={isTaskNameModalOpen}
+        setTaskName={setTaskName}
         taskName={taskName}
         totalImages={totalImages}
         onConfirmAccept={() => {
@@ -238,7 +232,6 @@ const DroppableTagsV2: React.FC = () => {
         onSubmit={proceedWithSubmission}
         onTaskNameModalClose={onTaskNameModalClose}
         onTaskNameModalOpen={onTaskNameModalOpen}
-        setTaskName={setTaskName}
       />
     </div>
   );

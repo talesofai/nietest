@@ -20,14 +20,16 @@ export default function StaticTestPage() {
   const testApiConnection = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // 调用后端健康检查API
       const response = await fetch(`${apiUrl}/health`);
       const data = await response.json();
-      
+
       setApiResponse(JSON.stringify(data, null, 2));
     } catch (err) {
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error("API连接测试失败:", err);
       setError(err instanceof Error ? err.message : "未知错误");
     } finally {
@@ -39,17 +41,13 @@ export default function StaticTestPage() {
     <section className="flex flex-col items-center justify-center gap-8 py-8 md:py-10">
       <div className="inline-block max-w-2xl text-center justify-center">
         <h1 className={title()}>静态页面测试</h1>
-        <p className={subtitle({ class: "mt-4" })}>
-          测试静态页面直接调用后端API
-        </p>
+        <p className={subtitle({ class: "mt-4" })}>测试静态页面直接调用后端API</p>
       </div>
 
       <Card className="w-full max-w-2xl">
         <CardHeader className="flex flex-col gap-1">
           <h2 className="text-xl font-medium">API连接测试</h2>
-          <p className="text-sm text-gray-500">
-            点击按钮测试与后端API的连接
-          </p>
+          <p className="text-sm text-gray-500">点击按钮测试与后端API的连接</p>
         </CardHeader>
         <CardBody className="flex flex-col gap-6">
           <div className="flex items-center gap-2">
@@ -57,11 +55,7 @@ export default function StaticTestPage() {
             <span className="text-sm">{apiUrl}</span>
           </div>
 
-          <Button 
-            color="primary" 
-            onClick={testApiConnection}
-            isLoading={loading}
-          >
+          <Button color="primary" isLoading={loading} onClick={testApiConnection}>
             测试API连接
           </Button>
 

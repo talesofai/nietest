@@ -19,14 +19,10 @@ import { Tag } from "@/types/tag";
  * 拖拽操作自定义Hook
  * 封装标签拖拽排序相关的状态和方法
  */
-export const useDragAndDrop = (
-  setTags: React.Dispatch<React.SetStateAction<Tag[]>>,
-) => {
+export const useDragAndDrop = (setTags: React.Dispatch<React.SetStateAction<Tag[]>>) => {
   // dnd-kit 状态
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [activeTagWidth, setActiveTagWidth] = useState<number | undefined>(
-    undefined,
-  );
+  const [activeTagWidth, setActiveTagWidth] = useState<number | undefined>(undefined);
 
   // 容器引用
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +49,7 @@ export const useDragAndDrop = (
         tolerance: 5, // 允许 5px 的移动容差
       },
     }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor)
   );
 
   // 处理拖拽开始
@@ -89,8 +85,7 @@ export const useDragAndDrop = (
   // 处理拖拽移动
   const handleDragMove = (_event: DragMoveEvent) => {
     // 如果没有容器引用、活动拖拽ID或初始位置，直接返回
-    if (!containerRef.current || !activeId || !initialPositionRef.current)
-      return;
+    if (!containerRef.current || !activeId || !initialPositionRef.current) return;
 
     // 获取容器的边界信息
     const containerRect = containerRef.current.getBoundingClientRect();
@@ -104,8 +99,7 @@ export const useDragAndDrop = (
     const elementRect = activeElement.getBoundingClientRect();
 
     // 计算垂直方向的移动距离
-    const verticalMovement =
-      elementRect.bottom - initialPositionRef.current.bottom;
+    const verticalMovement = elementRect.bottom - initialPositionRef.current.bottom;
 
     // 只有当向下移动且超出容器底部时，才标记为移动到末尾
     const isMovingDownOutOfBounds =

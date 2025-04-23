@@ -13,7 +13,7 @@ const nextConfig = {
   // 禁用图片优化
   images: {
     unoptimized: true,
-    domains: ['oss.talesofai.cn'],
+    domains: ["oss.talesofai.cn"],
   },
   // 最简化配置，解决构建问题
   swcMinify: false,

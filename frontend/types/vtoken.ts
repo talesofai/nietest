@@ -1,8 +1,8 @@
 /**
  * VToken组件库类型定义
  */
-import { ReactNode } from "react";
-import { SearchSelectItem } from "./search";
+import { ReactNode } from  "react";
+import { SearchSelectItem } from  "./search";
 
 /**
  * 角色数据接口

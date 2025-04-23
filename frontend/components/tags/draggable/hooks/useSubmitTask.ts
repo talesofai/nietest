@@ -11,11 +11,7 @@ import { VariableValue } from "@/types/variable";
  * 任务提交相关自定义 Hook
  * 处理任务提交流程和模态框
  */
-export const useSubmitTask = (
-  tags: Tag[],
-  variableValues: VariableValue[],
-  user: any | null,
-) => {
+export const useSubmitTask = (tags: Tag[], variableValues: VariableValue[], user: any | null) => {
   // 路由
   const router = useRouter();
 
@@ -27,11 +23,7 @@ export const useSubmitTask = (
   } = useDisclosure();
 
   // 提交确认模态框状态
-  const {
-    isOpen: isConfirmOpen,
-    onOpen: onConfirmOpen,
-    onClose: onConfirmClose,
-  } = useDisclosure();
+  const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
 
   // 二次确认模态框状态（大量图片）
   const {
@@ -95,15 +87,15 @@ export const useSubmitTask = (
     const { completeSubmitProcess } = require("@/components/tags/submit");
 
     // 传入任务名称
-    completeSubmitProcess(tags, variableValues, taskNameParam).then(
-      (result: any) => {
-        if (result) {
-          // eslint-disable-next-line no-console
-          console.log("提交成功:", result);
-          // 成功后的处理，跳转页面
-        }
-      },
-    );
+    completeSubmitProcess(tags, variableValues, taskNameParam).then((result: any) => {
+      if (result) {
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
+        console.log("提交成功:", result);
+        // 成功后的处理，跳转页面
+      }
+    });
   };
 
   return {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, ReactNode } from "react";
+
 import { getClientSafeDataVersion } from "@/utils/hydrationHelper";
 
 interface HydrationFixProps {
@@ -11,7 +12,7 @@ interface HydrationFixProps {
 
 /**
  * 修复hydration错误的组件
- * 
+ *
  * 用于包装那些可能导致hydration错误的元素，特别是包含动态生成的data-*属性的元素
  */
 export default function HydrationFix({ children, className, id }: HydrationFixProps) {
@@ -30,18 +31,23 @@ export default function HydrationFix({ children, className, id }: HydrationFixPr
 
   // 在服务器端渲染时，不添加可能导致hydration错误的属性
   if (!isClient) {
-    return <div className={className} id={id} suppressHydrationWarning>{children}</div>;
+    return (
+      <div suppressHydrationWarning className={className} id={id}>
+        {children}
+      </div>
+    );
   }
 
   // 在客户端渲染后，添加所有属性
+
   return (
-    <div 
-      className={className} 
-      id={id}
-      data-version={dataVersion}
-      data-settings-changed-at={dataSettingsChangedAt}
-      data-cid={dataCid}
+    <div
       suppressHydrationWarning
+      className={className}
+      data-cid={dataCid}
+      data-settings-changed-at={dataSettingsChangedAt}
+      data-version={dataVersion}
+      id={id}
     >
       {children}
     </div>

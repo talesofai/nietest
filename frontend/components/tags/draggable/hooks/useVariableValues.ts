@@ -10,7 +10,7 @@ import { VariableValue } from "@/types/variable";
  */
 export const useVariableValues = (
   setVariableValues: React.Dispatch<React.SetStateAction<VariableValue[]>>,
-  tags: Tag[],
+  tags: Tag[]
 ) => {
   // 处理变量值重新排序
   const handleReorderValues = (tagId: string, newValues: VariableValue[]) => {
@@ -48,7 +48,7 @@ export const useVariableValues = (
   const updateVariableValue = (
     id: string,
     value: string,
-    characterInfo?: { uuid?: string; header_img?: string; weight?: number },
+    characterInfo?: { uuid?: string; header_img?: string; weight?: number }
   ) => {
     // 这里的返回值未被使用，可以直接调用而不赋值
     setVariableValues((prev) => {
@@ -74,12 +74,8 @@ export const useVariableValues = (
               value,
               // 如果提供了角色信息，则更新
               ...(characterInfo?.uuid ? { uuid: characterInfo.uuid } : {}),
-              ...(characterInfo?.header_img
-                ? { header_img: characterInfo.header_img }
-                : {}),
-              ...(characterInfo?.weight
-                ? { weight: characterInfo.weight }
-                : {}),
+              ...(characterInfo?.header_img ? { header_img: characterInfo.header_img } : {}),
+              ...(characterInfo?.weight ? { weight: characterInfo.weight } : {}),
             };
           }
 
@@ -93,9 +89,7 @@ export const useVariableValues = (
 
   // 删除变量值
   const removeVariableValue = (id: string) => {
-    setVariableValues((prevValues) =>
-      prevValues.filter((value) => value.variable_id !== id),
-    );
+    setVariableValues((prevValues) => prevValues.filter((value) => value.variable_id !== id));
   };
 
   // 复制变量值

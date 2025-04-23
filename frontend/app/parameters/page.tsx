@@ -44,6 +44,8 @@ export default function ParametersPage() {
                   className="px-3 py-1 rounded-md bg-default-100 border border-default-200 cursor-pointer hover:bg-default-200 transition-colors"
                   onClick={() => {
                     // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
                     console.log("用户按钮被点击");
                   }}
                 >
@@ -55,6 +57,8 @@ export default function ParametersPage() {
               <DropdownMenu
                 aria-label="用户菜单"
                 onAction={(key) => {
+                  // eslint-disable-next-line no-console
+                  // eslint-disable-next-line no-console
                   // eslint-disable-next-line no-console
                   console.log("菜单项被点击:", key);
                   if (key === "logout") {
@@ -80,9 +84,7 @@ export default function ParametersPage() {
               selectedKey="parameters"
               size="sm"
               onSelectionChange={(key) => {
-                router.push(
-                  `/${key.toString() === "parameters" ? "parameters" : key}`,
-                );
+                router.push(`/${key.toString() === "parameters" ? "parameters" : key}`);
               }}
             >
               <Tab
@@ -118,9 +120,7 @@ export default function ParametersPage() {
           {/* 间隔7px */}
           <div className="h-7" />
           <h2 className="text-xl font-medium">测试参数</h2>
-          <p className="text-sm text-gray-500">
-            拖动标签调整顺序，点击&quot;添加&quot;创建新标签
-          </p>
+          <p className="text-sm text-gray-500">拖动标签调整顺序，点击&quot;添加&quot;创建新标签</p>
           <p className="text-sm text-gray-500">标签顺序仅影响提示词先后顺序</p>
         </CardHeader>
 
@@ -148,9 +148,7 @@ export default function ParametersPage() {
             <strong>润色</strong>：启用或禁用润色功能
           </li>
         </ul>
-        <p className="mt-4">
-          将标签设置为&quot;变量&quot;后，可以在下方为其添加多个变量值
-        </p>
+        <p className="mt-4">将标签设置为&quot;变量&quot;后，可以在下方为其添加多个变量值</p>
       </div>
     </section>
   );

@@ -82,6 +82,8 @@ const HistoryTab: React.FC = () => {
       } catch (err) {
         setError(err instanceof Error ? err.message : "加载任务数据失败");
         // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         console.error("加载任务数据失败:", err);
         setTasks([]);
       } finally {
@@ -127,11 +129,7 @@ const HistoryTab: React.FC = () => {
         <div className="text-center text-danger p-4 border border-danger rounded-lg">
           {error}
           <div className="mt-2">
-            <Button
-              color="primary"
-              size="sm"
-              onPress={() => setRefreshKey((prev) => prev + 1)}
-            >
+            <Button color="primary" size="sm" onPress={() => setRefreshKey((prev) => prev + 1)}>
               重试
             </Button>
           </div>
@@ -160,9 +158,7 @@ const HistoryTab: React.FC = () => {
                   <h3 className="text-lg font-semibold">
                     {task.task_name || `任务 ${task.id.substring(0, 8)}`}
                   </h3>
-                  <p className="text-xs text-default-500">
-                    ID: {task.id.substring(0, 8)}...
-                  </p>
+                  <p className="text-xs text-default-500">ID: {task.id.substring(0, 8)}...</p>
                 </div>
                 <Chip
                   color={
@@ -189,33 +185,21 @@ const HistoryTab: React.FC = () => {
               <CardBody className="pt-0">
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <h5 className="text-xs font-semibold mb-1 text-default-600">
-                      创建时间
-                    </h5>
-                    <div className="text-sm">
-                      {new Date(task.created_at).toLocaleString()}
-                    </div>
+                    <h5 className="text-xs font-semibold mb-1 text-default-600">创建时间</h5>
+                    <div className="text-sm">{new Date(task.created_at).toLocaleString()}</div>
                   </div>
                   <div>
-                    <h5 className="text-xs font-semibold mb-1 text-default-600">
-                      更新时间
-                    </h5>
+                    <h5 className="text-xs font-semibold mb-1 text-default-600">更新时间</h5>
                     <div className="text-sm">
-                      {task.updated_at
-                        ? new Date(task.updated_at).toLocaleString()
-                        : "-"}
+                      {task.updated_at ? new Date(task.updated_at).toLocaleString() : "-"}
                     </div>
                   </div>
                 </div>
 
                 <div className="mb-4">
-                  <h5 className="text-xs font-semibold mb-1 text-default-600">
-                    图片数量
-                  </h5>
+                  <h5 className="text-xs font-semibold mb-1 text-default-600">图片数量</h5>
                   <div className="flex items-center gap-2">
-                    <div className="text-sm font-medium">
-                      {task.total_images || 0} 张图片
-                    </div>
+                    <div className="text-sm font-medium">{task.total_images || 0} 张图片</div>
                     {task.processed_images !== undefined && (
                       <Chip color="primary" size="sm" variant="flat">
                         已处理: {task.processed_images} 张
@@ -226,9 +210,7 @@ const HistoryTab: React.FC = () => {
 
                 {task.error && (
                   <div className="mb-4">
-                    <h5 className="text-xs font-semibold mb-1 text-danger">
-                      错误信息
-                    </h5>
+                    <h5 className="text-xs font-semibold mb-1 text-danger">错误信息</h5>
                     <div className="text-sm text-danger bg-danger-50 p-2 rounded-md">
                       {task.error}
                     </div>
@@ -236,11 +218,7 @@ const HistoryTab: React.FC = () => {
                 )}
 
                 <div className="flex justify-end mt-2">
-                  <Button
-                    color="primary"
-                    size="sm"
-                    onPress={() => handleViewHistory(task.id)}
-                  >
+                  <Button color="primary" size="sm" onPress={() => handleViewHistory(task.id)}>
                     查看详情
                   </Button>
                 </div>
@@ -300,12 +278,7 @@ const HistoryTab: React.FC = () => {
                 className="w-full"
                 endContent={
                   searchTerm && (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="light"
-                      onPress={() => handleSearch("")}
-                    >
+                    <Button isIconOnly size="sm" variant="light" onPress={() => handleSearch("")}>
                       <CloseIcon className="text-default-400" />
                     </Button>
                   )

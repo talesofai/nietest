@@ -9,13 +9,7 @@ interface TagButtonProps {
   imageUrl?: string;
   onClick?: () => void;
   variant?: "solid" | "bordered" | "light" | "flat" | "faded" | "shadow";
-  color?:
-    | "default"
-    | "primary"
-    | "secondary"
-    | "success"
-    | "warning"
-    | "danger";
+  color?: "default" | "primary" | "secondary" | "success" | "warning" | "danger";
   size?: "sm" | "md" | "lg";
 }
 
@@ -42,8 +36,7 @@ const TagButton: React.FC<TagButtonProps> = ({
   };
 
   // 显示的文本，如果有权重则加上权重
-  const displayText =
-    weight !== undefined && weight !== 1 ? `${label} [${weight}]` : label;
+  const displayText = weight !== undefined && weight !== 1 ? `${label} [${weight}]` : label;
 
   return (
     <Button

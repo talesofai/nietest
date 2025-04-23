@@ -36,8 +36,7 @@ const VTokenSelector: React.FC<VTokenSelectorProps> = ({
   };
 
   // 搜索模态框组件
-  const SearchModal =
-    type === "character" ? CharacterSearchModal : ElementSearchModal;
+  const SearchModal = type === "character" ? CharacterSearchModal : ElementSearchModal;
 
   return (
     <div className={`w-full ${className}`}>
@@ -50,13 +49,7 @@ const VTokenSelector: React.FC<VTokenSelectorProps> = ({
           onClose={disabled ? undefined : onOpen}
         />
       ) : (
-        <Button
-          className="w-full"
-          color="primary"
-          isDisabled={disabled}
-          size="sm"
-          onPress={onOpen}
-        >
+        <Button className="w-full" color="primary" isDisabled={disabled} size="sm" onPress={onOpen}>
           {type === "character" ? "角色选择" : "元素选择"}
         </Button>
       )}

@@ -13,10 +13,8 @@ import { SearchSelectItem } from "@/types/search";
  * 展示各组件的功能和用法
  */
 const VTokenDemo: React.FC = () => {
-  const [selectedCharacter, setSelectedCharacter] =
-    useState<SearchSelectItem | null>(null);
-  const [selectedElement, setSelectedElement] =
-    useState<SearchSelectItem | null>(null);
+  const [selectedCharacter, setSelectedCharacter] = useState<SearchSelectItem | null>(null);
+  const [selectedElement, setSelectedElement] = useState<SearchSelectItem | null>(null);
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
 
   const handleTokenChange = (token: string | null) => {
@@ -29,27 +27,19 @@ const VTokenDemo: React.FC = () => {
       <h1 className="text-2xl font-bold text-center">VToken 组件库演示</h1>
 
       <section>
-        <h2 className="text-xl font-semibold mb-4">
-          1. 令牌管理 (VTokenManager)
-        </h2>
+        <h2 className="text-xl font-semibold mb-4">1. 令牌管理 (VTokenManager)</h2>
         <Card>
           <CardBody>
-            <VTokenManager
-              defaultExpanded={true}
-              onTokenChange={handleTokenChange}
-            />
+            <VTokenManager defaultExpanded={true} onTokenChange={handleTokenChange} />
             <div className="mt-4 text-sm text-gray-500">
-              令牌状态:{" "}
-              {tokenValid === null ? "未设置" : tokenValid ? "有效" : "无效"}
+              令牌状态: {tokenValid === null ? "未设置" : tokenValid ? "有效" : "无效"}
             </div>
           </CardBody>
         </Card>
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold mb-4">
-          2. 令牌显示 (VTokenDisplay)
-        </h2>
+        <h2 className="text-xl font-semibold mb-4">2. 令牌显示 (VTokenDisplay)</h2>
         <Card>
           <CardHeader>
             <h3 className="text-md font-medium">不同样式的令牌显示</h3>
@@ -74,9 +64,7 @@ const VTokenDemo: React.FC = () => {
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold mb-4">
-          3. 令牌选择器 (VTokenSelector)
-        </h2>
+        <h2 className="text-xl font-semibold mb-4">3. 令牌选择器 (VTokenSelector)</h2>
         <Card>
           <CardHeader>
             <h3 className="text-md font-medium">角色选择</h3>

@@ -2,20 +2,12 @@
 
 import { useEffect } from "react";
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error;
-  reset: () => void;
-}) {
+export default function Error({ error, reset }: { error: Error; reset: () => void }) {
   useEffect(() => {
     // Log the error to an error reporting service
     /* eslint-disable no-console */
-    console.error(
-      "应用错误:",
-      error instanceof Error ? error.message : JSON.stringify(error),
-    );
+    // eslint-disable-next-line no-console
+    console.error("应用错误:", error instanceof Error ? error.message : JSON.stringify(error));
   }, [error]);
 
   // 提取错误消息

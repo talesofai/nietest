@@ -54,6 +54,8 @@ const ColorButton = ({
   const buttonStyle = useMemo(() => {
     if (!isValidHexColor) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.warn("无效的十六进制颜色代码。使用默认颜色。");
 
       return {};
@@ -125,12 +127,7 @@ const ColorButton = ({
   const buttonClassName = `${isLightTextVariant ? "text-white" : ""} ${className}`;
 
   return (
-    <Button
-      className={buttonClassName}
-      style={buttonStyle}
-      variant={variant}
-      {...props}
-    >
+    <Button className={buttonClassName} style={buttonStyle} variant={variant} {...props}>
       {children}
     </Button>
   );

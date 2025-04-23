@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback } from  "react";
 
 /**
  * Alert通知选项接口
@@ -9,13 +9,7 @@ export interface AlertOptions {
   title: string;
   description: string;
   variant?: "solid" | "bordered" | "flat" | "faded";
-  color?:
-    | "default"
-    | "primary"
-    | "secondary"
-    | "success"
-    | "warning"
-    | "danger";
+  color?: "default" | "primary" | "secondary" | "success" | "warning" | "danger";
   autoHideDuration?: number;
 }
 
@@ -30,13 +24,7 @@ export const useAlert = () => {
     title: string;
     description: string;
     variant: "solid" | "bordered" | "flat" | "faded";
-    color:
-      | "default"
-      | "primary"
-      | "secondary"
-      | "success"
-      | "warning"
-      | "danger";
+    color: "default" | "primary" | "secondary" | "success" | "warning" | "danger";
     autoHideDuration: number;
   }>({
     isVisible: false,
@@ -71,14 +59,16 @@ export const useAlert = () => {
 
       // 同时在控制台记录消息
       console.log(
-        `${options.color === "danger" ? "错误" : "成功"}: ${options.title} - ${options.description}`,
+        `${options.color === "danger" ? "错误" : "成功"}: ${options.title} - ${options.description}`
       );
     } catch (error) {
       // 如果出错，回退到控制台日志
       // eslint-disable-next-line no-console
-      console.error("无法显示Alert通知:", error);
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+console.error("无法显示Alert通知:", error);
       console.log(
-        `${options.color === "danger" ? "错误" : "成功"}: ${options.title} - ${options.description}`,
+        `${options.color === "danger" ? "错误" : "成功"}: ${options.title} - ${options.description}`
       );
     }
   }, []);
@@ -96,7 +86,7 @@ export const useAlert = () => {
         color: "success",
       });
     },
-    [showAlert],
+    [showAlert]
   );
 
   /**
@@ -112,7 +102,7 @@ export const useAlert = () => {
         color: "danger",
       });
     },
-    [showAlert],
+    [showAlert]
   );
 
   /**
@@ -128,7 +118,7 @@ export const useAlert = () => {
         color: "warning",
       });
     },
-    [showAlert],
+    [showAlert]
   );
 
   /**
@@ -144,8 +134,9 @@ export const useAlert = () => {
         color: "primary",
       });
     },
-    [showAlert],
+    [showAlert]
   );
+
 
   return {
     alertState,

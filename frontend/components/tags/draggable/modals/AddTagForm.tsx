@@ -1,23 +1,8 @@
 "use client";
 
-import React, {
-  useState,
-  useEffect,
-  KeyboardEvent,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useState, useEffect, KeyboardEvent, useRef, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import {
-  Button,
-  Select,
-  SelectItem,
-  Input,
-  Switch,
-  Alert,
-  Slider,
-} from "@heroui/react";
+import { Button, Select, SelectItem, Input, Switch, Alert, Slider } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { CloseIcon } from "@heroui/shared-icons";
 
@@ -92,9 +77,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
       type !== "element" &&
       isVariable
     ) {
-      setName(
-        RESERVED_VARIABLE_NAMES[type as keyof typeof RESERVED_VARIABLE_NAMES],
-      );
+      setName(RESERVED_VARIABLE_NAMES[type as keyof typeof RESERVED_VARIABLE_NAMES]);
     }
   }, [type, isVariable]);
 
@@ -110,15 +93,13 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
         type !== "character" &&
         type !== "element"
       ) {
-        setName(
-          RESERVED_VARIABLE_NAMES[type as keyof typeof RESERVED_VARIABLE_NAMES],
-        );
+        setName(RESERVED_VARIABLE_NAMES[type as keyof typeof RESERVED_VARIABLE_NAMES]);
       } else {
         setName("");
       }
       setFormError(null);
     },
-    [type],
+    [type]
   );
 
   // 处理角色选择
@@ -184,7 +165,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
           : {}),
       });
     },
-    [name, type, isVariable, value, characterInfo, weight, nameError, onAdd],
+    [name, type, isVariable, value, characterInfo, weight, nameError, onAdd]
   );
 
   // 处理键盘事件，支持回车键提交
@@ -195,7 +176,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
         handleSubmit();
       }
     },
-    [handleSubmit],
+    [handleSubmit]
   );
 
   return (
@@ -209,13 +190,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
     >
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-semibold">添加标签窗口</h3>
-        <Button
-          isIconOnly
-          className="rounded-full"
-          size="sm"
-          variant="light"
-          onPress={onCancel}
-        >
+        <Button isIconOnly className="rounded-full" size="sm" variant="light" onPress={onCancel}>
           <CloseIcon height={12} width={12} />
         </Button>
       </div>
@@ -223,9 +198,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
       <div>
         <div className="flex items-center gap-6">
           <div className="flex items-center flex-1">
-            <span className="text-sm font-semibold mr-2 min-w-[40px]">
-              类型
-            </span>
+            <span className="text-sm font-semibold mr-2 min-w-[40px]">类型</span>
             <Select
               aria-label="类型"
               className="flex-1"
@@ -264,17 +237,11 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
 
         <div className="mt-3">
           <div className="text-sm font-semibold mb-1">
-            {isVariable
-              ? "变量名"
-              : type === "character"
-                ? "角色选择"
-                : "标签值"}
+            {isVariable ? "变量名" : type === "character" ? "角色选择" : "标签值"}
           </div>
           <div className="p-0.5">
             {isVariable ? (
-              type === "prompt" ||
-              type === "character" ||
-              type === "element" ? (
+              type === "prompt" || type === "character" || type === "element" ? (
                 <Input
                   ref={variableNameInputRef}
                   // autoFocus={true} // 移除 autoFocus 以解决可访问性问题
@@ -289,13 +256,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
                   onKeyDown={handleKeyDown}
                 />
               ) : (
-                <Input
-                  className="w-full"
-                  isDisabled={true}
-                  size="sm"
-                  value={name}
-                  variant="flat"
-                />
+                <Input className="w-full" isDisabled={true} size="sm" value={name} variant="flat" />
               )
             ) : (
               <TagValueInput
@@ -310,32 +271,31 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
           </div>
         </div>
 
-        {(type === "character" || type === "element" || type === "prompt") &&
-          !isVariable && (
-            <div className="mt-3">
-              <div className="text-sm font-semibold mb-1">权重</div>
-              <div className="p-0.5">
-                <Slider
-                  className="w-full"
-                  color="foreground"
-                  defaultValue={1}
-                  formatOptions={{
-                    style: "decimal",
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  }}
-                  label="权重"
-                  maxValue={2}
-                  minValue={0.05}
-                  showSteps={false}
-                  size="sm"
-                  step={0.05}
-                  value={weight}
-                  onChange={(val) => setWeight(val as number)}
-                />
-              </div>
+        {(type === "character" || type === "element" || type === "prompt") && !isVariable && (
+          <div className="mt-3">
+            <div className="text-sm font-semibold mb-1">权重</div>
+            <div className="p-0.5">
+              <Slider
+                className="w-full"
+                color="foreground"
+                defaultValue={1}
+                formatOptions={{
+                  style: "decimal",
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }}
+                label="权重"
+                maxValue={2}
+                minValue={0.05}
+                showSteps={false}
+                size="sm"
+                step={0.05}
+                value={weight}
+                onChange={(val) => setWeight(val as number)}
+              />
             </div>
-          )}
+          </div>
+        )}
 
         {formError && !nameError && (
           <div className="mt-2">

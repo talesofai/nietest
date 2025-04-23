@@ -1,8 +1,9 @@
-import { SearchResponse } from "@/types/search";
-import { ApiSearchType, API_SEARCH_TYPES } from "@/types/api";
+import { SearchResponse } from  "@/types/search";
+import { ApiSearchType, API_SEARCH_TYPES } from  "@/types/api";
 
 // 本地存储键名常量
 const TOKEN_STORAGE_KEY = "vtoken-x-token";
+
 
 /**
  * 获取本地存储中的x-token
@@ -10,6 +11,7 @@ const TOKEN_STORAGE_KEY = "vtoken-x-token";
  */
 export const getXToken = (): string | null => {
   if (typeof window === "undefined") return null;
+
 
   return localStorage.getItem(TOKEN_STORAGE_KEY) || null;
 };
@@ -41,6 +43,7 @@ export const validateXToken = async (token: string): Promise<boolean> => {
     // 构建用于验证的URL
     const apiUrl = "/api/v1/users/me";
 
+
     // 设置请求头
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -51,12 +54,17 @@ export const validateXToken = async (token: string): Promise<boolean> => {
     // 发送请求
     const response = await fetch(apiUrl, { headers });
 
+
     // 返回状态码是否成功
+
 
     return response.ok;
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.error("验证token失败:", error);
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+console.error("验证token失败:", error);
+
 
     return false;
   }
@@ -74,14 +82,16 @@ export const searchCharacterOrElement = async (
   keywords: string,
   pageIndex: number = 0,
   pageSize: number = 12,
-  type: ApiSearchType = API_SEARCH_TYPES.OC,
+  type: ApiSearchType = API_SEARCH_TYPES.OC
 ): Promise<SearchResponse> => {
   try {
     // 构建API URL
     const url = `https://api.talesofai.cn/v2/travel/parent-search?keywords=${encodeURIComponent(keywords)}&page_index=${pageIndex}&page_size=${pageSize}&parent_type=${type}&sort_scheme=best`;
 
+
     // 获取x-token
     const xToken = getXToken();
+
 
     // 设置请求头
     const headers: Record<string, string> = {
@@ -96,8 +106,10 @@ export const searchCharacterOrElement = async (
     // 发送请求
     const response = await fetch(url, { headers });
 
+
     // 如果响应不成功
     if (!response.ok) {
+
       return {
         data: [],
         metadata: {
@@ -116,6 +128,7 @@ export const searchCharacterOrElement = async (
     const totalSize = responseData.total;
     const resultList = responseData.list || [];
 
+
     // 处理响应数据
     const data = resultList.map((item: any) => ({
       uuid: item.uuid,
@@ -126,6 +139,7 @@ export const searchCharacterOrElement = async (
     }));
 
     // 返回符合SearchResponse接口的数据
+
 
     return {
       data: data,
@@ -139,7 +153,10 @@ export const searchCharacterOrElement = async (
     };
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.error("搜索请求失败:", error);
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+console.error("搜索请求失败:", error);
+
 
     return {
       data: [],
@@ -162,6 +179,8 @@ export const searchCharacterOrElement = async (
  */
 export const getPlaceholderSvg = (type: "character" | "element"): string => {
   const text = type === "character" ? "角色" : "元素";
+
+
 
   return `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23dddddd"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="12" fill="%23888888" text-anchor="middle" dominant-baseline="middle"%3E${text}%3C/text%3E%3C/svg%3E`;
 };

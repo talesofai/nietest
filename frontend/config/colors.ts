@@ -534,6 +534,7 @@ export const baseColors: ColorDictionary = {
  * 获取所有颜色名称的数组
  */
 export const getAllColorNames = (): string[] => {
+
   return Object.keys(baseColors);
 };
 
@@ -543,6 +544,8 @@ export const getAllColorNames = (): string[] => {
 export const getRandomColorName = (): string => {
   const colorNames = getAllColorNames();
 
+
+
   return colorNames[Math.floor(Math.random() * colorNames.length)];
 };
 
@@ -551,6 +554,8 @@ export const getRandomColorName = (): string => {
  */
 export const getRandomColorValue = (): string => {
   const randomColorName = getRandomColorName();
+
+
 
   return baseColors[randomColorName];
 };
@@ -562,14 +567,12 @@ export const getRandomColorValue = (): string => {
 export const getRandomGradientColors = (): { from: string; to: string } => {
   // 获取所有颜色的数组（排除了一些不适合用于渐变的颜色）
   const colorValues = Object.entries(baseColors)
-    .filter(
-      ([name]) =>
-        !name.startsWith("gray") && name !== "black" && name !== "white",
-    )
+    .filter(([name]) => !name.startsWith("gray") && name !== "black" && name !== "white")
     .map(([_, value]) => value);
 
   // 如果颜色数量小于2，返回默认值
   if (colorValues.length < 2) {
+
     return { from: "#3B82F6", to: "#EC4899" };
   }
 
@@ -577,14 +580,18 @@ export const getRandomGradientColors = (): { from: string; to: string } => {
   const fromIndex = Math.floor(Math.random() * colorValues.length);
   const fromColor = colorValues[fromIndex];
 
+
   // 从剩余颜色中随机选择第二种颜色（确保两种颜色不同）
   let toIndex;
+
 
   do {
     toIndex = Math.floor(Math.random() * colorValues.length);
   } while (toIndex === fromIndex);
 
   const toColor = colorValues[toIndex];
+
+
 
   return { from: fromColor, to: toColor };
 };

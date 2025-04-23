@@ -3,7 +3,7 @@
  */
 
 // 导入任务相关类型
-import { TaskStatus, TaskDetail, TaskResponse, TaskCreateRequest } from "@/types/task";
+import { TaskStatus, TaskDetail, TaskResponse, TaskCreateRequest } from  "@/types/task";
 
 // 导出任务相关类型
 export { TaskStatus };
