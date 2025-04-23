@@ -210,4 +210,3 @@ async function proxyRequest(
     );
   }
 }
-}
