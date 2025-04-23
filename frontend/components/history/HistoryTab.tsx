@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 
-import { TaskStatus, TaskDetail } from "@/app/api/client";
+import { TaskStatus, TaskDetail } from "@/types/task";
 import { getTaskList } from "@/utils/taskService";
 import { SearchIcon, CloseIcon } from "@/components/icons";
 
@@ -109,7 +109,7 @@ const HistoryTab: React.FC = () => {
 
   // 处理查看历史记录
   const handleViewHistory = (taskId: string) => {
-    router.push(`/history/${taskId}`);
+    router.push(`/history/task-detail?id=${taskId}`);
   };
 
   // 渲染历史列表部分

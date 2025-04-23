@@ -22,7 +22,7 @@ import {
   Avatar,
 } from "@heroui/react";
 
-import { useAuth } from "@/app/api/v1/auth";
+import { useAuth } from "@/lib/auth";
 import { siteConfig } from "@/config/site";
 import { ThemeSwitch } from "@/components/theme-switch";
 import {

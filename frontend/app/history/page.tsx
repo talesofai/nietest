@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 
 import HistoryTab from "@/components/history/HistoryTab";
-import { useAuth } from "@/app/api/v1/auth/client";
+import { useAuth } from "@/lib/auth";
 
 // 使用Iconify图标
 const SettingsIcon = (props: any) => (

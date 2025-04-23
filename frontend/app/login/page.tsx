@@ -7,7 +7,7 @@ import { Button } from "@heroui/button";
 import { useRouter } from "next/navigation";
 
 import { title } from "@/components/primitives";
-import { useAuth } from "@/app/api/v1/auth";
+import { useAuth } from "@/lib/auth";
 
 /**
  * 登录页面组件

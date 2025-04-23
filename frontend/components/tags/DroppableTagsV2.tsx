@@ -23,7 +23,7 @@ import {
   useVariableValues,
 } from "./draggable";
 
-import { useAuth } from "@/app/api/v1/auth";
+import { useAuth } from "@/lib/auth";
 
 /**
  * 可拖拽标签主组件 v2 - 使用 dnd-kit

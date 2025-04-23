@@ -14,7 +14,7 @@ import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { useRouter } from "next/navigation";
 
-import { TaskStatus, TaskDetail } from "@/app/api/client";
+import { TaskStatus, TaskDetail } from "@/types/task";
 import { getTaskList, cancelTask } from "@/utils/taskService";
 import { alertService } from "@/utils/alertService";
 

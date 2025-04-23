@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 
 import DraggableTags from "@/components/tags/DroppableTagsV2";
-import { useAuth } from "@/app/api/v1/auth/client";
+import { useAuth } from "@/lib/auth";
 
 // 使用Iconify图标
 const SettingsIcon = (props: any) => (

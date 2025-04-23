@@ -12,7 +12,8 @@ export const getApiBaseUrl = (): string => {
 
 // 设置API基本URL
 const API_BASE_URL = getApiBaseUrl();
-const USE_PROXY = process.env.NEXT_PUBLIC_USE_API_PROXY === "true";
+// 静态导出模式下，不使用代理，直接调用后端API
+const USE_PROXY = false;
 
 /**
  * 获取JWT认证令牌，用于用户认证
@@ -50,8 +51,8 @@ export const getXToken = (): string | null => {
 
 // 创建axios实例
 const apiClient: AxiosInstance = axios.create({
-  // 不设置基础URL，让请求发送到当前域名
-  // baseURL: API_BASE_URL,
+  // 直接设置基础URL为后端API地址
+  baseURL: API_BASE_URL,
   timeout: 30000, // 30秒超时
   headers: {
     "Content-Type": "application/json",
@@ -220,10 +221,18 @@ const processRequest = async (
   try {
     // 调试信息：输出请求基础信息
     console.log(
-      `[API请求] 方法: ${method}, 原始URL: ${url}, 使用代理: ${USE_PROXY}`,
+      `[API请求] 方法: ${method}, 原始URL: ${url}`,
     );
     // eslint-disable-next-line no-console
     console.log(`[API请求] API基础URL: ${API_BASE_URL}`);
+
+    // 处理URL路径
+    // 注意：现在我们在NEXT_PUBLIC_API_BASE_URL中已经包含了/api前缀
+    // 所以这里不需要移除/api前缀，而是确保路径中不重复包含/api
+    if (processedUrl.startsWith('/api/')) {
+      // 如果路径已经包含/api/，则移除它，因为基础URL中已经有了
+      processedUrl = processedUrl.substring(4); // 移除'/api'前缀
+    }
 
     // 确保URL格式正确
     if (!processedUrl.startsWith("/") && !processedUrl.startsWith("http")) {
@@ -442,8 +451,9 @@ export const loginApi = async (
     formData.append("username", email); // 使用email作为username
     formData.append("password", password);
 
-    // 使用API路由处理登录请求
-    const response = await fetch("/api/v1/auth/login", {
+    // 直接调用后端API
+    // 注意：API_BASE_URL已经包含/api前缀，所以这里不需要再添加
+    const response = await fetch(`${API_BASE_URL}/v1/auth/login`, {
       method: "POST",
       body: formData,
     });
