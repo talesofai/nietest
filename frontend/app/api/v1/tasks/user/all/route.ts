@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
 
     // 构建转发到后端的URL
     const apiUrl = `${API_BASE_URL}/api/v1/tasks${queryString ? `?${queryString}` : ""}`;
+
+    // eslint-disable-next-line no-console
     console.log(`转发请求到: ${apiUrl}`);
 
     // 获取原始请求的头部
@@ -37,17 +39,21 @@ export async function GET(request: NextRequest) {
     // 获取响应数据
     const data = await response.json();
 
+    // eslint-disable-next-line no-console
     console.log("任务列表API响应:", response.status, data);
 
     // 返回响应
+
     return NextResponse.json(data, {
       status: response.status,
       statusText: response.statusText,
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("任务列表API代理错误:", error);
 
     // 返回错误响应
+
     return NextResponse.json(
       {
         code: 500,

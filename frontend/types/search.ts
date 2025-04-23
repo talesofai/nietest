@@ -62,7 +62,7 @@ export interface SearchResponse {
 /**
  * 搜索选择项，用于组件间传递选中的项
  */
-export interface SearchSelectItem extends Omit<SearchResultItem, 'config'> {
+export interface SearchSelectItem extends Omit<SearchResultItem, "config"> {
   label?: string;
   value?: string;
   type: SearchType | string; // 确保type字段始终存在

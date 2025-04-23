@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+
 import { Navbar } from "@/components/navbar";
 
 /**
@@ -9,7 +10,7 @@ import { Navbar } from "@/components/navbar";
  * 这是一个客户端组件，专门用于包装使用了useAuth等客户端特性的Navbar
  */
 const NavbarWrapper: React.FC = () => {
-    return <Navbar />;
+  return <Navbar />;
 };
 
 export default NavbarWrapper;

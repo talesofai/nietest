@@ -13,27 +13,30 @@ export const DEFAULT_TEXT_TRUNCATE_LENGTH = 23;
 
 // 图像比例选项
 export const ratioOptions = [
-    { value: "1:1", label: "1:1" },
-    { value: "2:3", label: "2:3" },
-    { value: "3:2", label: "3:2" },
-    { value: "3:4", label: "3:4" },
-    { value: "4:3", label: "4:3" },
-    { value: "3:5", label: "3:5" },
-    { value: "5:3", label: "5:3" },
-    { value: "16:9", label: "16:9" },
-    { value: "9:16", label: "9:16" },
+  { value: "1:1", label: "1:1" },
+  { value: "2:3", label: "2:3" },
+  { value: "3:2", label: "3:2" },
+  { value: "3:4", label: "3:4" },
+  { value: "4:3", label: "4:3" },
+  { value: "3:5", label: "3:5" },
+  { value: "5:3", label: "5:3" },
+  { value: "16:9", label: "16:9" },
+  { value: "9:16", label: "9:16" },
 ];
 
 /**
  * 预设变量名映射
  * 为每种标签类型（除batch和character外）提供默认变量名
  */
-export const RESERVED_VARIABLE_NAMES: Record<Exclude<TagType, "batch" | "character">, string> = {
-    ratio: "比例测试",
-    seed: "种子测试",
-    polish: "润色测试",
-    prompt: "",  // prompt 类型不使用预设名，但包含在类型中避免索引错误
-    element: "元素测试", // 添加元素类型的预设变量名
+export const RESERVED_VARIABLE_NAMES: Record<
+  Exclude<TagType, "batch" | "character">,
+  string
+> = {
+  ratio: "比例测试",
+  seed: "种子测试",
+  polish: "润色测试",
+  prompt: "", // prompt 类型不使用预设名，但包含在类型中避免索引错误
+  element: "元素测试", // 添加元素类型的预设变量名
 };
 
 /**
@@ -41,18 +44,18 @@ export const RESERVED_VARIABLE_NAMES: Record<Exclude<TagType, "batch" | "charact
  * 用于UI显示和类型转换
  */
 export const TAG_TYPE_OPTIONS = [
-    { key: "prompt", label: "提示词" },
-    { key: "ratio", label: "比例" },
-    { key: "batch", label: "批次" },
-    { key: "seed", label: "种子" },
-    { key: "polish", label: "润色" },
-    { key: "character", label: "角色" },
-    { key: "element", label: "元素" },
+  { key: "prompt", label: "提示词" },
+  { key: "ratio", label: "比例" },
+  { key: "batch", label: "批次" },
+  { key: "seed", label: "种子" },
+  { key: "polish", label: "润色" },
+  { key: "character", label: "角色" },
+  { key: "element", label: "元素" },
 ] as const;
 
 // 标签类型到显示名称的映射缓存，提高性能
 const TYPE_DISPLAY_NAME_MAP = new Map<TagType, string>(
-    TAG_TYPE_OPTIONS.map(option => [option.key as TagType, option.label])
+  TAG_TYPE_OPTIONS.map((option) => [option.key as TagType, option.label]),
 );
 
 /**
@@ -61,16 +64,24 @@ const TYPE_DISPLAY_NAME_MAP = new Map<TagType, string>(
  * @returns 对应类型的默认值
  */
 export const getDefaultValueByType = (type: TagType): string => {
-    switch (type) {
-        case "prompt": return "";
-        case "ratio": return "3:5";
-        case "batch": return "1";
-        case "seed": return "0";
-        case "polish": return "false";
-        case "character": return "";
-        case "element": return "";
-        default: return "";
-    }
+  switch (type) {
+    case "prompt":
+      return "";
+    case "ratio":
+      return "3:5";
+    case "batch":
+      return "1";
+    case "seed":
+      return "0";
+    case "polish":
+      return "false";
+    case "character":
+      return "";
+    case "element":
+      return "";
+    default:
+      return "";
+  }
 };
 
 /**
@@ -79,8 +90,9 @@ export const getDefaultValueByType = (type: TagType): string => {
  * @returns 用于显示的名称
  */
 export const getTypeDisplayName = (type: TagType): string => {
-    // 使用缓存的映射表，比重复查找更高效
-    return TYPE_DISPLAY_NAME_MAP.get(type) || type;
+  // 使用缓存的映射表，比重复查找更高效
+
+  return TYPE_DISPLAY_NAME_MAP.get(type) || type;
 };
 
 /**
@@ -90,7 +102,7 @@ export const getTypeDisplayName = (type: TagType): string => {
  * @returns 变量名是否唯一
  */
 export const isVariableNameUnique = (name: string, tags: Tag[]): boolean => {
-    return !tags.some(tag => tag.isVariable && tag.name === name);
+  return !tags.some((tag) => tag.isVariable && tag.name === name);
 };
 
 /**
@@ -99,7 +111,7 @@ export const isVariableNameUnique = (name: string, tags: Tag[]): boolean => {
  * @returns 变量名长度是否合法
  */
 export const isVariableNameLengthValid = (name: string): boolean => {
-    return name.length <= MAX_VARIABLE_NAME_LENGTH;
+  return name.length <= MAX_VARIABLE_NAME_LENGTH;
 };
 
 /**
@@ -108,9 +120,13 @@ export const isVariableNameLengthValid = (name: string): boolean => {
  * @param maxLength 最大允许长度，默认为23
  * @returns 截断后的文本
  */
-export const truncateText = (text: string, maxLength: number = DEFAULT_TEXT_TRUNCATE_LENGTH): string => {
-    if (!text || text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + "...";
+export const truncateText = (
+  text: string,
+  maxLength: number = DEFAULT_TEXT_TRUNCATE_LENGTH,
+): string => {
+  if (!text || text.length <= maxLength) return text;
+
+  return text.substring(0, maxLength) + "...";
 };
 
 /**
@@ -120,11 +136,13 @@ export const truncateText = (text: string, maxLength: number = DEFAULT_TEXT_TRUN
  * @returns 类型是否唯一
  */
 export const isTypeUnique = (type: TagType, tags: Tag[]): boolean => {
-    // prompt、character和element类型可以有多个
-    if (type === "prompt" || type === "character" || type === "element") return true;
+  // prompt、character和element类型可以有多个
+  if (type === "prompt" || type === "character" || type === "element")
+    return true;
 
-    // 其他类型每种只能有一个
-    return !tags.some(tag => tag.type === type);
+  // 其他类型每种只能有一个
+
+  return !tags.some((tag) => tag.type === type);
 };
 
 /**
@@ -132,15 +150,20 @@ export const isTypeUnique = (type: TagType, tags: Tag[]): boolean => {
  * @param variables 现有变量配置
  * @returns 可用的变量槽位键名，如果都已使用则返回null
  */
-export const findAvailableVariableSlot = (variables: Variables): string | null => {
-    // 检查v0到v6是否有可用槽位
-    for (const key of ['v0', 'v1', 'v2', 'v3', 'v4', 'v5', 'v6']) {
-        if (!variables[key as keyof Variables] ||
-            !variables[key as keyof Variables]?.name) {
-            return key;
-        }
+export const findAvailableVariableSlot = (
+  variables: Variables,
+): string | null => {
+  // 检查v0到v6是否有可用槽位
+  for (const key of ["v0", "v1", "v2", "v3", "v4", "v5", "v6"]) {
+    if (
+      !variables[key as keyof Variables] ||
+      !variables[key as keyof Variables]?.name
+    ) {
+      return key;
     }
-    return null; // 所有槽位都已使用
+  }
+
+  return null; // 所有槽位都已使用
 };
 
 /**
@@ -149,11 +172,11 @@ export const findAvailableVariableSlot = (variables: Variables): string | null =
  * @returns 变量配置对象
  */
 export const createVariableFromTag = (tag: Tag): Variable => {
-    return {
-        tag_id: tag.id,
-        name: tag.name || getTypeDisplayName(tag.type),
-        values: [] // 初始没有值
-    };
+  return {
+    tag_id: tag.id,
+    name: tag.name || getTypeDisplayName(tag.type),
+    values: [], // 初始没有值
+  };
 };
 
 /**
@@ -166,37 +189,38 @@ export const createVariableFromTag = (tag: Tag): Variable => {
  * @returns 更新后的变量配置
  */
 export const addVariableValue = (
-    variable: Variable,
-    value: string,
-    weight?: number,
-    uuid?: string,
-    header_img?: string
+  variable: Variable,
+  value: string,
+  weight?: number,
+  uuid?: string,
+  header_img?: string,
 ): Variable => {
-    // 创建新的变量值对象
-    const newValue: VariableValue = {
-        variable_id: `var-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, // 生成唯一ID
-        tag_id: variable.tag_id,
-        value
-    };
+  // 创建新的变量值对象
+  const newValue: VariableValue = {
+    variable_id: `var-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`, // 生成唯一ID
+    tag_id: variable.tag_id,
+    value,
+  };
 
-    // 根据标签类型添加额外字段
-    if (weight !== undefined) {
-        newValue.weight = weight;
-    }
+  // 根据标签类型添加额外字段
+  if (weight !== undefined) {
+    newValue.weight = weight;
+  }
 
-    if (uuid) {
-        newValue.uuid = uuid;
-    }
+  if (uuid) {
+    newValue.uuid = uuid;
+  }
 
-    if (header_img) {
-        newValue.header_img = header_img;
-    }
+  if (header_img) {
+    newValue.header_img = header_img;
+  }
 
-    // 返回更新后的变量配置
-    return {
-        ...variable,
-        values: [...variable.values, newValue]
-    };
+  // 返回更新后的变量配置
+
+  return {
+    ...variable,
+    values: [...variable.values, newValue],
+  };
 };
 
 /**
@@ -206,13 +230,13 @@ export const addVariableValue = (
  * @returns 更新后的变量配置
  */
 export const removeVariableValue = (
-    variable: Variable,
-    variableId: string
+  variable: Variable,
+  variableId: string,
 ): Variable => {
-    return {
-        ...variable,
-        values: variable.values.filter(v => v.variable_id !== variableId)
-    };
+  return {
+    ...variable,
+    values: variable.values.filter((v) => v.variable_id !== variableId),
+  };
 };
 
 /**
@@ -221,26 +245,30 @@ export const removeVariableValue = (
  * @returns 用于显示的文本
  */
 export const getTagDisplayText = (tag: Tag): string => {
-    if (tag.isVariable) {
-        return `${tag.name || getTypeDisplayName(tag.type)} [变量]`;
-    }
+  if (tag.isVariable) {
+    return `${tag.name || getTypeDisplayName(tag.type)} [变量]`;
+  }
 
-    // 根据标签类型不同显示不同的文本格式
-    switch (tag.type) {
-        case "prompt":
-            let promptText = tag.value;
-            if (tag.weight !== undefined && tag.weight !== 1) {
-                promptText += ` [${tag.weight}]`;
-            }
-            return promptText;
-        case "character":
-        case "element":
-            let text = tag.value;
-            if (tag.weight !== undefined && tag.weight !== 1) {
-                text += ` [${tag.weight}]`;
-            }
-            return text;
-        default:
-            return `${getTypeDisplayName(tag.type)}: ${tag.value}`;
-    }
+  // 根据标签类型不同显示不同的文本格式
+  switch (tag.type) {
+    case "prompt":
+      let promptText = tag.value;
+
+      if (tag.weight !== undefined && tag.weight !== 1) {
+        promptText += ` [${tag.weight}]`;
+      }
+
+      return promptText;
+    case "character":
+    case "element":
+      let text = tag.value;
+
+      if (tag.weight !== undefined && tag.weight !== 1) {
+        text += ` [${tag.weight}]`;
+      }
+
+      return text;
+    default:
+      return `${getTypeDisplayName(tag.type)}: ${tag.value}`;
+  }
 };

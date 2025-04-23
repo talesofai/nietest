@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
 
     // 构建转发到后端的URL，包含所有查询参数，确保有尾部斜杠
     const apiUrl = `${API_BASE_URL}/api/v1/tasks/?${searchParams.toString()}`;
+
+    // eslint-disable-next-line no-console
     console.log(`转发任务列表请求到: ${apiUrl}`);
 
     // 获取原始请求的头部
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
       "Authorization头部:",
       headers.get("Authorization") ? "存在" : "不存在",
     );
+    // eslint-disable-next-line no-console
     console.log("转发请求方法:", "GET");
     console.log("转发请求头部:", {
       "Content-Type": headers.get("Content-Type"),
@@ -49,11 +52,14 @@ export async function GET(request: NextRequest) {
     });
 
     // 获取响应数据和状态
+    // eslint-disable-next-line no-console
     console.log("后端响应状态:", response.status);
+    // eslint-disable-next-line no-console
     console.log("后端响应状态文本:", response.statusText);
 
     // 获取响应数据
     const responseText = await response.text();
+
     console.log(
       "后端响应内容:",
       responseText.substring(0, 100) + (responseText.length > 100 ? "..." : ""),
@@ -65,9 +71,11 @@ export async function GET(request: NextRequest) {
       // 尝试解析JSON
       data = JSON.parse(responseText);
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.error("解析响应JSON失败:", e);
 
       // 如果无法解析为JSON，则以文本形式返回
+
       return NextResponse.json(
         {
           code: response.status,
@@ -79,14 +87,17 @@ export async function GET(request: NextRequest) {
     }
 
     // 返回响应
+
     return NextResponse.json(data, {
       status: response.status,
       statusText: response.statusText,
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("任务列表API代理错误:", error);
 
     // 返回错误响应
+
     return NextResponse.json(
       {
         code: 500,
@@ -108,6 +119,8 @@ export async function POST(request: NextRequest) {
 
     // 构建转发到后端的URL，确保有尾部斜杠
     const apiUrl = `${API_BASE_URL}/api/v1/tasks/`;
+
+    // eslint-disable-next-line no-console
     console.log(`转发创建任务请求到: ${apiUrl}`);
 
     // 获取原始请求的头部
@@ -131,14 +144,17 @@ export async function POST(request: NextRequest) {
     const data = await response.json();
 
     // 返回响应
+
     return NextResponse.json(data, {
       status: response.status,
       statusText: response.statusText,
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("创建任务API代理错误:", error);
 
     // 返回错误响应
+
     return NextResponse.json(
       {
         code: 500,

@@ -2,8 +2,6 @@
  * 变量相关的类型定义
  */
 
-import { TagType } from './tag';
-
 /**
  * 变量值接口
  */

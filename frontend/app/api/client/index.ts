@@ -6,21 +6,21 @@
 
 // 导出API基础类型
 export interface ApiResponse<T = any> {
-    data?: T;
-    error?: string;
-    status?: number;
-    metadata?: {
-        total_size?: number;
-        total_page_size?: number;
-    };
+  data?: T;
+  error?: string;
+  status?: number;
+  metadata?: {
+    total_size?: number;
+    total_page_size?: number;
+  };
 }
 
 // 导出分页响应接口 - 解决冲突
 export interface PaginatedResponse<T> {
-    items: T[];
-    total: number;
-    page: number;
-    page_size: number;
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 // 导出搜索相关类型

@@ -22,6 +22,7 @@ const TaskDetailPage = () => {
       if (!params.task_id) {
         setError("任务ID不存在");
         setLoading(false);
+
         return;
       }
 
@@ -50,6 +51,7 @@ const TaskDetailPage = () => {
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "获取任务详情失败");
+        // eslint-disable-next-line no-console
         console.error("获取任务详情失败:", err);
         setTask(null);
       } finally {
@@ -108,11 +110,7 @@ const TaskDetailPage = () => {
               <div className="text-center text-danger p-4 border border-danger rounded-lg">
                 {error}
                 <div className="mt-2">
-                  <Button
-                    color="primary"
-                    onPress={handleBack}
-                    size="sm"
-                  >
+                  <Button color="primary" size="sm" onPress={handleBack}>
                     返回列表
                   </Button>
                 </div>
