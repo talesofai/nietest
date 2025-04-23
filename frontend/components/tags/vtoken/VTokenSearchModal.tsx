@@ -122,6 +122,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
           setTotalResults(0);
         }
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error(
           `搜索${type === "character" ? "角色" : "元素"}失败:`,
           error,

@@ -49,14 +49,14 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
   // 提交确认模态框
   isConfirmOpen,
   onConfirmClose,
-  onConfirmOpen,
-  onConfirmAccept,
+  _onConfirmOpen: onConfirmOpen, // 未使用的参数改为下划线开头
+  _onConfirmAccept: onConfirmAccept, // 未使用的参数改为下划线开头
   totalImages,
 
   // 二次确认模态框
   isSecondConfirmOpen,
   onSecondConfirmClose,
-  onSecondConfirmAccept,
+  _onSecondConfirmAccept: onSecondConfirmAccept, // 未使用的参数改为下划线开头
 
   // 任务名称输入模态框
   isTaskNameModalOpen,
@@ -193,7 +193,8 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
                     请为本次任务输入一个名称，便于后续识别和管理。
                   </p>
                   <Input
-                    autoFocus
+                    // 移除 autoFocus 以解决可访问性问题
+                    // autoFocus
                     label="任务名称"
                     placeholder="输入任务名称"
                     value={taskName}

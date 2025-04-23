@@ -351,6 +351,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       const firstUrl = Object.values(matrixData.coordinates)[0];
 
       if (firstUrl) {
+        // eslint-disable-next-line no-console
         console.log(
           `[${debugId}] 未找到匹配的图片，返回第一个图片URL:`,
           firstUrl,
@@ -690,6 +691,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         } else {
           // 没有找到URL，设置为null或空对象
           rowData[processedColValue] = null;
+          // eslint-disable-next-line no-console
           console.log(
             `[${debugId}] 没有为 [${originalColValue || ""}][${originalRowValue || ""}] 找到URL`,
           );
@@ -743,6 +745,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         const firstRawKey = Object.keys(task.results.raw)[0];
 
         if (firstRawKey) {
+          // eslint-disable-next-line no-console
           console.log(
             "results.raw 第一个条目结构:",
             task.results.raw[firstRawKey],
@@ -797,11 +800,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
           if (url) {
             foundUrls++;
+            // eslint-disable-next-line no-console
             console.log(
               `单元格[${rowValue || ""}][${colValue || ""}] 找到URL:`,
               url,
             );
           } else {
+            // eslint-disable-next-line no-console
             console.log(
               `单元格[${rowValue || ""}][${colValue || ""}] 未找到URL`,
             );
@@ -1181,6 +1186,15 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                               `${cellTitle} - 批次 ${index + 1}`,
                                             );
                                           }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter" || e.key === " ") {
+                                              e.preventDefault();
+                                              viewImageInModal(
+                                                url,
+                                                `${cellTitle} - 批次 ${index + 1}`,
+                                              );
+                                            }
+                                          }}
                                         >
                                           <div className="w-full h-full flex items-center justify-center">
                                             <Image
@@ -1201,6 +1215,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                               }}
                                               width="auto"
                                               onError={() => {
+                                                // eslint-disable-next-line no-console
                                                 console.log(
                                                   "图片加载失败:",
                                                   url,
@@ -1238,6 +1253,20 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                               cellTitle,
                                             );
                                       }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          cell.urls && cell.urls.length > 0
+                                            ? viewMultipleImagesInModal(
+                                                cell.urls,
+                                                cellTitle,
+                                              )
+                                            : viewImageInModal(
+                                                imageUrl,
+                                                cellTitle,
+                                              );
+                                        }
+                                      }}
                                     >
                                       <div className="w-full h-full flex items-center justify-center">
                                         <Image
@@ -1256,6 +1285,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                           }}
                                           width="auto"
                                           onError={() => {
+                                            // eslint-disable-next-line no-console
                                             console.log(
                                               "图片加载失败:",
                                               imageUrl,
@@ -1413,6 +1443,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                         onClick={() => {
                           setCurrentImageUrl(url);
                           setIsGridView(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setCurrentImageUrl(url);
+                            setIsGridView(false);
+                          }
                         }}
                       >
                         <div className="w-full h-full flex items-center justify-center">

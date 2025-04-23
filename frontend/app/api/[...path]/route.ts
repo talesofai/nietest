@@ -128,6 +128,7 @@ async function proxyRequest(
       }
     }
 
+    // eslint-disable-next-line no-console
     console.log(
       `[API代理] 发送${method}请求到: ${apiUrl}, 头信息:`,
       Object.fromEntries(headers.entries()),
@@ -158,7 +159,7 @@ async function proxyRequest(
         // 尝试解析为JSON
         try {
           responseData = JSON.parse(text);
-        } catch (e) {
+        } catch (_) {
           // 如果不是JSON，直接返回文本
           responseData = { text };
         }

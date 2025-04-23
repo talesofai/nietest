@@ -49,7 +49,7 @@ const TagItem: React.FC<TagItemProps> = ({
   tag,
   onEdit,
   onRemove,
-  onToggleVariable,
+  // onToggleVariable, // 未使用的参数
   value,
 }) => {
   // 点击与拖拽区分状态

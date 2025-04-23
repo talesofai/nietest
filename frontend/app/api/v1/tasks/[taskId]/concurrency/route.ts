@@ -72,17 +72,14 @@ export async function POST(
     const data = await response.json();
 
     // 返回响应
-
     return NextResponse.json(data, {
       status: response.status,
       statusText: response.statusText,
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("更新任务并发数API代理错误:", error);
 
     // 返回错误响应
-
     return NextResponse.json(
       {
         code: 500,

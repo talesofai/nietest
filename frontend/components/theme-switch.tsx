@@ -22,7 +22,8 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
   const isSSR = useIsSSR();
 
   const onChange = () => {
-    theme === "light" ? setTheme("dark") : setTheme("light");
+    // 暂时禁用主题切换，始终使用白天模式
+    setTheme("light");
   };
 
   const {

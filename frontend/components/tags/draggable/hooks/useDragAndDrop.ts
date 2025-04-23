@@ -87,7 +87,7 @@ export const useDragAndDrop = (
   };
 
   // 处理拖拽移动
-  const handleDragMove = (event: DragMoveEvent) => {
+  const handleDragMove = (_event: DragMoveEvent) => {
     // 如果没有容器引用、活动拖拽ID或初始位置，直接返回
     if (!containerRef.current || !activeId || !initialPositionRef.current)
       return;

@@ -32,10 +32,8 @@ export async function GET(req: Request) {
     );
 
     // 返回结果
-
     return Response.json(searchResults);
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("处理搜索请求失败:", error);
 
     return Response.json({ total_size: 0, data: [] }, { status: 500 });

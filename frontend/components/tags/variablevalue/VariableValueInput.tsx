@@ -24,7 +24,8 @@ interface VariableValueInputProps {
 const isCharacterType = (type: string): type is "character" =>
   type === "character";
 const isElementType = (type: string): type is "element" => type === "element";
-const isPromptType = (type: string): type is "prompt" => type === "prompt";
+// 这个类型谓词函数当前未被使用
+// const isPromptType = (type: string): type is "prompt" => type === "prompt";
 
 // 检查标签类型是否支持权重设置
 const supportWeightSetting = (type: string): boolean => {

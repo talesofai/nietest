@@ -42,7 +42,10 @@ export default function HistoryPage() {
               <DropdownTrigger>
                 <button
                   className="px-3 py-1 rounded-md bg-default-100 border border-default-200 cursor-pointer hover:bg-default-200 transition-colors"
-                  onClick={() => console.log("用户按钮被点击")}
+                  onClick={() => {
+                    // eslint-disable-next-line no-console
+                    console.log("用户按钮被点击");
+                  }}
                 >
                   <span className="text-sm font-medium">
                     {user.fullname || user.email.split("@")[0]}

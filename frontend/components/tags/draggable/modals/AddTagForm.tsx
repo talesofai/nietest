@@ -277,7 +277,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
               type === "element" ? (
                 <Input
                   ref={variableNameInputRef}
-                  autoFocus={true}
+                  // autoFocus={true} // 移除 autoFocus 以解决可访问性问题
                   className="w-full"
                   errorMessage={nameError}
                   isInvalid={!!nameError}
@@ -299,7 +299,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
               )
             ) : (
               <TagValueInput
-                autoFocus={true}
+                // autoFocus={true} // 移除 autoFocus 以解决可访问性问题
                 type={type}
                 value={value || getDefaultValueByType(type)}
                 onChange={setValue}

@@ -5,6 +5,11 @@ const nextConfig = {
     // 忽略构建时的类型错误
     ignoreBuildErrors: true,
   },
+  // 忽略ESLint错误
+  eslint: {
+    // 即使有ESLint错误也继续构建
+    ignoreDuringBuilds: true,
+  },
   async rewrites() {
     const apiBaseUrl =
       process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";

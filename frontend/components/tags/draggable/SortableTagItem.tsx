@@ -81,14 +81,15 @@ const SortableTagItem: React.FC<SortableTagItemProps> = ({
   }, [tag.value, tag.name, tag.type]); // 当标签内容或类型变化时重新测量
 
   // 应用拖拽时的样式，修改为拖拽时完全隐藏原元素
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0 : 1, // 拖拽时完全隐藏原元素
-    zIndex: isDragging ? 10 : 1,
-    // 只在拖拽时设置固定宽度，否则让元素自然调整尺寸
-    ...(isDragging && width ? { width: `${width}px` } : {}),
-  };
+  // 注意：这个样式变量在当前组件中未被使用，但保留以便将来可能的使用
+  // const style = {
+  //   transform: CSS.Transform.toString(transform),
+  //   transition,
+  //   opacity: isDragging ? 0 : 1, // 拖拽时完全隐藏原元素
+  //   zIndex: isDragging ? 10 : 1,
+  //   // 只在拖拽时设置固定宽度，否则让元素自然调整尺寸
+  //   ...(isDragging && width ? { width: `${width}px` } : {}),
+  // };
 
   // 根据标签类型和变量状态决定按钮样式
   const getButtonVariant = () => {

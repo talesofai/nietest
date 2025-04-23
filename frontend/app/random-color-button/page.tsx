@@ -163,8 +163,9 @@ export default function RandomColorButtonDemo() {
           <Divider className="my-2" />
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">按钮变体</label>
+            <label htmlFor="variant-select" className="text-sm font-medium">按钮变体</label>
             <Select
+              id="variant-select"
               className="max-w-xs"
               placeholder="选择按钮变体"
               selectedKeys={[selectedVariant]}

@@ -30,12 +30,14 @@ export async function GET(request: NextRequest) {
     headers.delete("host");
 
     // 保留Authorization头部，确保认证信息被传递
+    // eslint-disable-next-line no-console
     console.log(
       "Authorization头部:",
       headers.get("Authorization") ? "存在" : "不存在",
     );
     // eslint-disable-next-line no-console
     console.log("转发请求方法:", "GET");
+    // eslint-disable-next-line no-console
     console.log("转发请求头部:", {
       "Content-Type": headers.get("Content-Type"),
       Accept: headers.get("Accept"),
@@ -60,6 +62,7 @@ export async function GET(request: NextRequest) {
     // 获取响应数据
     const responseText = await response.text();
 
+    // eslint-disable-next-line no-console
     console.log(
       "后端响应内容:",
       responseText.substring(0, 100) + (responseText.length > 100 ? "..." : ""),

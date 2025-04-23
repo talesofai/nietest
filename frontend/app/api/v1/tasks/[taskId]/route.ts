@@ -16,8 +16,6 @@ export async function GET(
 
     // 构建转发到后端的URL
     const apiUrl = `${API_BASE_URL}/api/v1/tasks/${taskId}`;
-
-    // eslint-disable-next-line no-console
     console.log(`转发请求到: ${apiUrl}`);
 
     // 获取原始请求的头部
@@ -42,17 +40,14 @@ export async function GET(
     const data = await response.json();
 
     // 返回响应
-
     return NextResponse.json(data, {
       status: response.status,
       statusText: response.statusText,
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("任务详情API代理错误:", error);
 
     // 返回错误响应
-
     return NextResponse.json(
       {
         code: 500,
@@ -103,17 +98,14 @@ export async function DELETE(
     const data = await response.json();
 
     // 返回响应
-
     return NextResponse.json(data, {
       status: response.status,
       statusText: response.statusText,
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("删除任务API代理错误:", error);
 
     // 返回错误响应
-
     return NextResponse.json(
       {
         code: 500,

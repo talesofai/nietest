@@ -38,8 +38,9 @@ export default function RootLayout({
           "min-h-screen bg-background font-sans antialiased",
           fontSans.variable,
         )}
+        suppressHydrationWarning
       >
-        <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
+        <Providers themeProps={{ attribute: "class", defaultTheme: "light", forcedTheme: "light" }}>
           <div className="relative flex flex-col h-screen">
             <main className="w-full flex-grow">{children}</main>
             <footer className="w-full flex items-center justify-center py-3">

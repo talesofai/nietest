@@ -50,7 +50,8 @@ export const useVariableValues = (
     value: string,
     characterInfo?: { uuid?: string; header_img?: string; weight?: number },
   ) => {
-    const variableValue = setVariableValues((prev) => {
+    // 这里的返回值未被使用，可以直接调用而不赋值
+    setVariableValues((prev) => {
       const valueToUpdate = prev.find((v) => v.variable_id === id);
 
       if (valueToUpdate) {
