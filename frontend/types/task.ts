@@ -2,18 +2,18 @@
  * 任务相关的类型定义
  */
 
-import { Tag } from './tag';
-import { Variables } from './variable';
+import { Tag } from "./tag";
+import { Variables } from "./variable";
 
 /**
  * 任务状态枚举
  */
 export enum TaskStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled'
+  PENDING = "pending",
+  PROCESSING = "processing",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  CANCELLED = "cancelled",
 }
 
 /**

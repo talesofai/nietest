@@ -35,6 +35,7 @@ export async function GET(request: Request): Promise<Response> {
     // 构建请求发送到实际的后端
     const backendUrl = "http://localhost:8000/api/v1/users/me";
 
+    // eslint-disable-next-line no-console
     console.log(`转发用户信息请求到后端: ${backendUrl}`);
 
     const response = await fetch(backendUrl, {
@@ -48,9 +49,12 @@ export async function GET(request: Request): Promise<Response> {
 
     try {
       data = JSON.parse(responseText);
+      // eslint-disable-next-line no-console
       console.log("后端用户信息原始响应:", data);
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.error("解析后端JSON响应失败:", e);
+      // eslint-disable-next-line no-console
       console.log("原始响应文本:", responseText);
 
       return new Response(
@@ -80,6 +84,7 @@ export async function GET(request: Request): Promise<Response> {
     const userData = data.data ? data.data : data;
 
     // 返回标准格式的响应
+
     return new Response(
       JSON.stringify({
         code: 200,
@@ -101,6 +106,7 @@ export async function GET(request: Request): Promise<Response> {
       },
     );
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("获取用户信息失败:", error);
 
     return new Response(
@@ -115,5 +121,4 @@ export async function GET(request: Request): Promise<Response> {
       },
     );
   }
-
 }

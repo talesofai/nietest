@@ -72,8 +72,11 @@ export const useAuthProvider = () => {
   const fetchUserInfo = async () => {
     setError(null);
     try {
+      // eslint-disable-next-line no-console
       console.log("正在获取用户信息...");
       const response = await getCurrentUser();
+
+      // eslint-disable-next-line no-console
       console.log("获取用户信息响应:", response);
 
       if (response.error) {
@@ -96,20 +99,25 @@ export const useAuthProvider = () => {
           userData = userData.data; // 标准响应格式的内层data
         }
 
+        // eslint-disable-next-line no-console
         console.log("获取到用户信息:", userData);
         setUser(userData as User);
+
         return true;
       } else {
         setUser(null);
         setError("获取用户信息失败: 响应中没有数据");
+
         return false;
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("获取用户信息失败:", error);
       setUser(null);
       setError(
         `网络错误，无法连接到API服务器: ${error instanceof Error ? error.message : String(error)}`,
       );
+
       return false;
     }
   };
@@ -120,19 +128,23 @@ export const useAuthProvider = () => {
     setError(null);
 
     try {
+      // eslint-disable-next-line no-console
       console.log(`尝试登录，用户名: ${email}`);
       const response = await loginApi(email, password);
 
+      // eslint-disable-next-line no-console
       console.log("登录响应:", response);
 
       if (response.error) {
         setIsLoading(false);
         setError(response.error);
+
         return false;
       }
 
       // 检查响应数据正确性
       // 处理可能的多层嵌套响应
+      // eslint-disable-next-line no-console
       console.log("处理登录响应:", response.data);
 
       // 提取access_token，处理可能的多层嵌套
@@ -151,6 +163,7 @@ export const useAuthProvider = () => {
       }
 
       if (accessToken) {
+        // eslint-disable-next-line no-console
         console.log("登录成功，已获取访问令牌:", accessToken);
 
         // 存储token到localStorage
@@ -159,20 +172,26 @@ export const useAuthProvider = () => {
 
         // 获取用户信息
         const authSuccess = await fetchUserInfo();
+
         setIsLoading(false);
+
         return authSuccess;
       } else {
+        // eslint-disable-next-line no-console
         console.error("登录响应结构不正确:", response);
         setIsLoading(false);
         setError("登录响应结构不正确，无法获取访问令牌");
+
         return false;
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("登录失败:", error);
       setIsLoading(false);
       setError(
         `网络错误，无法连接到API服务器: ${error instanceof Error ? error.message : String(error)}`,
       );
+
       return false;
     }
   };

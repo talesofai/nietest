@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { getApiBaseUrl } from "@/utils/apiClient";
 
 // API基础URL，从集中位置获取
@@ -33,7 +34,8 @@ export async function OPTIONS(_request: NextRequest) {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Token, X-Platform",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-Token, X-Platform",
       "Access-Control-Max-Age": "86400",
     },
   });
@@ -51,15 +53,15 @@ async function proxyRequest(
     // 构建目标URL路径 - 保持和原始请求相同的路径
     const targetPath = `/${pathSegments.join("/")}`;
 
-
     // 获取查询参数
     const url = new URL(request.url);
     const queryString = url.search;
 
     // 构建完整URL
     const apiUrl = `${API_BASE_URL}${targetPath}${queryString}`;
-    console.log(`[API代理] 转发请求到: ${apiUrl}`);
 
+    // eslint-disable-next-line no-console
+    console.log(`[API代理] 转发请求到: ${apiUrl}`);
 
     // 创建头部对象
     const headers = new Headers();
@@ -93,10 +95,12 @@ async function proxyRequest(
         if (contentType.includes("application/json")) {
           // JSON数据
           const body = await request.json().catch(() => ({}));
+
           requestInit.body = JSON.stringify(body);
         } else if (contentType.includes("multipart/form-data")) {
           // 表单数据
           const formData = await request.formData().catch(() => new FormData());
+
           requestInit.body = formData;
           // 移除content-type头，让浏览器自动设置正确的boundary
           headers.delete("content-type");
@@ -114,9 +118,11 @@ async function proxyRequest(
         } else {
           // 其他类型数据，作为文本处理
           const text = await request.text().catch(() => "");
+
           requestInit.body = text;
         }
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("[API代理] 处理请求体错误:", err);
         // 如果有错误，继续不带请求体发送请求
       }
@@ -129,8 +135,9 @@ async function proxyRequest(
 
     // 发送请求到后端服务器
     const response = await fetch(apiUrl, requestInit);
-    console.log(`[API代理] 收到响应: ${response.status}`);
 
+    // eslint-disable-next-line no-console
+    console.log(`[API代理] 收到响应: ${response.status}`);
 
     // 读取响应数据
     let responseData;
@@ -140,12 +147,14 @@ async function proxyRequest(
       try {
         responseData = await response.json();
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("[API代理] 解析JSON响应错误:", err);
         responseData = { error: "无法解析JSON响应" };
       }
     } else {
       try {
         const text = await response.text();
+
         // 尝试解析为JSON
         try {
           responseData = JSON.parse(text);
@@ -154,6 +163,7 @@ async function proxyRequest(
           responseData = { text };
         }
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("[API代理] 读取响应错误:", err);
         responseData = { error: "无法读取响应" };
       }
@@ -187,9 +197,11 @@ async function proxyRequest(
 
     return nextResponse;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("[API代理] 错误:", error);
     const errorMessage = error instanceof Error ? error.message : "未知错误";
 
+    // eslint-disable-next-line no-console
     console.error("[API代理] 错误细节:", errorMessage);
 
     return NextResponse.json(
@@ -203,8 +215,10 @@ async function proxyRequest(
         status: 500,
         headers: {
           "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Token, X-Platform",
+          "Access-Control-Allow-Methods":
+            "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+          "Access-Control-Allow-Headers":
+            "Content-Type, Authorization, X-Token, X-Platform",
         },
       },
     );

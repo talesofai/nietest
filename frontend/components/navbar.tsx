@@ -14,9 +14,15 @@ import { Input } from "@heroui/input";
 import { link as linkStyles } from "@heroui/theme";
 import NextLink from "next/link";
 import clsx from "clsx";
-import { useAuth } from "@/app/api/v1/auth";
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Avatar } from "@heroui/react";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  Avatar,
+} from "@heroui/react";
 
+import { useAuth } from "@/app/api/v1/auth";
 import { siteConfig } from "@/config/site";
 import { ThemeSwitch } from "@/components/theme-switch";
 import {
@@ -114,11 +120,11 @@ export const Navbar = () => {
             <Dropdown>
               <DropdownTrigger>
                 <Avatar
-                  name={user.fullname || user.email.charAt(0).toUpperCase()}
-                  size="sm"
+                  isBordered
                   className="cursor-pointer"
                   color="primary"
-                  isBordered
+                  name={user.fullname || user.email.charAt(0).toUpperCase()}
+                  size="sm"
                 />
               </DropdownTrigger>
               <DropdownMenu aria-label="用户菜单">
@@ -137,9 +143,9 @@ export const Navbar = () => {
             <Button
               as={NextLink}
               className="text-sm font-normal text-white bg-primary"
+              color="primary"
               href="/login"
               variant="solid"
-              color="primary"
             >
               登录
             </Button>
@@ -157,11 +163,11 @@ export const Navbar = () => {
           <Dropdown>
             <DropdownTrigger>
               <Avatar
-                name={user.fullname || user.email.charAt(0).toUpperCase()}
-                size="sm"
+                isBordered
                 className="cursor-pointer"
                 color="primary"
-                isBordered
+                name={user.fullname || user.email.charAt(0).toUpperCase()}
+                size="sm"
               />
             </DropdownTrigger>
             <DropdownMenu aria-label="用户菜单">
@@ -179,9 +185,9 @@ export const Navbar = () => {
             <Button
               as={NextLink}
               className="text-sm font-normal text-white"
+              color="primary"
               href="/login"
               size="sm"
-              color="primary"
             >
               登录
             </Button>

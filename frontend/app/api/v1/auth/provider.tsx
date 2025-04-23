@@ -18,5 +18,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // 使用自定义钩子获取所有认证状态和方法
   const authState = useAuthProvider();
 
-  return <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={authState}>{children}</AuthContext.Provider>
+  );
 };

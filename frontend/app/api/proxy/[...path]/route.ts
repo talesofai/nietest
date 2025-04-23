@@ -60,6 +60,7 @@ async function proxyRequest(
     // 构建完整URL - 确保路径格式正确
     const apiUrl = `${API_BASE_URL}/api/v1/${targetPath}${queryString}`;
 
+    // eslint-disable-next-line no-console
     console.log(`代理请求到: ${apiUrl}`);
 
     // 获取请求头
@@ -111,6 +112,7 @@ async function proxyRequest(
 
     // 创建响应头
     const responseHeaders = new Headers();
+
     response.headers.forEach((value, key) => {
       responseHeaders.set(key, value);
     });
@@ -119,12 +121,14 @@ async function proxyRequest(
     responseHeaders.set("Access-Control-Allow-Origin", "*");
 
     // 返回响应
+
     return NextResponse.json(responseData, {
       status: response.status,
       statusText: response.statusText,
       headers: responseHeaders,
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("API代理错误:", error);
 
     return NextResponse.json({ error: "代理请求失败" }, { status: 500 });
