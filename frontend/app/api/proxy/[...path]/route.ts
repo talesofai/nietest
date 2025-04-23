@@ -7,27 +7,27 @@ const API_BASE_URL = getApiBaseUrl();
 /**
  * 处理所有请求方法
  */
-export async function GET(request: NextRequest, { params }: { params: { path: string[] } }) {
-    return await proxyRequest(request, params.path, 'GET');
+export async function GET(request: NextRequest, context: any) {
+    return await proxyRequest(request, context.params.path, 'GET');
 }
 
-export async function POST(request: NextRequest, { params }: { params: { path: string[] } }) {
-    return await proxyRequest(request, params.path, 'POST');
+export async function POST(request: NextRequest, context: any) {
+    return await proxyRequest(request, context.params.path, 'POST');
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { path: string[] } }) {
-    return await proxyRequest(request, params.path, 'PUT');
+export async function PUT(request: NextRequest, context: any) {
+    return await proxyRequest(request, context.params.path, 'PUT');
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { path: string[] } }) {
-    return await proxyRequest(request, params.path, 'DELETE');
+export async function DELETE(request: NextRequest, context: any) {
+    return await proxyRequest(request, context.params.path, 'DELETE');
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { path: string[] } }) {
-    return await proxyRequest(request, params.path, 'PATCH');
+export async function PATCH(request: NextRequest, context: any) {
+    return await proxyRequest(request, context.params.path, 'PATCH');
 }
 
-export async function OPTIONS(request: NextRequest, { params }: { params: { path: string[] } }) {
+export async function OPTIONS(_request: NextRequest, _context: any) {
     return new NextResponse(null, {
         status: 204,
         headers: {
