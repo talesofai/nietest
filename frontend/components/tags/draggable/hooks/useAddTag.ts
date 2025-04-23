@@ -46,7 +46,7 @@ export const useAddTag = (
     header_img?: string;
   }) => {
     // 获取预设的随机颜色和渐变色
-    const colorValue = previewColorRef.current;
+    // const colorValue = previewColorRef.current; // 未使用的变量
     const gradientConfig = previewGradientColorRef.current;
 
     // 对于变量标签，需要名称

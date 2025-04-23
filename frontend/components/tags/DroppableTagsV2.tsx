@@ -40,7 +40,8 @@ const DroppableTagsV2: React.FC = () => {
     setVariableValues,
     globalSettings,
     setGlobalSettings,
-    isDataLoaded,
+    // isDataLoaded 未使用
+    // isDataLoaded,
   } = useLocalStorage();
 
   // 设置模态框状态
@@ -80,8 +81,9 @@ const DroppableTagsV2: React.FC = () => {
     setShowAddForm,
     generateRandomColors,
     handleAddTag,
-    previewColorRef,
-    previewGradientColorRef,
+    // previewColorRef 和 previewGradientColorRef 未使用
+    // previewColorRef,
+    // previewGradientColorRef,
   } = useAddTag(tags, setTags, setVariableValues);
 
   // 使用配置导入导出 Hook
@@ -209,9 +211,12 @@ const DroppableTagsV2: React.FC = () => {
       {/* 提交相关模态框组 */}
       <SubmitModals
         // 登录提示模态框
+        isConfirmOpen={isConfirmOpen}
         isLoginTipOpen={isLoginTipOpen}
-        setTaskName={setTaskName}
+        isSecondConfirmOpen={isSecondConfirmOpen}
+        isTaskNameModalOpen={isTaskNameModalOpen}
         taskName={taskName}
+        totalImages={totalImages}
         onConfirmAccept={() => {
           if (totalImages > 50000) {
             // 如果超过50000张图片，显示错误
@@ -226,20 +231,14 @@ const DroppableTagsV2: React.FC = () => {
         }}
         onConfirmClose={onConfirmClose}
         onConfirmOpen={onConfirmOpen}
+        onGoToLogin={() => router.push("/login")}
         onLoginTipClose={onLoginTipClose}
+        onSecondConfirmAccept={() => onTaskNameModalOpen()}
         onSecondConfirmClose={onSecondConfirmClose}
         onSubmit={proceedWithSubmission}
         onTaskNameModalClose={onTaskNameModalClose}
         onTaskNameModalOpen={onTaskNameModalOpen}
-        totalImages={totalImages}
-        // 二次确认模态框
-        isSecondConfirmOpen={isSecondConfirmOpen}
-        onGoToLogin={() => router.push("/login")}
-        // 提交确认模态框
-        isConfirmOpen={isConfirmOpen}
-        onSecondConfirmAccept={() => onTaskNameModalOpen()}
-        // 任务名称输入模态框
-        isTaskNameModalOpen={isTaskNameModalOpen}
+        setTaskName={setTaskName}
       />
     </div>
   );

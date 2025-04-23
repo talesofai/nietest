@@ -190,13 +190,14 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                     </span>
                     <Input
                       ref={variableNameInputRef}
-                      autoFocus={
-                        editingTag.type === "prompt" ||
-                        editingTag.type === "character" ||
-                        editingTag.type === "element"
-                      }
-                      className="w-full"
+                      // 移除 autoFocus 以解决可访问性问题
+                      // autoFocus={
+                      //   editingTag.type === "prompt" ||
+                      //   editingTag.type === "character" ||
+                      //   editingTag.type === "element"
+                      // }
                       placeholder="输入变量名称"
+                      className="w-full"
                       isDisabled={
                         editingTag.type !== "prompt" &&
                         editingTag.type !== "character" &&
@@ -229,7 +230,8 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                       标签值:
                     </span>
                     <TagValueInput
-                      autoFocus={true}
+                      // 移除 autoFocus 以解决可访问性问题
+                      // autoFocus={true}
                       type={editingTag.type}
                       value={editingTag.value}
                       onChange={(newValue) =>

@@ -87,8 +87,8 @@ const VTokenDemo: React.FC = () => {
                 header_img={selectedCharacter?.header_img}
                 name={selectedCharacter?.name}
                 type="character"
-                onChange={(value) => {
-                  // 选择变更
+                onChange={(_value) => {
+                  // 选择变更，参数未使用所以加上下划线
                 }}
                 onSelectItem={(item) => {
                   // 选择项目
@@ -120,8 +120,8 @@ const VTokenDemo: React.FC = () => {
                 header_img={selectedElement?.header_img}
                 name={selectedElement?.name}
                 type="element"
-                onChange={(value) => {
-                  // 选择变更
+                onChange={(_value) => {
+                  // 选择变更，参数未使用所以加上下划线
                 }}
                 onSelectItem={(item) => {
                   // 选择项目

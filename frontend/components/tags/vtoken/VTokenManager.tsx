@@ -42,7 +42,6 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
     // 如果令牌为空，则清除
     if (!trimmedToken) {
       handleClearToken();
-
       return;
     }
 
@@ -50,7 +49,6 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
 
     try {
       const isTokenValid = await validateXToken(trimmedToken);
-
       setIsValid(isTokenValid);
 
       if (isTokenValid) {
@@ -60,7 +58,6 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
         onTokenChange?.(null);
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error("验证令牌时出错:", error);
       setIsValid(false);
       onTokenChange?.(null);
@@ -110,9 +107,7 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
               onChange={(e) => setToken(e.target.value)}
             />
             <Tooltip content={`令牌状态: ${validationStatus.text}`}>
-              <div
-                className={`w-3 h-3 rounded-full bg-${validationStatus.color} self-center`}
-              />
+              <div className={`w-3 h-3 rounded-full bg-${validationStatus.color} self-center`} />
             </Tooltip>
           </div>
 

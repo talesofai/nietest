@@ -16,8 +16,6 @@ export async function POST(request: NextRequest) {
 
     // 构建转发到后端的URL
     const apiUrl = `${API_BASE_URL}/api/v1/auth/login`;
-
-    // eslint-disable-next-line no-console
     console.log(`转发登录请求到: ${apiUrl}`);
 
     // 创建新的URLSearchParams对象 - 这是FastAPI OAuth2认证需要的格式
@@ -38,7 +36,6 @@ export async function POST(request: NextRequest) {
     });
 
     // 检查响应状态
-    // eslint-disable-next-line no-console
     console.log("\u767b\u5f55API\u54cd\u5e94\u72b6\u6001:", response.status);
 
     // 如果响应不成功，返回错误
@@ -52,7 +49,6 @@ export async function POST(request: NextRequest) {
         errorMessage = errorResponse.detail || errorMessage;
         errorData = errorResponse;
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.error("\u65e0\u6cd5\u89e3\u6790\u9519\u8bef\u54cd\u5e94:", e);
       }
 
@@ -69,16 +65,13 @@ export async function POST(request: NextRequest) {
     // 解析成功响应
     const data = await response.json();
 
-    // eslint-disable-next-line no-console
     console.log("\u767b\u5f55\u6210\u529f\u54cd\u5e94:", data);
 
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error("\u767b\u5f55API\u4ee3\u7406\u9519\u8bef:", error);
 
     // 返回错误响应
-
     return NextResponse.json(
       {
         code: 500,

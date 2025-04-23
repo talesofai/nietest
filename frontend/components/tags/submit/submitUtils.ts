@@ -620,9 +620,11 @@ export const completeSubmitProcess = async (
     );
 
     // 记录详细的统计信息
+    // eslint-disable-next-line no-console
     console.log(
       `标签统计: 共 ${totalTagsCount} 个标签(其中变量标签 ${variableTagsCount} 个)`,
     );
+    // eslint-disable-next-line no-console
     console.log(
       `变量统计: 共 ${variableNames} 个变量(共 ${totalVariableValues} 个值)`,
     );

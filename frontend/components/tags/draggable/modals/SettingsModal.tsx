@@ -40,10 +40,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <ModalBody>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label htmlFor="max-threads" className="block text-sm font-medium mb-1">
                     最大线程数
                   </label>
                   <Input
+                    id="max-threads"
                     className="w-full"
                     max={32}
                     min={1}
@@ -62,10 +63,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label htmlFor="x-token" className="block text-sm font-medium mb-1">
                     X-Token
                   </label>
                   <Input
+                    id="x-token"
                     className="w-full"
                     type="password"
                     value={globalSettings.xToken}
