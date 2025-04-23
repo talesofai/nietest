@@ -1,16 +1,16 @@
 import { useState, useRef } from "react";
 
+import { alertService } from "@/utils/alertService";
+import { Tag, TagType } from "@/types/tag";
+import { VariableValue } from "@/types/variable";
+import { getRandomColorValue, getRandomGradientColors } from "@/config/colors";
+
 import {
   getDefaultValueByType,
   isVariableNameUnique,
   isTypeUnique,
   isVariableNameLengthValid,
 } from "../tagUtils";
-
-import { alertService } from "@/utils/alertService";
-import { Tag, TagType } from "@/types/tag";
-import { VariableValue } from "@/types/variable";
-import { getRandomColorValue, getRandomGradientColors } from "@/config/colors";
 
 /**
  * 添加标签自定义 Hook

@@ -1,4 +1,4 @@
-import { apiRequest } from  "./apiClient";
+import { apiRequest } from "./apiClient";
 
 // 分页响应接口
 export interface PaginatedResponse<T> {
@@ -24,7 +24,6 @@ export const getTaskList = async (
     // 构建查询参数
     const queryParams = new URLSearchParams();
 
-
     queryParams.append("page", page.toString());
     queryParams.append("page_size", pageSize.toString());
 
@@ -38,13 +37,11 @@ export const getTaskList = async (
     // 发送请求（确保路径以斜杠结尾）
     const response = await apiRequest.get(`/api/v1/tasks/?${queryParams.toString()}`);
 
-
     if (!response.success) {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("获取任务列表失败:", response.error);
-
+      console.error("获取任务列表失败:", response.error);
 
       return {
         success: false,
@@ -52,7 +49,6 @@ console.error("获取任务列表失败:", response.error);
         data: null,
       };
     }
-
 
     return {
       success: true,
@@ -62,8 +58,7 @@ console.error("获取任务列表失败:", response.error);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("获取任务列表出错:", error);
-
+    console.error("获取任务列表出错:", error);
 
     return {
       success: false,
@@ -88,13 +83,11 @@ export const getTaskDetail = async (taskId: string) => {
     // 发送请求（确保路径以斜杠结尾）
     const response = await apiRequest.get(`/api/v1/tasks/${taskId}/`);
 
-
     if (!response.success) {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("获取任务详情失败:", response.error);
-
+      console.error("获取任务详情失败:", response.error);
 
       return {
         success: false,
@@ -102,7 +95,6 @@ console.error("获取任务详情失败:", response.error);
         data: null,
       };
     }
-
 
     return {
       success: true,
@@ -112,8 +104,7 @@ console.error("获取任务详情失败:", response.error);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("获取任务详情出错:", error);
-
+    console.error("获取任务详情出错:", error);
 
     return {
       success: false,
@@ -138,13 +129,11 @@ export const getTaskByUuid = async (taskUuid: string) => {
     // 发送请求（确保路径以斜杠结尾）
     const response = await apiRequest.get(`/api/v1/tasks/uuid/${taskUuid}/`);
 
-
     if (!response.success) {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("通过UUID获取任务详情失败:", response.error);
-
+      console.error("通过UUID获取任务详情失败:", response.error);
 
       return {
         success: false,
@@ -152,7 +141,6 @@ console.error("通过UUID获取任务详情失败:", response.error);
         data: null,
       };
     }
-
 
     return {
       success: true,
@@ -162,8 +150,7 @@ console.error("通过UUID获取任务详情失败:", response.error);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("通过UUID获取任务详情出错:", error);
-
+    console.error("通过UUID获取任务详情出错:", error);
 
     return {
       success: false,
@@ -188,13 +175,11 @@ export const cancelTask = async (taskId: string) => {
     // 发送请求（确保路径以斜杠结尾）
     const response = await apiRequest.post(`/api/v1/tasks/${taskId}/cancel/`);
 
-
     if (!response.success) {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("取消任务失败:", response.error);
-
+      console.error("取消任务失败:", response.error);
 
       return {
         success: false,
@@ -202,7 +187,6 @@ console.error("取消任务失败:", response.error);
         data: null,
       };
     }
-
 
     return {
       success: true,
@@ -212,8 +196,7 @@ console.error("取消任务失败:", response.error);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("取消任务出错:", error);
-
+    console.error("取消任务出错:", error);
 
     return {
       success: false,
@@ -238,13 +221,11 @@ export const deleteTask = async (taskId: string) => {
     // 发送请求（确保路径以斜杠结尾）
     const response = await apiRequest.delete(`/api/v1/tasks/${taskId}/`);
 
-
     if (!response.success) {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("删除任务失败:", response.error);
-
+      console.error("删除任务失败:", response.error);
 
       return {
         success: false,
@@ -252,7 +233,6 @@ console.error("删除任务失败:", response.error);
         data: null,
       };
     }
-
 
     return {
       success: true,
@@ -262,8 +242,7 @@ console.error("删除任务失败:", response.error);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("删除任务出错:", error);
-
+    console.error("删除任务出错:", error);
 
     return {
       success: false,
@@ -288,13 +267,11 @@ export const getTaskMatrix = async (taskId: string) => {
     // 发送请求（确保路径以斜杠结尾）
     const response = await apiRequest.get(`/api/v1/tasks/${taskId}/matrix/`);
 
-
     if (!response.success) {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("获取任务矩阵数据失败:", response.error);
-
+      console.error("获取任务矩阵数据失败:", response.error);
 
       return {
         success: false,
@@ -302,7 +279,6 @@ console.error("获取任务矩阵数据失败:", response.error);
         data: null,
       };
     }
-
 
     return {
       success: true,
@@ -312,8 +288,7 @@ console.error("获取任务矩阵数据失败:", response.error);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("获取任务矩阵数据出错:", error);
-
+    console.error("获取任务矩阵数据出错:", error);
 
     return {
       success: false,

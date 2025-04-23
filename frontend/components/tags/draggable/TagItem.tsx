@@ -4,11 +4,11 @@ import React, { useState, useMemo } from "react";
 import { motion, Reorder } from "framer-motion";
 import { Button } from "@heroui/react";
 
-import ColorButton from "../../ColorButton";
-
 import { Tag } from "@/types/tag";
 import { getTagDisplayText } from "@/components/tags/draggable/tagUtils";
 import { CloseIcon } from "@/components/icons";
+
+import ColorButton from "../../ColorButton";
 
 // 动画配置常量
 const ANIMATION_CONFIG = {

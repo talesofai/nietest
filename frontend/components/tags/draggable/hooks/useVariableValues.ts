@@ -1,8 +1,8 @@
-import { getDefaultValueByType } from "../tagUtils";
-
 import { alertService } from "@/utils/alertService";
 import { Tag } from "@/types/tag";
 import { VariableValue } from "@/types/variable";
+
+import { getDefaultValueByType } from "../tagUtils";
 
 /**
  * 变量值操作自定义 Hook

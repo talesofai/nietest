@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useDisclosure } from "@heroui/react";
 
-import { getDefaultValueByType, RESERVED_VARIABLE_NAMES, getTypeDisplayName } from "../tagUtils";
-
 import { alertService } from "@/utils/alertService";
 import { Tag } from "@/types/tag";
 import { VariableValue } from "@/types/variable";
 import { getRandomGradientColors } from "@/config/colors";
+
+import { getDefaultValueByType, RESERVED_VARIABLE_NAMES, getTypeDisplayName } from "../tagUtils";
 
 /**
  * 标签编辑自定义 Hook

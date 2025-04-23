@@ -6,12 +6,10 @@
 export function generateClientSafeId(prefix: string = "id"): string {
   // 在服务器端返回一个固定值
   if (typeof window === "undefined") {
-
     return `${prefix}-server-rendered`;
   }
 
   // 在客户端返回一个随机值
-
 
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
@@ -23,12 +21,10 @@ export function generateClientSafeId(prefix: string = "id"): string {
 export function getClientSafeDate(): Date {
   // 在服务器端返回一个固定日期
   if (typeof window === "undefined") {
-
     return new Date(2023, 0, 1); // 固定日期：2023-01-01
   }
 
   // 在客户端返回当前日期
-
 
   return new Date();
 }
@@ -40,12 +36,10 @@ export function getClientSafeDate(): Date {
 export function getClientSafeRandom(): number {
   // 在服务器端返回一个固定值
   if (typeof window === "undefined") {
-
     return 0.5; // 固定随机数：0.5
   }
 
   // 在客户端返回一个随机值
-
 
   return Math.random();
 }
@@ -57,22 +51,20 @@ export function getClientSafeRandom(): number {
 export function getClientSafeDataVersion(): string {
   // 在服务器端返回一个固定值
   if (typeof window === "undefined") {
-
     return "1.0.0";
   }
 
   // 在客户端，如果已经有一个版本号，则使用它，否则生成一个新的
   if (typeof window !== "undefined" && window.__DATA_VERSION) {
-
     return window.__DATA_VERSION;
   }
 
   // 生成一个新的版本号并存储它
   const version = "4.0.5"; // 使用错误信息中提到的版本号
+
   if (typeof window !== "undefined") {
     window.__DATA_VERSION = version;
   }
-
 
   return version;
 }

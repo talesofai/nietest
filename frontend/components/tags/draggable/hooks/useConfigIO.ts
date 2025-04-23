@@ -1,8 +1,8 @@
-import { validateTags, validateVariableValues } from "../validators";
-
 import { alertService } from "@/utils/alertService";
 import { Tag } from "@/types/tag";
 import { VariableValue } from "@/types/variable";
+
+import { validateTags, validateVariableValues } from "../validators";
 
 /**
  * 全局设置类型

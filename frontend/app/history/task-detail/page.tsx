@@ -26,6 +26,29 @@ export default function TaskDetailPage(): JSX.Element {
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // 处理API返回的嵌套数据结构
+  const extractTaskData = (taskData: any): any => {
+    if (taskData.id) {
+      return taskData;
+    }
+    if (taskData.data?.id) {
+      return taskData.data;
+    }
+    if (taskData.data?.data?.id) {
+      return taskData.data.data;
+    }
+
+    return {};
+  };
+
+  // 处理API错误
+  const handleApiError = (errorMsg: string): void => {
+    // eslint-disable-next-line no-console
+    console.error(errorMsg);
+    setError(errorMsg);
+    setTask(null);
+  };
+
   useEffect(() => {
     const fetchTaskDetail = async (): Promise<void> => {
       if (!taskId) {
@@ -38,67 +61,49 @@ export default function TaskDetailPage(): JSX.Element {
       try {
         setLoading(true);
         // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
         console.log(`尝试获取任务详情，ID: ${taskId}`);
 
         const response: TaskResponse = await getTaskDetail(taskId);
 
         // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
         console.log("获取任务详情响应:", response);
 
+        // 处理错误响应
         if (response?.error) {
-          // eslint-disable-next-line no-console
-          // eslint-disable-next-line no-console
-          console.error("获取任务详情错误:", response.error);
-          setError(response.error);
-          setTask(null);
-        } else if (response?.data) {
-          // 适配API规范返回的数据
-          const taskData = response.data;
+          handleApiError(response.error);
 
-          // eslint-disable-next-line no-console
-          // eslint-disable-next-line no-console
-          console.log("原始任务数据:", taskData);
+          return;
+        }
 
-          // 处理可能的嵌套数据结构
-          let actualTaskData: any;
+        // 处理没有数据的响应
+        if (!response?.data) {
+          handleApiError("获取任务详情失败，服务器没有返回数据");
 
-          if (taskData.id) {
-            actualTaskData = taskData;
-          } else if (taskData.data && taskData.data.id) {
-            actualTaskData = taskData.data;
-          } else if (taskData.data && taskData.data.data && taskData.data.data.id) {
-            actualTaskData = taskData.data.data;
-          } else {
-            actualTaskData = {};
-          }
+          return;
+        }
 
-          // eslint-disable-next-line no-console
-          // eslint-disable-next-line no-console
-          console.log("处理后的任务数据:", actualTaskData);
+        // 适配API规范返回的数据
+        const taskData = response.data;
 
-          if (actualTaskData.id) {
-            setTask(actualTaskData as TaskDetail);
-            setError(null);
-          } else {
-            // eslint-disable-next-line no-console
-            // eslint-disable-next-line no-console
-            console.error("任务详情数据不完整");
-            setError("任务详情为空或格式不正确");
-            setTask(null);
-          }
+        // eslint-disable-next-line no-console
+        console.log("原始任务数据:", taskData);
+
+        // 处理可能的嵌套数据结构
+        const actualTaskData = extractTaskData(taskData);
+
+        // eslint-disable-next-line no-console
+        console.log("处理后的任务数据:", actualTaskData);
+
+        // 验证任务数据
+        if (actualTaskData.id) {
+          setTask(actualTaskData as TaskDetail);
+          setError(null);
         } else {
-          // eslint-disable-next-line no-console
-          // eslint-disable-next-line no-console
-          console.error("获取任务详情失败，响应中没有数据");
-          setError("获取任务详情失败，服务器没有返回数据");
-          setTask(null);
+          handleApiError("任务详情为空或格式不正确");
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "获取任务详情失败";
 
-        // eslint-disable-next-line no-console
         // eslint-disable-next-line no-console
         console.error("获取任务详情异常:", err);
         setError(`发生错误: ${errorMessage}`);

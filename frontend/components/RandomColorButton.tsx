@@ -1,9 +1,9 @@
 import { ButtonProps } from "@heroui/react";
 import { useState, useEffect, useCallback } from "react";
 
-import ColorButton from "./ColorButton";
-
 import { getRandomColorValue, getRandomGradientColors } from "@/config/colors";
+
+import ColorButton from "./ColorButton";
 
 // RandomColorButton 组件的属性接口，继承自 ButtonProps
 type RandomColorButtonProps = Omit<ButtonProps, "color"> & {

@@ -18,13 +18,14 @@ import {
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 
 // 导入子组件
-import { SortableTagItem, END_PLACEHOLDER_ID, UserIcon } from "../draggable";
-
-import AddTagForm from "./modals/AddTagForm";
 
 import { truncateText, getTypeDisplayName } from "@/components/tags/draggable/tagUtils";
 import { Tag } from "@/types/tag";
 import ColorButton from "@/components/ColorButton";
+
+import { SortableTagItem, END_PLACEHOLDER_ID, UserIcon } from "../draggable";
+
+import AddTagForm from "./modals/AddTagForm";
 
 interface TagAreaProps {
   tags: Tag[];

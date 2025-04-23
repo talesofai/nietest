@@ -1,18 +1,15 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from "axios";
+import axios, { AxiosInstance, AxiosResponse, AxiosError } from "axios";
 
 // 创建获取API基础URL的函数，以便其他文件可以导入使用
 export const getApiBaseUrl = (): string => {
-
   return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 };
 
 // 设置API基本URL
 const API_BASE_URL = getApiBaseUrl();
 
-
 // 静态导出模式下，不使用代理，直接调用后端API
 const USE_PROXY = false;
-
 
 /**
  * 获取JWT认证令牌，用于用户认证
@@ -24,12 +21,9 @@ export const getAuthToken = (): string | null => {
   // 主要从标准的access_token位置获取
   const token = localStorage.getItem("access_token");
 
-
   if (token && token !== "undefined" && token !== "null") {
-
     return token;
   }
-
 
   return null; // 如果没有找到token，返回null
 };
@@ -44,12 +38,9 @@ export const getXToken = (): string | null => {
   // 从x_token位置获取
   const token = localStorage.getItem("x_token");
 
-
   if (token && token !== "undefined" && token !== "null") {
-
     return token;
   }
-
 
   return null; // 如果没有找到token，返回null
 };
@@ -71,7 +62,6 @@ apiClient.interceptors.request.use(
     // 获取认证令牌
     const token = getAuthToken();
     const xToken = getXToken();
-
 
     // 如果有JWT令牌，添加到请求头
     if (token) {
@@ -97,8 +87,7 @@ apiClient.interceptors.request.use(
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.log("请求头部:", config.headers);
-
+    console.log("请求头部:", config.headers);
 
     return config;
   },
@@ -106,8 +95,7 @@ console.log("请求头部:", config.headers);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("API请求拦截器错误:", error);
-
+    console.error("API请求拦截器错误:", error);
 
     return Promise.reject(error);
   }
@@ -118,9 +106,8 @@ apiClient.interceptors.response.use(
   (response) => {
     // 记录成功响应
     // eslint-disable-next-line no-console
-console.log(`[响应拦截器] 成功: ${response.config.url}, 状态: ${response.status}`);
+    console.log(`[响应拦截器] 成功: ${response.config.url}, 状态: ${response.status}`);
     // 直接返回响应数据
-
 
     return response;
   },
@@ -129,14 +116,14 @@ console.log(`[响应拦截器] 成功: ${response.config.url}, 状态: ${respons
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("[响应拦截器] 错误:", error);
+    console.error("[响应拦截器] 错误:", error);
 
     // 如果是网络错误或超时
     if (!error.response) {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("[响应拦截器] 网络错误或请求超时");
+      console.error("[响应拦截器] 网络错误或请求超时");
 
       // 构建详细的错误信息
       const errorInfo = {
@@ -149,14 +136,12 @@ console.error("[响应拦截器] 网络错误或请求超时");
         data: null,
       };
 
-
       return Promise.reject(errorInfo);
     }
 
     // 如果是服务器返回的错误
     let errorMessage = "服务器错误";
     const responseData = error.response.data;
-
 
     if (responseData && typeof responseData === "object") {
       if ("message" in responseData && typeof responseData.message === "string") {
@@ -177,8 +162,7 @@ console.error("[响应拦截器] 网络错误或请求超时");
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("[响应拦截器] 服务器错误:", errorInfo);
-
+    console.error("[响应拦截器] 服务器错误:", errorInfo);
 
     return Promise.reject(errorInfo);
   }
@@ -208,7 +192,7 @@ export interface PaginatedResponse<T> {
 }
 
 // 导入任务相关类型
-import { TaskStatus, TaskCreateRequest } from  "@/types/task";
+import { TaskStatus, TaskCreateRequest } from "@/types/task";
 
 // 导出任务状态枚举
 export { TaskStatus };
@@ -233,16 +217,15 @@ const processRequest = async (
   // 处理URL格式
   let processedUrl = url;
 
-
   try {
     // 调试信息：输出请求基础信息
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.log(`[API请求] 方法: ${method}, 原始URL: ${url}`);
+    console.log(`[API请求] 方法: ${method}, 原始URL: ${url}`);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.log(`[API请求] API基础URL: ${API_BASE_URL}`);
+    console.log(`[API请求] API基础URL: ${API_BASE_URL}`);
 
     // 处理URL路径
     // 注意：现在我们在NEXT_PUBLIC_API_BASE_URL中已经包含了/api前缀
@@ -265,7 +248,7 @@ console.log(`[API请求] API基础URL: ${API_BASE_URL}`);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.log(`[API请求] 处理后URL: ${processedUrl}`);
+    console.log(`[API请求] 处理后URL: ${processedUrl}`);
 
     // 发送请求
     const response: AxiosResponse = await apiClient.request({
@@ -279,11 +262,10 @@ console.log(`[API请求] 处理后URL: ${processedUrl}`);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.log(`[API响应] 状态: ${response.status}, URL: ${processedUrl}`);
+    console.log(`[API响应] 状态: ${response.status}, URL: ${processedUrl}`);
 
     // 检查响应格式是否符合标准格式 {code, message, data}
     const responseData = response.data;
-
 
     if (
       responseData &&
@@ -292,7 +274,6 @@ console.log(`[API响应] 状态: ${response.status}, URL: ${processedUrl}`);
       "data" in responseData
     ) {
       // 标准格式响应，提取data字段
-
 
       return {
         success: true,
@@ -303,7 +284,6 @@ console.log(`[API响应] 状态: ${response.status}, URL: ${processedUrl}`);
       };
     } else {
       // 非标准格式，直接返回整个响应
-
 
       return {
         success: true,
@@ -316,18 +296,17 @@ console.log(`[API响应] 状态: ${response.status}, URL: ${processedUrl}`);
     // 处理错误
     const axiosError = error as AxiosError;
 
-
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error(`[API错误] 请求失败: ${method} ${url}`, axiosError);
+    console.error(`[API错误] 请求失败: ${method} ${url}`, axiosError);
 
     // 检查是否是网络错误或超时
     if (!axiosError.response) {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("[API错误] 网络连接失败或超时");
+      console.error("[API错误] 网络连接失败或超时");
 
       // 构建详细的错误信息
       const errorDetails = {
@@ -341,8 +320,7 @@ console.error("[API错误] 网络连接失败或超时");
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("[API错误] 详细信息:", errorDetails);
-
+      console.error("[API错误] 详细信息:", errorDetails);
 
       return {
         success: false,
@@ -363,7 +341,6 @@ console.error("[API错误] 详细信息:", errorDetails);
     const responseData = axiosError.response?.data;
     let errorMessage = "";
 
-
     if (responseData && typeof responseData === "object") {
       if ("message" in responseData && typeof responseData.message === "string") {
         errorMessage = responseData.message;
@@ -375,7 +352,6 @@ console.error("[API错误] 详细信息:", errorDetails);
     } else {
       errorMessage = axiosError.message || "服务器错误";
     }
-
 
     return {
       success: false,
@@ -400,7 +376,6 @@ export const apiRequest = {
  * @param params 查询参数
  */
 export const getTasks = async (params?: any): Promise<ApiResponse<any>> => {
-
   return apiRequest.get("/api/v1/tasks", params);
 };
 
@@ -409,7 +384,6 @@ export const getTasks = async (params?: any): Promise<ApiResponse<any>> => {
  * @param taskId 任务ID
  */
 export const getTaskDetail = async (taskId: string): Promise<ApiResponse<any>> => {
-
   return apiRequest.get(`/api/v1/tasks/${taskId}`);
 };
 
@@ -419,7 +393,6 @@ export const getTaskDetail = async (taskId: string): Promise<ApiResponse<any>> =
  * @returns 任务详情
  */
 export const getTaskByUuid = async (taskUuid: string): Promise<ApiResponse<any>> => {
-
   return apiRequest.get(`/api/v1/tasks/uuid/${taskUuid}`);
 };
 
@@ -428,7 +401,6 @@ export const getTaskByUuid = async (taskUuid: string): Promise<ApiResponse<any>>
  * @param data 任务数据
  */
 export const createTask = async (data: TaskCreateRequest): Promise<ApiResponse<any>> => {
-
   return apiRequest.post("/api/v1/tasks", data);
 };
 
@@ -441,7 +413,6 @@ export const updateTask = async (
   taskId: string,
   data: UpdateTaskRequest
 ): Promise<ApiResponse<any>> => {
-
   return apiRequest.put(`/api/v1/tasks/${taskId}`, data);
 };
 
@@ -450,7 +421,6 @@ export const updateTask = async (
  * @param taskId 任务ID
  */
 export const deleteTask = async (taskId: string): Promise<ApiResponse<any>> => {
-
   return apiRequest.delete(`/api/v1/tasks/${taskId}`);
 };
 
@@ -463,7 +433,6 @@ export const loginApi = async (email: string, password: string): Promise<ApiResp
   try {
     // 创建FormData对象
     const formData = new FormData();
-
 
     formData.append("username", email); // 使用email作为username
     formData.append("password", password);
@@ -478,15 +447,13 @@ export const loginApi = async (email: string, password: string): Promise<ApiResp
     // 解析响应
     const responseData = await response.json();
 
-
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.log("登录响应数据:", responseData);
+    console.log("登录响应数据:", responseData);
 
     // 如果有错误信息，返回错误
     if (!response.ok || responseData.code >= 400) {
-
       return {
         success: false,
         error: responseData.message || `登录失败: ${response.status} ${response.statusText}`,
@@ -495,7 +462,6 @@ console.log("登录响应数据:", responseData);
     }
 
     // 返回成功响应
-
 
     return {
       success: true,
@@ -506,8 +472,7 @@ console.log("登录响应数据:", responseData);
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
-console.error("登录请求错误:", error);
-
+    console.error("登录请求错误:", error);
 
     return {
       success: false,
@@ -521,7 +486,6 @@ console.error("登录请求错误:", error);
  * 获取当前用户信息API函数
  */
 export const getCurrentUser = async (): Promise<ApiResponse<any>> => {
-
   return apiRequest.get("/api/v1/users/me");
 };
 

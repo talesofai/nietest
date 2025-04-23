@@ -27,6 +27,11 @@ interface SubmitModalsProps {
   taskName: string;
   setTaskName: (name: string) => void;
   onSubmit: (taskName: string) => void;
+
+  // 未使用的参数
+  _onConfirmOpen?: () => void;
+  _onConfirmAccept?: () => void;
+  _onSecondConfirmAccept?: () => void;
 }
 
 /**

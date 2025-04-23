@@ -4,12 +4,12 @@ import React from "react";
 import { Switch } from "@heroui/switch";
 import { Input } from "@heroui/react";
 
-import { TagValueInput } from "../draggable/TagValueInput";
-
 import { Tag } from "@/types/tag";
 import { VariableValue } from "@/types/variable";
 import VTokenDisplay from "@/components/tags/vtoken/VTokenDisplay";
 import { SearchSelectItem } from "@/types/search";
+
+import { TagValueInput } from "../draggable/TagValueInput";
 
 interface VariableValueInputProps {
   value: VariableValue;

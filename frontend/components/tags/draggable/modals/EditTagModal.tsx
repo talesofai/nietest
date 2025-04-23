@@ -14,8 +14,6 @@ import {
 import { Input } from "@heroui/input";
 import { Switch } from "@heroui/switch";
 
-import { TagValueInput } from "../TagValueInput";
-
 import { Tag } from "@/types/tag";
 import {
   getTypeDisplayName,
@@ -23,6 +21,8 @@ import {
   isVariableNameLengthValid,
 } from "@/components/tags/draggable/tagUtils";
 import { alertService } from "@/utils/alertService";
+
+import { TagValueInput } from "../TagValueInput";
 
 interface EditTagModalProps {
   isOpen: boolean;

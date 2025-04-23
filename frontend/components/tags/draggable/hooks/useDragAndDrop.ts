@@ -11,9 +11,9 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 
-import { END_PLACEHOLDER_ID } from "../constants";
-
 import { Tag } from "@/types/tag";
+
+import { END_PLACEHOLDER_ID } from "../constants";
 
 /**
  * 拖拽操作自定义Hook

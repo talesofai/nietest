@@ -5,13 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
 
-import ColorButton from "../../ColorButton";
-
-import VariableValueInput from "./VariableValueInput";
-
 import { Tag } from "@/types/tag";
 import { VariableValue } from "@/types/variable";
 import { getTypeDisplayName } from "@/components/tags/draggable/tagUtils";
+
+import ColorButton from "../../ColorButton";
+
+import VariableValueInput from "./VariableValueInput";
 
 interface VariableValueListProps {
   tags: Tag[];

@@ -91,12 +91,10 @@ export enum API_STATUS_CODES {
  */
 export const API_PLATFORM = "nieta-app/web";
 
-
 /**
  * API 基础URL
  */
 export const API_BASE_URL = "https://api.talesofai.cn/v2";
-
 
 // 导出搜索类型定义
 export * from "./search";

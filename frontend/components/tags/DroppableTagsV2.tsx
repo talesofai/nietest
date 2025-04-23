@@ -5,6 +5,8 @@ import { Button } from "@heroui/react";
 import { useDisclosure } from "@heroui/react";
 
 // 导入子组件
+import { useAuth } from "@/lib/auth";
+
 import TagArea from "./draggable/TagArea";
 import { ActionButtons } from "./draggable";
 import { SettingsModal, SubmitModals } from "./draggable/modals";
@@ -22,8 +24,6 @@ import {
   useTagEdit,
   useVariableValues,
 } from "./draggable";
-
-import { useAuth } from "@/lib/auth";
 
 /**
  * 可拖拽标签主组件 v2 - 使用 dnd-kit

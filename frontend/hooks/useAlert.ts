@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from  "react";
+import { useState, useCallback } from "react";
 
 /**
  * Alert通知选项接口
@@ -66,7 +66,7 @@ export const useAlert = () => {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
-console.error("无法显示Alert通知:", error);
+      console.error("无法显示Alert通知:", error);
       console.log(
         `${options.color === "danger" ? "错误" : "成功"}: ${options.title} - ${options.description}`
       );
@@ -136,7 +136,6 @@ console.error("无法显示Alert通知:", error);
     },
     [showAlert]
   );
-
 
   return {
     alertState,
