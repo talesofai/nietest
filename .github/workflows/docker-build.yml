@@ -24,14 +24,14 @@ jobs:
       - name: Login to ACR
         uses: aliyun/acr-login@v1
         with:
-          login-server: ${{ secrets.ALIYUN_REGISTRY }}
+          login-server: ${{ vars.ALIYUN_REGISTRY }}
           username: "${{ secrets.ALIYUN_USERNAME }}"
           password: "${{ secrets.ALIYUN_PASSWORD }}"
 
       - name: Check if Docker image exists
         id: check_docker_image
         run: |
-          image="${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/${{ secrets.ALIYUN_IMAGE_NAME }}"
+          image="${{ vars.ALIYUN_REGISTRY }}/${{ vars.ALIYUN_NAMESPACE }}/${{ vars.ALIYUN_IMAGE_NAME }}"
           tag="${{ github.sha }}"
           if docker manifest inspect "${image}:${tag}" >/dev/null 2>&1; then
             echo "Docker image ${image}:${tag} already exists, skip build"
@@ -62,7 +62,7 @@ jobs:
       - name: Login to ACR
         uses: aliyun/acr-login@v1
         with:
-          login-server: ${{ secrets.ALIYUN_REGISTRY }}
+          login-server: ${{ vars.ALIYUN_REGISTRY }}
           username: "${{ secrets.ALIYUN_USERNAME }}"
           password: "${{ secrets.ALIYUN_PASSWORD }}"
 
@@ -79,8 +79,7 @@ jobs:
           builder: mybuilder
           push: true
           tags: |
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/${{ secrets.ALIYUN_IMAGE_NAME }}:latest
-            ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/${{ secrets.ALIYUN_IMAGE_NAME }}:${{ github.sha }}
-          # 不使用缓存，先确保构建成功
+            ${{ vars.ALIYUN_REGISTRY }}/${{ vars.ALIYUN_NAMESPACE }}/${{ vars.ALIYUN_IMAGE_NAME }}:latest
+            ${{ vars.ALIYUN_REGISTRY }}/${{ vars.ALIYUN_NAMESPACE }}/${{ vars.ALIYUN_IMAGE_NAME }}:${{ github.sha }}
           no-cache: true
           platforms: linux/amd64
