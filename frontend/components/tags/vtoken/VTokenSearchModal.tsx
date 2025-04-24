@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Image from "next/image";
 import {
   Modal,
   ModalContent,
@@ -279,11 +280,13 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
                             className="w-full relative overflow-hidden bg-gray-100"
                             style={{ paddingBottom: "133.33%" }}
                           >
-                            <img
+                            <Image
                               alt={item.name}
                               className="w-full h-full object-cover absolute inset-0"
+                              height={200}
                               src={item.header_img || getPlaceholderSvg(type)}
                               style={{ objectPosition: "center" }}
+                              width={150}
                               onError={handleImageError}
                             />
 

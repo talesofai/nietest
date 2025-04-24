@@ -50,57 +50,6 @@ const ColorButton = ({
     return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(gradientToColor);
   }, [gradientToColor]);
 
-  // 应用渐变背景或纯色背景
-  const getBackgroundStyle = (
-    hexColor: string,
-    useGradient: boolean,
-    gradientToColor?: string
-  ): Record<string, string> => {
-    if (useGradient && isValidGradientColor && gradientToColor) {
-      return { background: `linear-gradient(to right top, ${hexColor}, ${gradientToColor})` };
-    }
-
-    return { backgroundColor: hexColor };
-  };
-
-  // 根据变体类型获取样式
-  const getStyleForVariant = (variant: string, hexColor: string): Record<string, string> => {
-    const style: Record<string, string> = {};
-
-    switch (variant) {
-      case "bordered":
-        if (colorBorder) {
-          style.borderColor = hexColor;
-          style.color = hexColor;
-        }
-        break;
-
-      case "light":
-      case "flat":
-      case "faded":
-        // 为这些半透明背景的变体设置颜色
-        style.backgroundColor = `${hexColor}20`; // 添加透明度
-        style.color = hexColor;
-        break;
-
-      case "ghost":
-        // Ghost 只在悬停时显示背景色
-        style.color = hexColor;
-        break;
-
-      case "shadow":
-        Object.assign(style, getBackgroundStyle(hexColor, useGradient, gradientToColor));
-        style.boxShadow = `0 4px 14px 0 ${hexColor}aa`;
-        break;
-
-      case "solid":
-      default:
-        Object.assign(style, getBackgroundStyle(hexColor, useGradient, gradientToColor));
-    }
-
-    return style;
-  };
-
   // 计算样式对象
   const buttonStyle = useMemo(() => {
     if (!isValidHexColor) {
@@ -110,14 +59,65 @@ const ColorButton = ({
       return {};
     }
 
+    // 应用渐变背景或纯色背景
+    const getBackgroundStyle = (
+      hexColor: string,
+      useGradient: boolean,
+      gradientToColor?: string
+    ): Record<string, string> => {
+      if (useGradient && isValidGradientColor && gradientToColor) {
+        return { background: `linear-gradient(to right top, ${hexColor}, ${gradientToColor})` };
+      }
+
+      return { backgroundColor: hexColor };
+    };
+
+    // 根据变体类型获取样式
+    const getStyleForVariant = (variant: string, hexColor: string): Record<string, string> => {
+      const style: Record<string, string> = {};
+
+      switch (variant) {
+        case "bordered":
+          if (colorBorder) {
+            style.borderColor = hexColor;
+            style.color = hexColor;
+          }
+          break;
+
+        case "light":
+        case "flat":
+        case "faded":
+          // 为这些半透明背景的变体设置颜色
+          style.backgroundColor = `${hexColor}20`; // 添加透明度
+          style.color = hexColor;
+          break;
+
+        case "ghost":
+          // Ghost 只在悬停时显示背景色
+          style.color = hexColor;
+          break;
+
+        case "shadow":
+          Object.assign(style, getBackgroundStyle(hexColor, useGradient, gradientToColor));
+          style.boxShadow = `0 4px 14px 0 ${hexColor}aa`;
+          break;
+
+        case "solid":
+        default:
+          Object.assign(style, getBackgroundStyle(hexColor, useGradient, gradientToColor));
+      }
+
+      return style;
+    };
+
     return getStyleForVariant(variant, hexColor);
   }, [
     hexColor,
-    useGradient,
-    gradientToColor,
     isValidHexColor,
-    isValidGradientColor,
     variant,
+    useGradient,
+    isValidGradientColor,
+    gradientToColor,
     colorBorder,
   ]);
 

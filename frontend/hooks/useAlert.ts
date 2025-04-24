@@ -58,6 +58,7 @@ export const useAlert = () => {
       });
 
       // 同时在控制台记录消息
+      // eslint-disable-next-line no-console
       console.log(
         `${options.color === "danger" ? "错误" : "成功"}: ${options.title} - ${options.description}`
       );
@@ -67,6 +68,7 @@ export const useAlert = () => {
       // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error("无法显示Alert通知:", error);
+      // eslint-disable-next-line no-console
       console.log(
         `${options.color === "danger" ? "错误" : "成功"}: ${options.title} - ${options.description}`
       );

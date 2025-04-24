@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@heroui/react";
 import { useSortable } from "@dnd-kit/sortable";
@@ -28,7 +29,7 @@ const SortableTagItem: React.FC<SortableTagItemProps> = ({ tag, onEdit, onRemove
   const [width, setWidth] = useState<number | undefined>(undefined);
 
   // 使用 dnd-kit 的 useSortable hook
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: tag.id,
     data: {
       width: width,
@@ -129,12 +130,16 @@ const SortableTagItem: React.FC<SortableTagItemProps> = ({ tag, onEdit, onRemove
             startContent={
               tag.header_img && (
                 <div className="h-5 w-5 flex-shrink-0 bg-transparent rounded-full overflow-hidden">
-                  <img
+                  <Image
                     alt=""
                     className="h-full w-full object-cover"
+                    height={20}
                     src={tag.header_img}
+                    width={20}
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src =
+                      const target = e.target as HTMLImageElement;
+
+                      target.src =
                         'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23dddddd"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="12" fill="%23888888" text-anchor="middle" dominant-baseline="middle"%3E角色%3C/text%3E%3C/svg%3E';
                     }}
                   />

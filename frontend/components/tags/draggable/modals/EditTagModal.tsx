@@ -175,12 +175,12 @@ const EditTagModal: React.FC<EditTagModalProps> = ({ isOpen, onClose, onSave, ta
                       //   editingTag.type === "element"
                       // }
                       className="w-full"
-                      placeholder="输入变量名称"
                       isDisabled={
                         editingTag.type !== "prompt" &&
                         editingTag.type !== "character" &&
                         editingTag.type !== "element"
                       } // 非prompt类型、非character类型和非element类型变量名不可修改
+                      placeholder="输入变量名称"
                       size="sm"
                       value={editingTag.name || ""}
                       onChange={(e) => {
