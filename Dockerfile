@@ -8,8 +8,13 @@ RUN npm install -g pnpm@9.0.5
 # 复制前端代码并构建
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+
+# 禁用husky，因为在Docker构建环境中不需要Git钩子
+ENV HUSKY=0
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
 COPY frontend/ ./
+# 跳过prepare脚本，直接构建
 RUN pnpm build
 
 # Python后端构建阶段
