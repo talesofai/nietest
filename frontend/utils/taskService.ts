@@ -18,7 +18,7 @@ export interface PaginatedResponse<T> {
 export const getTaskList = async (
   page = 1,
   pageSize = 10,
-  filters: Record<string, string> = {},
+  filters: Record<string, string> = {}
 ) => {
   try {
     // 构建查询参数
@@ -35,11 +35,11 @@ export const getTaskList = async (
     });
 
     // 发送请求（确保路径以斜杠结尾）
-    const response = await apiRequest.get(
-      `/api/v1/tasks/?${queryParams.toString()}`,
-    );
+    const response = await apiRequest.get(`/api/v1/tasks/?${queryParams.toString()}`);
 
     if (!response.success) {
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error("获取任务列表失败:", response.error);
 
@@ -55,6 +55,8 @@ export const getTaskList = async (
       data: response.data,
     };
   } catch (error) {
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("获取任务列表出错:", error);
 
@@ -83,6 +85,8 @@ export const getTaskDetail = async (taskId: string) => {
 
     if (!response.success) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error("获取任务详情失败:", response.error);
 
       return {
@@ -97,6 +101,8 @@ export const getTaskDetail = async (taskId: string) => {
       data: response.data,
     };
   } catch (error) {
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("获取任务详情出错:", error);
 
@@ -125,6 +131,8 @@ export const getTaskByUuid = async (taskUuid: string) => {
 
     if (!response.success) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error("通过UUID获取任务详情失败:", response.error);
 
       return {
@@ -139,6 +147,8 @@ export const getTaskByUuid = async (taskUuid: string) => {
       data: response.data,
     };
   } catch (error) {
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("通过UUID获取任务详情出错:", error);
 
@@ -167,6 +177,8 @@ export const cancelTask = async (taskId: string) => {
 
     if (!response.success) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error("取消任务失败:", response.error);
 
       return {
@@ -181,6 +193,8 @@ export const cancelTask = async (taskId: string) => {
       data: response.data,
     };
   } catch (error) {
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("取消任务出错:", error);
 
@@ -209,6 +223,8 @@ export const deleteTask = async (taskId: string) => {
 
     if (!response.success) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error("删除任务失败:", response.error);
 
       return {
@@ -223,6 +239,8 @@ export const deleteTask = async (taskId: string) => {
       data: response.data,
     };
   } catch (error) {
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("删除任务出错:", error);
 
@@ -251,6 +269,8 @@ export const getTaskMatrix = async (taskId: string) => {
 
     if (!response.success) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error("获取任务矩阵数据失败:", response.error);
 
       return {
@@ -265,6 +285,8 @@ export const getTaskMatrix = async (taskId: string) => {
       data: response.data,
     };
   } catch (error) {
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("获取任务矩阵数据出错:", error);
 

@@ -28,10 +28,7 @@ export const ratioOptions = [
  * 预设变量名映射
  * 为每种标签类型（除batch和character外）提供默认变量名
  */
-export const RESERVED_VARIABLE_NAMES: Record<
-  Exclude<TagType, "batch" | "character">,
-  string
-> = {
+export const RESERVED_VARIABLE_NAMES: Record<Exclude<TagType, "batch" | "character">, string> = {
   ratio: "比例测试",
   seed: "种子测试",
   polish: "润色测试",
@@ -55,7 +52,7 @@ export const TAG_TYPE_OPTIONS = [
 
 // 标签类型到显示名称的映射缓存，提高性能
 const TYPE_DISPLAY_NAME_MAP = new Map<TagType, string>(
-  TAG_TYPE_OPTIONS.map((option) => [option.key as TagType, option.label]),
+  TAG_TYPE_OPTIONS.map((option) => [option.key as TagType, option.label])
 );
 
 /**
@@ -122,7 +119,7 @@ export const isVariableNameLengthValid = (name: string): boolean => {
  */
 export const truncateText = (
   text: string,
-  maxLength: number = DEFAULT_TEXT_TRUNCATE_LENGTH,
+  maxLength: number = DEFAULT_TEXT_TRUNCATE_LENGTH
 ): string => {
   if (!text || text.length <= maxLength) return text;
 
@@ -137,8 +134,7 @@ export const truncateText = (
  */
 export const isTypeUnique = (type: TagType, tags: Tag[]): boolean => {
   // prompt、character和element类型可以有多个
-  if (type === "prompt" || type === "character" || type === "element")
-    return true;
+  if (type === "prompt" || type === "character" || type === "element") return true;
 
   // 其他类型每种只能有一个
 
@@ -150,15 +146,10 @@ export const isTypeUnique = (type: TagType, tags: Tag[]): boolean => {
  * @param variables 现有变量配置
  * @returns 可用的变量槽位键名，如果都已使用则返回null
  */
-export const findAvailableVariableSlot = (
-  variables: Variables,
-): string | null => {
+export const findAvailableVariableSlot = (variables: Variables): string | null => {
   // 检查v0到v6是否有可用槽位
   for (const key of ["v0", "v1", "v2", "v3", "v4", "v5", "v6"]) {
-    if (
-      !variables[key as keyof Variables] ||
-      !variables[key as keyof Variables]?.name
-    ) {
+    if (!variables[key as keyof Variables] || !variables[key as keyof Variables]?.name) {
       return key;
     }
   }
@@ -193,7 +184,7 @@ export const addVariableValue = (
   value: string,
   weight?: number,
   uuid?: string,
-  header_img?: string,
+  header_img?: string
 ): Variable => {
   // 创建新的变量值对象
   const newValue: VariableValue = {
@@ -229,10 +220,7 @@ export const addVariableValue = (
  * @param variableId 要删除的变量值ID
  * @returns 更新后的变量配置
  */
-export const removeVariableValue = (
-  variable: Variable,
-  variableId: string,
-): Variable => {
+export const removeVariableValue = (variable: Variable, variableId: string): Variable => {
   return {
     ...variable,
     values: variable.values.filter((v) => v.variable_id !== variableId),

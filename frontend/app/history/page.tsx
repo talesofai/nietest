@@ -1,5 +1,8 @@
 "use client";
 
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Icon } from "@iconify/react";
 import {
   Card,
   CardBody,
@@ -11,20 +14,22 @@ import {
   Tabs,
   Tab,
 } from "@heroui/react";
-import { useRouter } from "next/navigation";
-import { Icon } from "@iconify/react";
 
 import HistoryTab from "@/components/history/HistoryTab";
-import { useAuth } from "@/app/api/v1/auth/client";
+import { useAuth } from "@/lib/auth";
 
 // 使用Iconify图标
-const SettingsIcon = (props: any) => (
+type CustomIconProps = Omit<React.ComponentProps<typeof Icon>, "icon" | "height" | "width">;
+
+const SettingsIcon = (props: CustomIconProps) => (
   <Icon height="20" icon="solar:settings-outline" width="20" {...props} />
 );
-const ProgressIcon = (props: any) => (
+
+const ProgressIcon = (props: CustomIconProps) => (
   <Icon height="20" icon="solar:refresh-circle-outline" width="20" {...props} />
 );
-const HistoryIcon = (props: any) => (
+
+const HistoryIcon = (props: CustomIconProps) => (
   <Icon height="20" icon="solar:clock-circle-outline" width="20" {...props} />
 );
 
@@ -44,6 +49,7 @@ export default function HistoryPage() {
                   className="px-3 py-1 rounded-md bg-default-100 border border-default-200 cursor-pointer hover:bg-default-200 transition-colors"
                   onClick={() => {
                     // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
                     console.log("用户按钮被点击");
                   }}
                 >
@@ -55,6 +61,7 @@ export default function HistoryPage() {
               <DropdownMenu
                 aria-label="用户菜单"
                 onAction={(key) => {
+                  // eslint-disable-next-line no-console
                   // eslint-disable-next-line no-console
                   console.log("菜单项被点击:", key);
                   if (key === "logout") {
@@ -80,9 +87,7 @@ export default function HistoryPage() {
               selectedKey="history"
               size="sm"
               onSelectionChange={(key) => {
-                router.push(
-                  `/${key.toString() === "parameters" ? "parameters" : key}`,
-                );
+                router.push(`/${key.toString() === "parameters" ? "parameters" : key}`);
               }}
             >
               <Tab

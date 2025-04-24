@@ -15,10 +15,7 @@ import {
 
 import { SearchResultItem, SearchSelectItem } from "@/types/search";
 import { HeartFilledIcon, SearchIcon, CloseIcon } from "@/components/icons";
-import {
-  searchCharacterOrElement,
-  getPlaceholderSvg,
-} from "@/utils/vtokenService";
+import { searchCharacterOrElement, getPlaceholderSvg } from "@/utils/vtokenService";
 
 /**
  * 令牌搜索类型
@@ -101,7 +98,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
           searchKeyword,
           apiPageIndex,
           PAGE_SIZE,
-          config.apiType as any,
+          config.apiType as any
         );
 
         if (response.data) {
@@ -109,9 +106,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
           setTotalPages(response.metadata?.total_page_size || 1);
           setTotalResults(response.metadata?.total_size || 0);
         } else if (response.error) {
-          setErrorMessage(
-            `搜索${type === "character" ? "角色" : "元素"}失败: ${response.error}`,
-          );
+          setErrorMessage(`搜索${type === "character" ? "角色" : "元素"}失败: ${response.error}`);
           setSearchResults([]);
           setTotalPages(1);
           setTotalResults(0);
@@ -123,10 +118,8 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
         }
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.error(
-          `搜索${type === "character" ? "角色" : "元素"}失败:`,
-          error,
-        );
+        // eslint-disable-next-line no-console
+        console.error(`搜索${type === "character" ? "角色" : "元素"}失败:`, error);
         setErrorMessage(`搜索失败，请稍后重试`);
         setSearchResults([]);
         setTotalPages(1);
@@ -135,7 +128,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
         setIsLoading(false);
       }
     },
-    [config.apiType, type],
+    [config.apiType, type]
   );
 
   // 确保总页数有效
@@ -161,7 +154,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
         handleSearch();
       }
     },
-    [handleSearch],
+    [handleSearch]
   );
 
   // 换页处理
@@ -177,7 +170,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
         doSearch(keyword, safePage);
       }
     },
-    [isLoading, totalPages, page, keyword, doSearch],
+    [isLoading, totalPages, page, keyword, doSearch]
   );
 
   // 选择项目
@@ -194,7 +187,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
       onSelect(selectItem);
       onClose();
     },
-    [onSelect, onClose],
+    [onSelect, onClose]
   );
 
   // 分页信息
@@ -211,7 +204,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
     (e: React.SyntheticEvent<HTMLImageElement>) => {
       (e.target as HTMLImageElement).src = getPlaceholderSvg(type);
     },
-    [type],
+    [type]
   );
 
   return (
@@ -249,9 +242,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
                     className="flex-grow"
                     placeholder={config.placeholder}
                     size="sm"
-                    startContent={
-                      <SearchIcon className="text-default-400 flex-shrink-0" />
-                    }
+                    startContent={<SearchIcon className="text-default-400 flex-shrink-0" />}
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -262,9 +253,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
                 </div>
 
                 {/* 错误信息 */}
-                {errorMessage && (
-                  <div className="text-danger text-sm">{errorMessage}</div>
-                )}
+                {errorMessage && <div className="text-danger text-sm">{errorMessage}</div>}
 
                 {/* 内容区域 */}
                 <div className="flex-grow h-[500px] overflow-y-auto relative">
@@ -313,10 +302,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
 
                           {/* 名称 */}
                           <div className="p-2 text-center">
-                            <span
-                              className="text-sm font-medium truncate block"
-                              title={item.name}
-                            >
+                            <span className="text-sm font-medium truncate block" title={item.name}>
                               {item.name}
                             </span>
                           </div>
@@ -329,9 +315,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
                     keyword &&
                     !isFirstSearch && (
                       <div className="flex flex-col justify-center items-center h-full text-center">
-                        <div className="text-gray-400 mb-2">
-                          {errorMessage || config.emptyText}
-                        </div>
+                        <div className="text-gray-400 mb-2">{errorMessage || config.emptyText}</div>
                         <div className="text-gray-400 text-xs">
                           {errorMessage && errorMessage.includes("请先登录")
                             ? "请登录后再尝试搜索，登录后可获取更多内容"
@@ -344,9 +328,7 @@ const VTokenSearchModal: React.FC<VTokenSearchModalProps> = ({
 
                 {/* 分页区域 */}
                 <div className="flex flex-col items-center mt-4 flex-shrink-0 py-2">
-                  <div className="text-xs text-gray-500 mb-2">
-                    {paginationInfo}
-                  </div>
+                  <div className="text-xs text-gray-500 mb-2">{paginationInfo}</div>
 
                   {searchResults.length > 0 && totalPages > 1 && (
                     <Pagination
@@ -377,14 +359,14 @@ export default VTokenSearchModal;
  * 角色搜索模态框组件
  * 封装了VTokenSearchModal，固定type为character
  */
-export const CharacterSearchModal: React.FC<
-  Omit<VTokenSearchModalProps, "type">
-> = (props) => <VTokenSearchModal {...props} type="character" />;
+export const CharacterSearchModal: React.FC<Omit<VTokenSearchModalProps, "type">> = (props) => (
+  <VTokenSearchModal {...props} type="character" />
+);
 
 /**
  * 元素搜索模态框组件
  * 封装了VTokenSearchModal，固定type为element
  */
-export const ElementSearchModal: React.FC<
-  Omit<VTokenSearchModalProps, "type">
-> = (props) => <VTokenSearchModal {...props} type="element" />;
+export const ElementSearchModal: React.FC<Omit<VTokenSearchModalProps, "type">> = (props) => (
+  <VTokenSearchModal {...props} type="element" />
+);

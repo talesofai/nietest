@@ -1,8 +1,8 @@
-import { validateTags, validateVariableValues } from "../validators";
-
 import { alertService } from "@/utils/alertService";
 import { Tag } from "@/types/tag";
 import { VariableValue } from "@/types/variable";
+
+import { validateTags, validateVariableValues } from "../validators";
 
 /**
  * 全局设置类型
@@ -22,7 +22,7 @@ export const useConfigIO = (
   globalSettings: GlobalSettings,
   setTags: React.Dispatch<React.SetStateAction<Tag[]>>,
   setVariableValues: React.Dispatch<React.SetStateAction<VariableValue[]>>,
-  setGlobalSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>,
+  setGlobalSettings: React.Dispatch<React.SetStateAction<GlobalSettings>>
 ) => {
   // 处理配置下载
   const handleDownloadConfig = () => {
@@ -60,6 +60,8 @@ export const useConfigIO = (
       // 显示成功提示
       alertService.success("配置已下载", "标签和变量配置已成功下载到本地文件");
     } catch (error) {
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error("下载配置失败:", error);
       alertService.error("下载失败", "配置文件下载过程中出现错误");
@@ -102,10 +104,7 @@ export const useConfigIO = (
             // 应用配置
             setTags(validateTags(config.tags));
             setVariableValues(
-              validateVariableValues(
-                config.variableValues,
-                validateTags(config.tags),
-              ),
+              validateVariableValues(config.variableValues, validateTags(config.tags))
             );
 
             // 如果有全局设置，也应用它
@@ -119,9 +118,11 @@ export const useConfigIO = (
             // 显示成功提示
             alertService.success(
               "配置已加载",
-              `成功加载了 ${config.tags.length} 个标签和 ${config.variableValues.length} 个变量值`,
+              `成功加载了 ${config.tags.length} 个标签和 ${config.variableValues.length} 个变量值`
             );
           } catch (error) {
+            // eslint-disable-next-line no-console
+            // eslint-disable-next-line no-console
             // eslint-disable-next-line no-console
             console.error("解析配置文件失败:", error);
             alertService.error("加载失败", "配置文件格式无效或损坏");
@@ -142,6 +143,8 @@ export const useConfigIO = (
       document.body.appendChild(input);
       input.click();
     } catch (error) {
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error("上传配置失败:", error);
       alertService.error("上传失败", "配置文件上传过程中出现错误");

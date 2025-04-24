@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-} from "@heroui/react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
 import { Input } from "@heroui/input";
 
 interface SubmitModalsProps {
@@ -34,6 +27,11 @@ interface SubmitModalsProps {
   taskName: string;
   setTaskName: (name: string) => void;
   onSubmit: (taskName: string) => void;
+
+  // 未使用的参数
+  _onConfirmOpen?: () => void;
+  _onConfirmAccept?: () => void;
+  _onSecondConfirmAccept?: () => void;
 }
 
 /**
@@ -73,14 +71,10 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
         <ModalContent>
           {(onModalClose: () => void) => (
             <>
-              <ModalHeader className="flex flex-col gap-1">
-                需要登录
-              </ModalHeader>
+              <ModalHeader className="flex flex-col gap-1">需要登录</ModalHeader>
               <ModalBody>
                 <div className="space-y-4">
-                  <p className="text-center">
-                    提交操作需要登录账号。请先登录后再进行提交。
-                  </p>
+                  <p className="text-center">提交操作需要登录账号。请先登录后再进行提交。</p>
                 </div>
               </ModalBody>
               <ModalFooter>
@@ -107,16 +101,11 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
         <ModalContent>
           {(onModalClose: () => void) => (
             <>
-              <ModalHeader className="flex flex-col gap-1">
-                确认提交
-              </ModalHeader>
+              <ModalHeader className="flex flex-col gap-1">确认提交</ModalHeader>
               <ModalBody>
                 <div className="space-y-4">
                   <p className="text-default-700">
-                    本次任务将生成{" "}
-                    <span className="font-bold text-primary">
-                      {totalImages}
-                    </span>{" "}
+                    本次任务将生成 <span className="font-bold text-primary">{totalImages}</span>{" "}
                     张图片，这可能需要一定时间。
                   </p>
                   <p className="text-sm text-default-500">请确认是否继续？</p>
@@ -147,9 +136,7 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
         <ModalContent>
           {(onModalClose: () => void) => (
             <>
-              <ModalHeader className="flex flex-col gap-1">
-                警告：大量图片生成
-              </ModalHeader>
+              <ModalHeader className="flex flex-col gap-1">警告：大量图片生成</ModalHeader>
               <ModalBody>
                 <div className="space-y-4">
                   <p className="text-center text-danger">
@@ -184,9 +171,7 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
         <ModalContent>
           {(onModalClose: () => void) => (
             <>
-              <ModalHeader className="flex flex-col gap-1">
-                输入任务名称
-              </ModalHeader>
+              <ModalHeader className="flex flex-col gap-1">输入任务名称</ModalHeader>
               <ModalBody>
                 <div className="space-y-4">
                   <p className="text-sm text-default-500">
@@ -212,8 +197,7 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
                   onPress={() => {
                     // 如果没有输入任务名称，使用默认名称
                     const finalTaskName =
-                      taskName.trim() ||
-                      `无标题任务_${new Date().toLocaleString()}`;
+                      taskName.trim() || `无标题任务_${new Date().toLocaleString()}`;
 
                     onModalClose();
                     // 直接提交任务

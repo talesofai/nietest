@@ -14,11 +14,7 @@ import {
 
 import { title, subtitle } from "@/components/primitives";
 import RandomColorButton from "@/components/RandomColorButton";
-import {
-  getAllColorNames,
-  baseColors,
-  getRandomGradientColors,
-} from "@/config/colors";
+import { getAllColorNames, baseColors, getRandomGradientColors } from "@/config/colors";
 
 export default function RandomColorButtonDemo() {
   const [useGradient, setUseGradient] = useState(false);
@@ -30,9 +26,7 @@ export default function RandomColorButtonDemo() {
   const [changeInterval, setChangeInterval] = useState(2000);
 
   // 示例渐变色（仅用于显示）
-  const [gradientExamples, setGradientExamples] = useState<
-    { from: string; to: string }[]
-  >([]);
+  const [gradientExamples, setGradientExamples] = useState<{ from: string; to: string }[]>([]);
 
   // 生成渐变色示例
   useEffect(() => {
@@ -107,33 +101,23 @@ export default function RandomColorButtonDemo() {
     <section className="flex flex-col items-center justify-center gap-8 py-8 md:py-10">
       <div className="inline-block max-w-2xl text-center justify-center">
         <h1 className={title()}>随机颜色按钮</h1>
-        <p className={subtitle({ class: "mt-4" })}>
-          每次渲染或者根据设置随机选择颜色的按钮组件
-        </p>
+        <p className={subtitle({ class: "mt-4" })}>每次渲染或者根据设置随机选择颜色的按钮组件</p>
       </div>
 
       <Card className="w-full max-w-2xl">
         <CardHeader className="flex flex-col gap-1">
           <h2 className="text-xl font-medium">组件配置</h2>
-          <p className="text-sm text-gray-500">
-            通过下方控件自定义随机颜色按钮的行为和样式
-          </p>
+          <p className="text-sm text-gray-500">通过下方控件自定义随机颜色按钮的行为和样式</p>
         </CardHeader>
         <CardBody className="flex flex-col gap-6">
           <div className="flex items-center gap-2">
-            <Switch
-              isSelected={useGradient}
-              onValueChange={handleGradientToggle}
-            />
+            <Switch isSelected={useGradient} onValueChange={handleGradientToggle} />
             <span className="text-sm">使用渐变效果</span>
           </div>
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <Switch
-                isSelected={autoChange}
-                onValueChange={handleAutoChangeToggle}
-              />
+              <Switch isSelected={autoChange} onValueChange={handleAutoChangeToggle} />
               <span className="text-sm">自动变色</span>
             </div>
 
@@ -153,20 +137,19 @@ export default function RandomColorButtonDemo() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Switch
-              isSelected={changeOnClick}
-              onValueChange={handleClickChangeToggle}
-            />
+            <Switch isSelected={changeOnClick} onValueChange={handleClickChangeToggle} />
             <span className="text-sm">点击变色</span>
           </div>
 
           <Divider className="my-2" />
 
           <div className="flex flex-col gap-2">
-            <label htmlFor="variant-select" className="text-sm font-medium">按钮变体</label>
+            <label className="text-sm font-medium" htmlFor="variant-select">
+              按钮变体
+            </label>
             <Select
-              id="variant-select"
               className="max-w-xs"
+              id="variant-select"
               placeholder="选择按钮变体"
               selectedKeys={[selectedVariant]}
               onChange={handleVariantChange}
@@ -179,19 +162,13 @@ export default function RandomColorButtonDemo() {
 
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center gap-2">
-              <Switch
-                isSelected={isLoading}
-                onValueChange={handleLoadingToggle}
-              />
+              <Switch isSelected={isLoading} onValueChange={handleLoadingToggle} />
               <span className="text-sm">加载状态</span>
             </div>
 
             {selectedVariant === "bordered" && (
               <div className="flex items-center gap-2">
-                <Switch
-                  isSelected={colorBorder}
-                  onValueChange={handleColorBorderToggle}
-                />
+                <Switch isSelected={colorBorder} onValueChange={handleColorBorderToggle} />
                 <span className="text-sm">应用颜色到边框</span>
               </div>
             )}
@@ -251,9 +228,7 @@ export default function RandomColorButtonDemo() {
       <Card className="w-full max-w-2xl">
         <CardHeader className="flex flex-col gap-1">
           <h2 className="text-xl font-medium">可用颜色</h2>
-          <p className="text-sm text-gray-500">
-            随机按钮会从以下颜色中随机选择
-          </p>
+          <p className="text-sm text-gray-500">随机按钮会从以下颜色中随机选择</p>
         </CardHeader>
         <CardBody className="flex flex-col gap-6">
           <div className="flex flex-col gap-4">

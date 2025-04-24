@@ -3,12 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Input, Button, Tooltip } from "@heroui/react";
 
-import {
-  getXToken,
-  setXToken,
-  removeXToken,
-  validateXToken,
-} from "@/utils/vtokenService";
+import { getXToken, setXToken, removeXToken, validateXToken } from "@/utils/vtokenService";
 import { VTokenManagerProps } from "@/types/vtoken";
 
 /**
@@ -42,6 +37,7 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
     // 如果令牌为空，则清除
     if (!trimmedToken) {
       handleClearToken();
+
       return;
     }
 
@@ -49,6 +45,7 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
 
     try {
       const isTokenValid = await validateXToken(trimmedToken);
+
       setIsValid(isTokenValid);
 
       if (isTokenValid) {
@@ -58,6 +55,8 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
         onTokenChange?.(null);
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error("验证令牌时出错:", error);
       setIsValid(false);
       onTokenChange?.(null);
@@ -133,9 +132,7 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
           </div>
 
           {isValid === false && (
-            <div className="text-xs text-danger">
-              令牌验证失败，请检查令牌是否正确
-            </div>
+            <div className="text-xs text-danger">令牌验证失败，请检查令牌是否正确</div>
           )}
 
           <div className="text-xs text-gray-500">

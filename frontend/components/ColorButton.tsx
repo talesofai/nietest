@@ -50,27 +50,24 @@ const ColorButton = ({
     return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(gradientToColor);
   }, [gradientToColor]);
 
-  // 计算样式对象
-  const buttonStyle = useMemo(() => {
-    if (!isValidHexColor) {
-      // eslint-disable-next-line no-console
-      console.warn("无效的十六进制颜色代码。使用默认颜色。");
-
-      return {};
+  // 应用渐变背景或纯色背景
+  const getBackgroundStyle = (
+    hexColor: string,
+    useGradient: boolean,
+    gradientToColor?: string
+  ): Record<string, string> => {
+    if (useGradient && isValidGradientColor && gradientToColor) {
+      return { background: `linear-gradient(to right top, ${hexColor}, ${gradientToColor})` };
     }
 
+    return { backgroundColor: hexColor };
+  };
+
+  // 根据变体类型获取样式
+  const getStyleForVariant = (variant: string, hexColor: string): Record<string, string> => {
     const style: Record<string, string> = {};
 
-    // 根据变体类型应用不同的样式
     switch (variant) {
-      case "solid":
-        if (useGradient && isValidGradientColor && gradientToColor) {
-          style.background = `linear-gradient(to right top, ${hexColor}, ${gradientToColor})`;
-        } else {
-          style.backgroundColor = hexColor;
-        }
-        break;
-
       case "bordered":
         if (colorBorder) {
           style.borderColor = hexColor;
@@ -92,23 +89,28 @@ const ColorButton = ({
         break;
 
       case "shadow":
-        if (useGradient && isValidGradientColor && gradientToColor) {
-          style.background = `linear-gradient(to right top, ${hexColor}, ${gradientToColor})`;
-        } else {
-          style.backgroundColor = hexColor;
-        }
+        Object.assign(style, getBackgroundStyle(hexColor, useGradient, gradientToColor));
         style.boxShadow = `0 4px 14px 0 ${hexColor}aa`;
         break;
 
+      case "solid":
       default:
-        if (useGradient && isValidGradientColor && gradientToColor) {
-          style.background = `linear-gradient(to right top, ${hexColor}, ${gradientToColor})`;
-        } else {
-          style.backgroundColor = hexColor;
-        }
+        Object.assign(style, getBackgroundStyle(hexColor, useGradient, gradientToColor));
     }
 
     return style;
+  };
+
+  // 计算样式对象
+  const buttonStyle = useMemo(() => {
+    if (!isValidHexColor) {
+      // eslint-disable-next-line no-console
+      console.warn("无效的十六进制颜色代码。使用默认颜色。");
+
+      return {};
+    }
+
+    return getStyleForVariant(variant, hexColor);
   }, [
     hexColor,
     useGradient,
@@ -125,12 +127,7 @@ const ColorButton = ({
   const buttonClassName = `${isLightTextVariant ? "text-white" : ""} ${className}`;
 
   return (
-    <Button
-      className={buttonClassName}
-      style={buttonStyle}
-      variant={variant}
-      {...props}
-    >
+    <Button className={buttonClassName} style={buttonStyle} variant={variant} {...props}>
       {children}
     </Button>
   );

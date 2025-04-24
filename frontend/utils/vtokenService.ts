@@ -56,6 +56,8 @@ export const validateXToken = async (token: string): Promise<boolean> => {
     return response.ok;
   } catch (error) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.error("验证token失败:", error);
 
     return false;
@@ -74,7 +76,7 @@ export const searchCharacterOrElement = async (
   keywords: string,
   pageIndex: number = 0,
   pageSize: number = 12,
-  type: ApiSearchType = API_SEARCH_TYPES.OC,
+  type: ApiSearchType = API_SEARCH_TYPES.OC
 ): Promise<SearchResponse> => {
   try {
     // 构建API URL
@@ -138,6 +140,8 @@ export const searchCharacterOrElement = async (
       status: response.status,
     };
   } catch (error) {
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("搜索请求失败:", error);
 

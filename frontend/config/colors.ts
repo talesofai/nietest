@@ -562,10 +562,7 @@ export const getRandomColorValue = (): string => {
 export const getRandomGradientColors = (): { from: string; to: string } => {
   // 获取所有颜色的数组（排除了一些不适合用于渐变的颜色）
   const colorValues = Object.entries(baseColors)
-    .filter(
-      ([name]) =>
-        !name.startsWith("gray") && name !== "black" && name !== "white",
-    )
+    .filter(([name]) => !name.startsWith("gray") && name !== "black" && name !== "white")
     .map(([_, value]) => value);
 
   // 如果颜色数量小于2，返回默认值

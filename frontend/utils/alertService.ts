@@ -9,9 +9,7 @@ class AlertService {
    * @param type Alert类型
    * @returns SVG图标字符串
    */
-  private getIconForType(
-    type: "success" | "error" | "warning" | "info",
-  ): string {
+  private getIconForType(type: "success" | "error" | "warning" | "info"): string {
     switch (type) {
       case "success":
         return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -44,9 +42,11 @@ class AlertService {
   private showAlert(
     type: "success" | "error" | "warning" | "info",
     title: string,
-    description: string,
+    description: string
   ): void {
     // 在控制台记录消息
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.log(`[${type.toUpperCase()}] ${title}: ${description}`);
 
@@ -69,13 +69,9 @@ class AlertService {
         alertContainer.appendChild(alertElement);
 
         // 根据类型设置颜色
-        let color:
-          | "default"
-          | "primary"
-          | "secondary"
-          | "success"
-          | "warning"
-          | "danger" = "default";
+        let color: "default" | "primary" | "secondary" | "success" | "warning" | "danger" =
+          "default";
+
         switch (type) {
           case "success":
             color = "success";
@@ -127,6 +123,8 @@ class AlertService {
         }, 5000);
       } catch (error) {
         // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         console.error("无法显示Alert:", error);
       }
     }
@@ -172,11 +170,7 @@ class AlertService {
    * 显示通用Alert
    * @param options Alert选项
    */
-  public show(options: {
-    title: string;
-    description: string;
-    variant?: string;
-  }): void {
+  public show(options: { title: string; description: string; variant?: string }): void {
     const type = options.variant === "destructive" ? "error" : "success";
 
     this.showAlert(type, options.title, options.description);

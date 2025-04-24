@@ -4,11 +4,11 @@ import React, { useState, useMemo } from "react";
 import { motion, Reorder } from "framer-motion";
 import { Button } from "@heroui/react";
 
-import ColorButton from "../../ColorButton";
-
 import { Tag } from "@/types/tag";
 import { getTagDisplayText } from "@/components/tags/draggable/tagUtils";
 import { CloseIcon } from "@/components/icons";
+
+import ColorButton from "../../ColorButton";
 
 // 动画配置常量
 const ANIMATION_CONFIG = {
@@ -113,30 +113,27 @@ const TagItem: React.FC<TagItemProps> = ({
             onClick={handleClick}
           >
             {/* 左侧图片 - 如果是角色或元素类型则显示 */}
-            {(tag.type === "character" || tag.type === "element") &&
-              tag.header_img && (
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 inline-block">
-                    <img
-                      alt={tag.value}
-                      className="w-full h-full object-cover"
-                      src={tag.header_img}
-                      onError={(e) => {
-                        const text = tag.type === "character" ? "角" : "元";
+            {(tag.type === "character" || tag.type === "element") && tag.header_img && (
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 inline-block">
+                  <img
+                    alt={tag.value}
+                    className="w-full h-full object-cover"
+                    src={tag.header_img}
+                    onError={(e) => {
+                      const text = tag.type === "character" ? "角" : "元";
 
-                        (e.target as HTMLImageElement).src =
-                          `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23dddddd"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="12" fill="%23888888" text-anchor="middle" dominant-baseline="middle"%3E${text}%3C/text%3E%3C/svg%3E`;
-                      }}
-                    />
-                  </div>
-                  <span>{displayText}</span>
+                      (e.target as HTMLImageElement).src =
+                        `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23dddddd"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="12" fill="%23888888" text-anchor="middle" dominant-baseline="middle"%3E${text}%3C/text%3E%3C/svg%3E`;
+                    }}
+                  />
                 </div>
-              )}
+                <span>{displayText}</span>
+              </div>
+            )}
 
             {/* 普通标签内容 */}
-            {!(tag.type === "character" || tag.type === "element") && (
-              <span>{displayText}</span>
-            )}
+            {!(tag.type === "character" || tag.type === "element") && <span>{displayText}</span>}
           </ColorButton>
         </div>
 

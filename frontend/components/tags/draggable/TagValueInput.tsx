@@ -124,9 +124,7 @@ export const TagValueInput = ({
             size="sm"
             value={value}
             onBlur={onBlur}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              onChange?.(e.target.value)
-            }
+            onChange={(e: ChangeEvent<HTMLInputElement>) => onChange?.(e.target.value)}
             onFocus={onFocus}
             onKeyDown={handleKeyDown}
           />
@@ -144,12 +142,7 @@ export const TagValueInput = ({
               onClose={onCharacterSearchOpen}
             />
           ) : (
-            <Button
-              className="w-full"
-              color="primary"
-              size="sm"
-              onPress={onCharacterSearchOpen}
-            >
+            <Button className="w-full" color="primary" size="sm" onPress={onCharacterSearchOpen}>
               角色选择
             </Button>
           )}
@@ -173,12 +166,7 @@ export const TagValueInput = ({
               onClose={onElementSearchOpen}
             />
           ) : (
-            <Button
-              className="w-full"
-              color="primary"
-              size="sm"
-              onPress={onElementSearchOpen}
-            >
+            <Button className="w-full" color="primary" size="sm" onPress={onElementSearchOpen}>
               元素选择
             </Button>
           )}
@@ -199,9 +187,7 @@ export const TagValueInput = ({
             className="w-full text-sm h-[32px] px-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
             value={value}
             onBlur={onBlur}
-            onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-              onChange?.(e.target.value)
-            }
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange?.(e.target.value)}
             onFocus={onFocus}
           >
             {ratioOptions.map((option) => (
@@ -275,9 +261,7 @@ export const TagValueInput = ({
               size="sm"
               onBlur={onBlur}
               onFocus={onFocus}
-              onValueChange={(checked: boolean) =>
-                onChange?.(checked.toString())
-              }
+              onValueChange={(checked: boolean) => onChange?.(checked.toString())}
             />
           </div>
         </div>

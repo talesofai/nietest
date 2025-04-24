@@ -68,6 +68,18 @@ tmp/
 .r2_credentials
 .oss_credentials
 
+# Kubernetes配置文件
+k8s/**/values*.yaml
+k8s/**/secrets*.yaml
+
+# Docker配置文件
+docker-compose*.yml
+
+# 环境变量文件
+.env
+.env.*
+!.env.example
+
 # 其他应用特定文件
 node_modules/
 .cache/
@@ -78,3 +90,4 @@ docs/
 *.next/
 *.cursorrules*
 *test_scripts*
+*example*

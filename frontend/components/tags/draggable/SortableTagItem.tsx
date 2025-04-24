@@ -4,14 +4,10 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@heroui/react";
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { Icon } from "@iconify/react";
 
 import { Tag } from "@/types/tag";
-import {
-  getTypeDisplayName,
-  truncateText,
-} from "@/components/tags/draggable/tagUtils";
+import { getTypeDisplayName, truncateText } from "@/components/tags/draggable/tagUtils";
 import { UserIcon } from "@/components/tags/draggable";
 import ColorButton from "@/components/ColorButton";
 
@@ -26,24 +22,13 @@ interface SortableTagItemProps {
  * 可排序标签项组件
  * 在标签列表中用于显示和拖拽排序的单个标签项
  */
-const SortableTagItem: React.FC<SortableTagItemProps> = ({
-  tag,
-  onEdit,
-  onRemove,
-}) => {
+const SortableTagItem: React.FC<SortableTagItemProps> = ({ tag, onEdit, onRemove }) => {
   // 使用useRef来保持DOM元素的引用，用于测量宽度
   const elementRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | undefined>(undefined);
 
   // 使用 dnd-kit 的 useSortable hook
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tag.id,
     data: {
       width: width,
@@ -118,10 +103,7 @@ const SortableTagItem: React.FC<SortableTagItemProps> = ({
     }
 
     // 如果有权重，显示权重信息
-    if (
-      (tag.type === "character" || tag.type === "element") &&
-      tag.weight !== undefined
-    ) {
+    if ((tag.type === "character" || tag.type === "element") && tag.weight !== undefined) {
       text += ` [权重: ${tag.weight}]`;
     }
 

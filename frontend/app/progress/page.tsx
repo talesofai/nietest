@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 
 import ProgressTab from "@/components/progress/ProgressTab";
-import { useAuth } from "@/app/api/v1/auth/client";
+import { useAuth } from "@/lib/auth";
 
 // 使用Iconify图标
 const SettingsIcon = (props: any) => (
@@ -44,6 +44,8 @@ export default function ProgressPage() {
                   className="px-3 py-1 rounded-md bg-default-100 border border-default-200 cursor-pointer hover:bg-default-200 transition-colors"
                   onClick={() => {
                     // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
                     console.log("用户按钮被点击");
                   }}
                 >
@@ -55,6 +57,8 @@ export default function ProgressPage() {
               <DropdownMenu
                 aria-label="用户菜单"
                 onAction={(key) => {
+                  // eslint-disable-next-line no-console
+                  // eslint-disable-next-line no-console
                   // eslint-disable-next-line no-console
                   console.log("菜单项被点击:", key);
                   if (key === "logout") {
@@ -80,9 +84,7 @@ export default function ProgressPage() {
               selectedKey="progress"
               size="sm"
               onSelectionChange={(key) => {
-                router.push(
-                  `/${key.toString() === "parameters" ? "parameters" : key}`,
-                );
+                router.push(`/${key.toString() === "parameters" ? "parameters" : key}`);
               }}
             >
               <Tab

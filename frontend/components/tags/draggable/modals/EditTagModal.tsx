@@ -14,8 +14,6 @@ import {
 import { Input } from "@heroui/input";
 import { Switch } from "@heroui/switch";
 
-import { TagValueInput } from "../TagValueInput";
-
 import { Tag } from "@/types/tag";
 import {
   getTypeDisplayName,
@@ -23,6 +21,8 @@ import {
   isVariableNameLengthValid,
 } from "@/components/tags/draggable/tagUtils";
 import { alertService } from "@/utils/alertService";
+
+import { TagValueInput } from "../TagValueInput";
 
 interface EditTagModalProps {
   isOpen: boolean;
@@ -35,13 +35,7 @@ interface EditTagModalProps {
 /**
  * 编辑标签模态窗口组件
  */
-const EditTagModal: React.FC<EditTagModalProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-  tag,
-  tags,
-}) => {
+const EditTagModal: React.FC<EditTagModalProps> = ({ isOpen, onClose, onSave, tag, tags }) => {
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const variableNameInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,9 +44,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
     if (tag) {
       // 确保角色、元素和提示词类型有默认权重值
       if (
-        (tag.type === "character" ||
-          tag.type === "element" ||
-          tag.type === "prompt") &&
+        (tag.type === "character" || tag.type === "element" || tag.type === "prompt") &&
         tag.weight === undefined
       ) {
         setEditingTag({ ...tag, weight: 1 });
@@ -74,17 +66,10 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
       editingTag.type !== "element"
     ) {
       // 检查是否已存在同类型的变量
-      if (
-        tags.some(
-          (t) =>
-            t.isVariable &&
-            t.type === editingTag.type &&
-            t.id !== editingTag.id,
-        )
-      ) {
+      if (tags.some((t) => t.isVariable && t.type === editingTag.type && t.id !== editingTag.id)) {
         alertService.error(
           "变量标签类型重复",
-          `已经存在 ${getTypeDisplayName(editingTag.type)} 类型的变量标签`,
+          `已经存在 ${getTypeDisplayName(editingTag.type)} 类型的变量标签`
         );
 
         return;
@@ -92,9 +77,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
 
       // 非prompt类型、非character类型和非element类型使用默认变量名
       const variableName =
-        RESERVED_VARIABLE_NAMES[
-          editingTag.type as keyof typeof RESERVED_VARIABLE_NAMES
-        ];
+        RESERVED_VARIABLE_NAMES[editingTag.type as keyof typeof RESERVED_VARIABLE_NAMES];
 
       setEditingTag({
         ...editingTag,
@@ -140,10 +123,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
   };
 
   // 处理键盘事件，支持回车键提交
-  const handleKeyDown = (
-    e: KeyboardEvent<HTMLInputElement>,
-    onModalClose: () => void,
-  ) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, onModalClose: () => void) => {
     if (e.key === "Enter") {
       e.preventDefault();
       handleSave(onModalClose);
@@ -185,9 +165,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                 {/* 变量模式下显示变量名输入框 */}
                 {editingTag.isVariable && (
                   <div>
-                    <span className="text-sm font-semibold mb-1 block">
-                      变量名:
-                    </span>
+                    <span className="text-sm font-semibold mb-1 block">变量名:</span>
                     <Input
                       ref={variableNameInputRef}
                       // 移除 autoFocus 以解决可访问性问题
@@ -196,8 +174,8 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                       //   editingTag.type === "character" ||
                       //   editingTag.type === "element"
                       // }
-                      placeholder="输入变量名称"
                       className="w-full"
+                      placeholder="输入变量名称"
                       isDisabled={
                         editingTag.type !== "prompt" &&
                         editingTag.type !== "character" &&
@@ -216,9 +194,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                     {editingTag.type !== "prompt" &&
                       editingTag.type !== "character" &&
                       editingTag.type !== "element" && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          系统预留变量名，不可修改
-                        </div>
+                        <div className="text-xs text-gray-500 mt-1">系统预留变量名，不可修改</div>
                       )}
                   </div>
                 )}
@@ -226,17 +202,13 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                 {/* 非变量模式下显示值输入框 */}
                 {!editingTag.isVariable && (
                   <div>
-                    <span className="text-sm font-semibold mb-1 block">
-                      标签值:
-                    </span>
+                    <span className="text-sm font-semibold mb-1 block">标签值:</span>
                     <TagValueInput
                       // 移除 autoFocus 以解决可访问性问题
                       // autoFocus={true}
                       type={editingTag.type}
                       value={editingTag.value}
-                      onChange={(newValue) =>
-                        setEditingTag({ ...editingTag, value: newValue })
-                      }
+                      onChange={(newValue) => setEditingTag({ ...editingTag, value: newValue })}
                       onEnterPress={() => handleSave(onModalClose)}
                     />
                   </div>
@@ -248,9 +220,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                   editingTag.type === "prompt") &&
                   !editingTag.isVariable && (
                     <div>
-                      <span className="text-sm font-semibold mb-1 block">
-                        权重:
-                      </span>
+                      <span className="text-sm font-semibold mb-1 block">权重:</span>
                       <Slider
                         className="w-full"
                         color="foreground"
@@ -266,11 +236,7 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
                         showSteps={false}
                         size="sm"
                         step={0.05}
-                        value={
-                          editingTag.weight !== undefined
-                            ? editingTag.weight
-                            : 1
-                        }
+                        value={editingTag.weight !== undefined ? editingTag.weight : 1}
                         onChange={(val) =>
                           setEditingTag({
                             ...editingTag,
@@ -286,14 +252,8 @@ const EditTagModal: React.FC<EditTagModalProps> = ({
               <Button color="danger" variant="light" onPress={onModalClose}>
                 取消
               </Button>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  color="primary"
-                  onPress={() => handleSave(onModalClose)}
-                >
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button color="primary" onPress={() => handleSave(onModalClose)}>
                   保存
                 </Button>
               </motion.div>

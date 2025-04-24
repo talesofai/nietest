@@ -69,12 +69,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
   const [xAxis, setXAxis] = useState<string | null>(null);
   const [yAxis, setYAxis] = useState<string | null>(null);
   const [availableVariables, setAvailableVariables] = useState<string[]>([]);
-  const [variableNames, setVariableNames] = useState<Record<string, string>>(
-    {},
-  );
+  const [variableNames, setVariableNames] = useState<Record<string, string>>({});
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [fullscreenElement, setFullscreenElement] =
-    useState<HTMLElement | null>(null);
+  const [fullscreenElement, setFullscreenElement] = useState<HTMLElement | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
   const [currentImageUrl, setCurrentImageUrl] = useState<string>("");
   const [currentImageTitle, setCurrentImageTitle] = useState<string>("");
@@ -123,7 +120,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
     // 查找图片在坐标映射中的数据
     const coordKey = Object.entries(matrixData.coordinates).find(
-      ([_, url]) => url === imageUrl,
+      ([_, url]) => url === imageUrl
     )?.[0];
 
     if (!coordKey) {
@@ -250,6 +247,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       }
     } catch (err) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.error("Error fetching matrix data:", err);
       setError("获取矩阵数据失败，请刷新页面重试");
     } finally {
@@ -264,8 +263,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     // 检查是否有batch标签
     if (task && task.tags) {
       const batchTag = task.tags.find(
-        (tag) =>
-          tag.type === "batch" && !tag.isVariable && parseInt(tag.value) > 1,
+        (tag) => tag.type === "batch" && !tag.isVariable && parseInt(tag.value) > 1
       );
 
       setHasBatchTag(!!batchTag);
@@ -275,149 +273,271 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
   }, [fetchMatrixData, task]);
 
   // 获取图片URL - 基于六维空间坐标
-  const getImageUrl = (xValue: string, yValue: string) => {
-    if (!matrixData || !task) {
+  const getImageUrl = useCallback(
+    (xValue: string, yValue: string) => {
+      if (!matrixData || !task) {
+        // eslint-disable-next-line no-console
+        console.log("没有矩阵数据或任务数据");
+
+        return null;
+      }
+
+      // 为调试添加唯一ID
+      const debugId = Math.random().toString(36).substring(2, 8);
+
       // eslint-disable-next-line no-console
-      console.log("没有矩阵数据或任务数据");
+      console.log(`[${debugId}] 尝试获取 [${xValue}][${yValue}] 的图片URL`);
+
+      // 获取变量索引
+      const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null; // 例如，从 'v0' 提取 0
+      const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null; // 例如，从 'v1' 提取 1
+
+      // 存储匹配的图片URL
+      const matchingUrls: string[] = [];
+
+      // 从坐标映射中查找匹配的图片URL
+      if (Object.keys(matrixData.coordinates).length > 0) {
+        // eslint-disable-next-line no-console
+        console.log(`[${debugId}] 从坐标映射中查找匹配的图片`);
+
+        // 遍历所有坐标映射
+        for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
+          // 将坐标字符串分解为数组
+          const coordParts = coordKey.split(",");
+
+          // 根据选择的轴决定查找策略
+          if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
+            // 两个轴都有值
+            if (coordParts[xVarIndex] === xValue && coordParts[yVarIndex] === yValue) {
+              // eslint-disable-next-line no-console
+              console.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
+              matchingUrls.push(url);
+            }
+          } else if (xAxis && xVarIndex !== null) {
+            // 只有X轴有值
+            if (coordParts[xVarIndex] === xValue) {
+              // eslint-disable-next-line no-console
+              console.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
+              matchingUrls.push(url);
+            }
+          } else if (yAxis && yVarIndex !== null) {
+            // 只有Y轴有值
+            if (coordParts[yVarIndex] === yValue) {
+              // eslint-disable-next-line no-console
+              console.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
+              matchingUrls.push(url);
+            }
+          }
+        }
+      }
+
+      // 如果找到了匹配的URL，返回第一个
+      if (matchingUrls.length > 0) {
+        // eslint-disable-next-line no-console
+        console.log(`[${debugId}] 找到 ${matchingUrls.length} 个匹配的图片URL`);
+
+        return matchingUrls[0];
+      }
+
+      // 如果所有方法都失败，尝试返回第一个图片URL
+      if (Object.keys(matrixData.coordinates).length > 0) {
+        const firstUrl = Object.values(matrixData.coordinates)[0];
+
+        if (firstUrl) {
+          // eslint-disable-next-line no-console
+          console.log(`[${debugId}] 未找到匹配的图片，返回第一个图片URL:`, firstUrl);
+
+          return firstUrl;
+        }
+      }
+
+      // eslint-disable-next-line no-console
+      console.log(`[${debugId}] 未找到 [${xValue}][${yValue}] 的图片URL`);
 
       return null;
-    }
-
-    // 为调试添加唯一ID
-    const debugId = Math.random().toString(36).substring(2, 8);
-
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] 尝试获取 [${xValue}][${yValue}] 的图片URL`);
-
-    // 获取变量索引
-    const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null; // 例如，从 'v0' 提取 0
-    const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null; // 例如，从 'v1' 提取 1
-
-    // 存储匹配的图片URL
-    const matchingUrls: string[] = [];
-
-    // 从坐标映射中查找匹配的图片URL
-    if (Object.keys(matrixData.coordinates).length > 0) {
-      // eslint-disable-next-line no-console
-      console.log(`[${debugId}] 从坐标映射中查找匹配的图片`);
-
-      // 遍历所有坐标映射
-      for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
-        // 将坐标字符串分解为数组，例如 "值1,值2,,值4,," => ["值1", "值2", "", "值4", "", ""]
-        const coordParts = coordKey.split(",");
-
-        // 根据选择的轴决定查找策略
-        if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
-          // 两个轴都有值
-          if (
-            coordParts[xVarIndex] === xValue &&
-            coordParts[yVarIndex] === yValue
-          ) {
-            // eslint-disable-next-line no-console
-            console.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
-            matchingUrls.push(url);
-          }
-        } else if (xAxis && xVarIndex !== null) {
-          // 只有X轴有值
-          if (coordParts[xVarIndex] === xValue) {
-            // eslint-disable-next-line no-console
-            console.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
-            matchingUrls.push(url);
-          }
-        } else if (yAxis && yVarIndex !== null) {
-          // 只有Y轴有值
-          if (coordParts[yVarIndex] === yValue) {
-            // eslint-disable-next-line no-console
-            console.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
-            matchingUrls.push(url);
-          }
-        }
-      }
-    }
-
-    // 如果找到了匹配的URL，返回第一个
-    if (matchingUrls.length > 0) {
-      // eslint-disable-next-line no-console
-      console.log(`[${debugId}] 找到 ${matchingUrls.length} 个匹配的图片URL`);
-
-      // 如果有多个匹配的URL，返回第一个
-      // 注意：这里可以扩展为返回所有匹配的URL，但需要修改返回类型和调用代码
-
-      return matchingUrls[0];
-    }
-
-    // 如果所有方法都失败，尝试返回第一个图片URL
-    if (Object.keys(matrixData.coordinates).length > 0) {
-      const firstUrl = Object.values(matrixData.coordinates)[0];
-
-      if (firstUrl) {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[${debugId}] 未找到匹配的图片，返回第一个图片URL:`,
-          firstUrl,
-        );
-
-        return firstUrl;
-      }
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] 未找到 [${xValue}][${yValue}] 的图片URL`);
-
-    return null;
-  };
+    },
+    [matrixData, task, xAxis, yAxis]
+  );
 
   // 获取所有匹配的图片URL - 用于显示同一参数组合下的多个batch图片
-  const getAllMatchingImageUrls = (
-    xValue: string,
-    yValue: string,
-  ): string[] => {
-    if (!matrixData || !task) {
-      return [];
-    }
+  const getAllMatchingImageUrls = useCallback(
+    (xValue: string, yValue: string): string[] => {
+      if (!matrixData || !task) {
+        return [];
+      }
 
-    // 获取变量索引
-    const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null;
-    const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null;
+      // 获取变量索引
+      const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null;
+      const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null;
 
-    // 存储匹配的图片URL
-    const matchingUrls: string[] = [];
+      // 存储匹配的图片URL
+      const matchingUrls: string[] = [];
 
-    // 从坐标映射中查找匹配的图片URL
-    if (Object.keys(matrixData.coordinates).length > 0) {
-      // 遍历所有坐标映射
-      for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
-        const coordParts = coordKey.split(",");
+      // 从坐标映射中查找匹配的图片URL
+      if (Object.keys(matrixData.coordinates).length > 0) {
+        // 遍历所有坐标映射
+        for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
+          const coordParts = coordKey.split(",");
 
-        // 根据选择的轴决定查找策略
-        if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
-          // 两个轴都有值
-          if (
-            coordParts[xVarIndex] === xValue &&
-            coordParts[yVarIndex] === yValue
-          ) {
-            matchingUrls.push(url);
-          }
-        } else if (xAxis && xVarIndex !== null) {
-          // 只有X轴有值
-          if (coordParts[xVarIndex] === xValue) {
-            matchingUrls.push(url);
-          }
-        } else if (yAxis && yVarIndex !== null) {
-          // 只有Y轴有值
-          if (coordParts[yVarIndex] === yValue) {
-            matchingUrls.push(url);
+          // 根据选择的轴决定查找策略
+          if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
+            // 两个轴都有值
+            if (coordParts[xVarIndex] === xValue && coordParts[yVarIndex] === yValue) {
+              matchingUrls.push(url);
+            }
+          } else if (xAxis && xVarIndex !== null) {
+            // 只有X轴有值
+            if (coordParts[xVarIndex] === xValue) {
+              matchingUrls.push(url);
+            }
+          } else if (yAxis && yVarIndex !== null) {
+            // 只有Y轴有值
+            if (coordParts[yVarIndex] === yValue) {
+              matchingUrls.push(url);
+            }
           }
         }
       }
-    }
 
-    return matchingUrls;
-  };
+      return matchingUrls;
+    },
+    [matrixData, task, xAxis, yAxis]
+  );
+
+  // 处理变量值，处理重名情况
+  const processVariableValues = useCallback(
+    (values: string[]): [string[], Record<string, string>] => {
+      const processedValues: string[] = [];
+      const valueCounts: Record<string, number> = {};
+      const valueMap: Record<string, string> = {};
+
+      // 处理重名的情况
+      values.forEach((value) => {
+        if (value in valueCounts) {
+          valueCounts[value]++;
+          processedValues.push(`${value}#${valueCounts[value]}`);
+        } else {
+          valueCounts[value] = 0;
+          processedValues.push(value);
+        }
+      });
+
+      // 创建原始值和处理后值的映射
+      values.forEach((originalValue, index) => {
+        valueMap[processedValues[index]] = originalValue;
+      });
+
+      return [processedValues, valueMap];
+    },
+    []
+  );
+
+  // 预先缓存图片URL
+  const cacheImageUrls = useCallback(
+    (rowValues: string[], columnValues: string[]): Record<string, string | null> => {
+      const imageUrlCache: Record<string, string | null> = {};
+
+      // 预先计算所有可能的组合
+      for (const rowValue of rowValues) {
+        for (const colValue of columnValues) {
+          let cacheKey = "";
+
+          if (xAxis && yAxis) {
+            cacheKey = `${colValue}:${rowValue}`;
+          } else if (xAxis) {
+            cacheKey = `${colValue}:`;
+          } else if (yAxis) {
+            cacheKey = `:${rowValue}`;
+          }
+
+          if (cacheKey && !imageUrlCache[cacheKey]) {
+            // 使用getImageUrl函数查找图片URL
+            let imageUrl = null;
+
+            if (xAxis && yAxis) {
+              imageUrl = getImageUrl(colValue, rowValue);
+            } else if (xAxis) {
+              imageUrl = getImageUrl(colValue, "");
+            } else if (yAxis) {
+              imageUrl = getImageUrl("", rowValue);
+            }
+
+            if (imageUrl) {
+              imageUrlCache[cacheKey] = imageUrl;
+            }
+          }
+        }
+      }
+
+      return imageUrlCache;
+    },
+    [xAxis, yAxis, getImageUrl]
+  );
+
+  // 创建表格单元格数据
+  const createCellData = useCallback(
+    (
+      originalColValue: string,
+      originalRowValue: string,
+      imageUrlCache: Record<string, string | null>
+    ): TableCellData | null => {
+      // 从缓存中获取URL
+      let imageUrl: string | null = null;
+      let cacheKey = "";
+
+      if (xAxis && yAxis) {
+        cacheKey = `${originalColValue}:${originalRowValue}`;
+      } else if (xAxis) {
+        cacheKey = `${originalColValue}:`;
+      } else if (yAxis) {
+        cacheKey = `:${originalRowValue}`;
+      }
+
+      if (cacheKey) {
+        imageUrl = imageUrlCache[cacheKey];
+      }
+
+      // 如果缓存中没有，尝试直接获取
+      if (!imageUrl) {
+        if (xAxis && yAxis) {
+          imageUrl = getImageUrl(originalColValue, originalRowValue);
+        } else if (xAxis && originalColValue) {
+          imageUrl = getImageUrl(originalColValue, "");
+        } else if (yAxis && originalRowValue) {
+          imageUrl = getImageUrl("", originalRowValue);
+        }
+      }
+
+      // 获取所有匹配的URL
+      let matchingUrls: string[] = [];
+
+      if (xAxis && yAxis) {
+        matchingUrls = getAllMatchingImageUrls(originalColValue, originalRowValue);
+      } else if (xAxis) {
+        matchingUrls = getAllMatchingImageUrls(originalColValue, "");
+      } else if (yAxis) {
+        matchingUrls = getAllMatchingImageUrls("", originalRowValue);
+      }
+
+      // 如果找到URL，创建单元格对象
+      if (imageUrl || matchingUrls.length > 0) {
+        return {
+          url: imageUrl || matchingUrls[0], // 使用第一个URL作为主图片
+          urls: matchingUrls.length > 0 ? matchingUrls : imageUrl ? [imageUrl] : [], // 存储所有匹配的URL
+          xValue: originalColValue || "",
+          yValue: originalRowValue || "",
+          coordinates: {},
+        };
+      }
+
+      // 没有找到URL
+      return null;
+    },
+    [xAxis, yAxis, getImageUrl, getAllMatchingImageUrls]
+  );
 
   // 生成表格数据
   const generateTableData = useCallback((): TableRowData[] => {
-    // 为调试添加唯一ID
     const debugId = Math.random().toString(36).substring(2, 8);
 
     if (!task) {
@@ -432,12 +552,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     let rowValues: string[] = [""];
 
     // 获取选中的变量数据
-    const xAxisVar = xAxis
-      ? task.variables[xAxis as keyof typeof task.variables]
-      : null;
-    const yAxisVar = yAxis
-      ? task.variables[yAxis as keyof typeof task.variables]
-      : null;
+    const xAxisVar = xAxis ? task.variables[xAxis as keyof typeof task.variables] : null;
+    const yAxisVar = yAxis ? task.variables[yAxis as keyof typeof task.variables] : null;
 
     // 获取变量值
     if (xAxisVar?.values) {
@@ -453,175 +569,22 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     // eslint-disable-next-line no-console
     console.log(`[${debugId}] 原始行值:`, rowValues);
 
-    // 处理列值中有重名的情况
-    const processedColumnValues: string[] = [];
-    const columnValueCounts: Record<string, number> = {};
-
-    columnValues.forEach((value) => {
-      if (value in columnValueCounts) {
-        columnValueCounts[value]++;
-        processedColumnValues.push(`${value}#${columnValueCounts[value]}`);
-      } else {
-        columnValueCounts[value] = 0;
-        processedColumnValues.push(value);
-      }
-    });
-
-    // 处理行值中有重名的情况
-    const processedRowValues: string[] = [];
-    const rowValueCounts: Record<string, number> = {};
-
-    rowValues.forEach((value) => {
-      if (value in rowValueCounts) {
-        rowValueCounts[value]++;
-        processedRowValues.push(`${value}#${rowValueCounts[value]}`);
-      } else {
-        rowValueCounts[value] = 0;
-        processedRowValues.push(value);
-      }
-    });
-
-    // 创建原始值和处理后值的映射
-    const columnValueMap: Record<string, string> = {};
-
-    columnValues.forEach((originalValue, index) => {
-      columnValueMap[processedColumnValues[index]] = originalValue;
-    });
-
-    const rowValueMap: Record<string, string> = {};
-
-    rowValues.forEach((originalValue, index) => {
-      rowValueMap[processedRowValues[index]] = originalValue;
-    });
+    // 处理列值和行值中有重名的情况
+    const [processedColumnValues, columnValueMap] = processVariableValues(columnValues);
+    const [processedRowValues, rowValueMap] = processVariableValues(rowValues);
 
     // eslint-disable-next-line no-console
     console.log(`[${debugId}] 处理后的列值:`, processedColumnValues);
     // eslint-disable-next-line no-console
     console.log(`[${debugId}] 处理后的行值:`, processedRowValues);
 
-    // 预先获取所有可能的图片URL组合
-    const imageUrlCache: Record<string, string | null> = {};
-
-    // 预先获取变量索引
-    const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null; // 例如，从 'v0' 提取 0
-    const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null; // 例如，从 'v1' 提取 1
-
-    // 预先建立变量值和索引的映射
-    const xValueToIndexMap: Record<string, number[]> = {};
-    const yValueToIndexMap: Record<string, number[]> = {};
-
-    if (xAxisVar?.values) {
-      xAxisVar.values.forEach((v: any, idx: number) => {
-        if (!xValueToIndexMap[v.value]) {
-          xValueToIndexMap[v.value] = [];
-        }
-        xValueToIndexMap[v.value].push(idx);
-      });
-    }
-
-    if (yAxisVar?.values) {
-      yAxisVar.values.forEach((v: any, idx: number) => {
-        if (!yValueToIndexMap[v.value]) {
-          yValueToIndexMap[v.value] = [];
-        }
-        yValueToIndexMap[v.value].push(idx);
-      });
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] X值到索引映射:`, xValueToIndexMap);
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] Y值到索引映射:`, yValueToIndexMap);
-
-    // 使用多维坐标系统构建图片映射
-    const coordToUrlMap: Record<string, string> = {};
-
-    // 如果有矩阵数据，直接使用
-    if (matrixData && matrixData.coordinates) {
-      // 所有映射都已经在matrixData.coordinates中
-      // eslint-disable-next-line no-console
-      console.log(`[${debugId}] 直接使用矩阵数据中的坐标映射`);
-    }
-    // 否则尝试使用旧的方法构建映射
-    else if (task.dramatiq_tasks && task.dramatiq_tasks.length > 0) {
-      task.dramatiq_tasks.forEach((subtask) => {
-        if (subtask.result && subtask.result.url) {
-          // 根据选择的轴构建坐标键
-          if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
-            const xCoord = (subtask as any)[xAxis];
-            const yCoord = (subtask as any)[yAxis];
-
-            if (
-              xCoord !== undefined &&
-              xCoord !== null &&
-              yCoord !== undefined &&
-              yCoord !== null
-            ) {
-              const coordKey = `${xAxis}_${xCoord}:${yAxis}_${yCoord}`;
-
-              coordToUrlMap[coordKey] = subtask.result.url;
-            }
-          } else if (xAxis && xVarIndex !== null) {
-            const xCoord = (subtask as any)[xAxis];
-
-            if (xCoord !== undefined && xCoord !== null) {
-              const coordKey = `${xAxis}_${xCoord}`;
-
-              coordToUrlMap[coordKey] = subtask.result.url;
-            }
-          } else if (yAxis && yVarIndex !== null) {
-            const yCoord = (subtask as any)[yAxis];
-
-            if (yCoord !== undefined && yCoord !== null) {
-              const coordKey = `${yAxis}_${yCoord}`;
-
-              coordToUrlMap[coordKey] = subtask.result.url;
-            }
-          }
-        }
-      });
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] 坐标到URL映射:`, coordToUrlMap);
-
-    // 预先计算所有可能的组合
-    for (const rowValue of rowValues) {
-      for (const colValue of columnValues) {
-        let cacheKey = "";
-
-        if (xAxis && yAxis) {
-          cacheKey = `${colValue}:${rowValue}`;
-        } else if (xAxis) {
-          cacheKey = `${colValue}:`;
-        } else if (yAxis) {
-          cacheKey = `:${rowValue}`;
-        }
-
-        if (cacheKey && !imageUrlCache[cacheKey]) {
-          // 使用getImageUrl函数查找图片URL
-          let imageUrl = null;
-
-          if (xAxis && yAxis) {
-            imageUrl = getImageUrl(colValue, rowValue);
-          } else if (xAxis) {
-            imageUrl = getImageUrl(colValue, "");
-          } else if (yAxis) {
-            imageUrl = getImageUrl("", rowValue);
-          }
-
-          if (imageUrl) {
-            imageUrlCache[cacheKey] = imageUrl;
-          }
-        }
-      }
-    }
+    // 预先缓存图片URL
+    const imageUrlCache = cacheImageUrls(rowValues, columnValues);
 
     // eslint-disable-next-line no-console
     console.log(`[${debugId}] 图片URL缓存:`, imageUrlCache);
 
     // 生成表格数据
-
     return processedRowValues.map((processedRowValue) => {
       const originalRowValue = rowValueMap[processedRowValue];
       const rowData: TableRowData = {
@@ -633,132 +596,88 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       processedColumnValues.forEach((processedColValue) => {
         const originalColValue = columnValueMap[processedColValue];
 
-        // 从缓存中获取URL
-        let imageUrl: string | null = null;
-        let cacheKey = "";
+        // 创建单元格数据
+        const cellData = createCellData(originalColValue, originalRowValue, imageUrlCache);
 
-        if (xAxis && yAxis) {
-          cacheKey = `${originalColValue}:${originalRowValue}`;
-        } else if (xAxis) {
-          cacheKey = `${originalColValue}:`;
-        } else if (yAxis) {
-          cacheKey = `:${originalRowValue}`;
-        }
-
-        if (cacheKey) {
-          imageUrl = imageUrlCache[cacheKey];
-        }
-
-        // 如果缓存中没有，尝试直接获取
-        if (!imageUrl) {
-          if (xAxis && yAxis) {
-            imageUrl = getImageUrl(originalColValue, originalRowValue);
-          } else if (xAxis && originalColValue) {
-            imageUrl = getImageUrl(originalColValue, "");
-          } else if (yAxis && originalRowValue) {
-            imageUrl = getImageUrl("", originalRowValue);
-          }
-        }
-
-        // 获取所有匹配的URL
-        let matchingUrls: string[] = [];
-
-        if (xAxis && yAxis) {
-          matchingUrls = getAllMatchingImageUrls(
-            originalColValue,
-            originalRowValue,
-          );
-        } else if (xAxis) {
-          matchingUrls = getAllMatchingImageUrls(originalColValue, "");
-        } else if (yAxis) {
-          matchingUrls = getAllMatchingImageUrls("", originalRowValue);
-        }
-
-        // 如果找到URL，创建单元格对象
-        if (imageUrl || matchingUrls.length > 0) {
-          rowData[processedColValue] = {
-            url: imageUrl || matchingUrls[0], // 使用第一个URL作为主图片
-            urls:
-              matchingUrls.length > 0
-                ? matchingUrls
-                : imageUrl
-                  ? [imageUrl]
-                  : [], // 存储所有匹配的URL
-            xValue: originalColValue || "",
-            yValue: originalRowValue || "",
-            coordinates: {},
-          };
+        if (cellData) {
+          rowData[processedColValue] = cellData;
         } else {
-          // 没有找到URL，设置为null或空对象
           rowData[processedColValue] = null;
           // eslint-disable-next-line no-console
           console.log(
-            `[${debugId}] 没有为 [${originalColValue || ""}][${originalRowValue || ""}] 找到URL`,
+            `[${debugId}] 没有为 [${originalColValue || ""}][${originalRowValue || ""}] 找到URL`
           );
         }
       });
 
       return rowData;
     });
-  }, [task, xAxis, yAxis, getImageUrl, matrixData]);
+  }, [task, xAxis, yAxis, processVariableValues, cacheImageUrls, createCellData]);
 
   // 计算表格数据
-  const tableData = useMemo<TableRowData[]>(
-    () => generateTableData(),
-    [generateTableData],
-  );
+  const tableData = useMemo<TableRowData[]>(() => generateTableData(), [generateTableData]);
 
   // 添加调试代码，验证数据获取和渲染
   useEffect(() => {
     if (tableData && tableData.length > 0) {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.log("--------- 表格数据验证 ---------");
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.log("可用变量:", availableVariables);
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.log("过滤后的变量名:", variableNames);
 
       // 获取表格中实际显示的X和Y值
-      const xAxisVar = xAxis
-        ? task.variables[xAxis as keyof typeof task.variables]
-        : null;
-      const yAxisVar = yAxis
-        ? task.variables[yAxis as keyof typeof task.variables]
-        : null;
+      const xAxisVar = xAxis ? task.variables[xAxis as keyof typeof task.variables] : null;
+      const yAxisVar = yAxis ? task.variables[yAxis as keyof typeof task.variables] : null;
 
-      const columnValues = xAxisVar?.values?.map((val: any) => val.value) || [
-        "",
-      ];
+      const columnValues = xAxisVar?.values?.map((val: any) => val.value) || [""];
       const rowValues = yAxisVar?.values?.map((val: any) => val.value) || [""];
 
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.log("X轴变量:", xAxis, "值:", columnValues);
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.log("Y轴变量:", yAxis, "值:", rowValues);
 
       // 输出数据结构信息
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.log("数据结构分析:");
       if (task.results?.raw) {
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         // eslint-disable-next-line no-console
         console.log("results.raw 键名格式:", Object.keys(task.results.raw));
         const firstRawKey = Object.keys(task.results.raw)[0];
 
         if (firstRawKey) {
           // eslint-disable-next-line no-console
-          console.log(
-            "results.raw 第一个条目结构:",
-            task.results.raw[firstRawKey],
-          );
+          // eslint-disable-next-line no-console
+          console.log("results.raw 第一个条目结构:", task.results.raw[firstRawKey]);
         }
       }
 
       if (task.results?.matrix) {
         // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         console.log("results.matrix 结构:", task.results.matrix);
       }
 
       if (task.dramatiq_tasks && task.dramatiq_tasks.length > 0) {
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         // eslint-disable-next-line no-console
         console.log("dramatiq_tasks 第一个条目结构:", task.dramatiq_tasks[0]);
 
@@ -769,14 +688,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           for (let i = 0; i <= 5; i++) {
             const field = `v${i}`;
 
-            if (
-              (subtask as any)[field] !== undefined &&
-              (subtask as any)[field] !== null
-            ) {
+            if ((subtask as any)[field] !== undefined && (subtask as any)[field] !== null) {
               vFieldStats[field] = (vFieldStats[field] || 0) + 1;
             }
           }
         });
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         // eslint-disable-next-line no-console
         console.log("dramatiq_tasks v0-v5字段统计:", vFieldStats);
       }
@@ -801,24 +719,27 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           if (url) {
             foundUrls++;
             // eslint-disable-next-line no-console
-            console.log(
-              `单元格[${rowValue || ""}][${colValue || ""}] 找到URL:`,
-              url,
-            );
+            // eslint-disable-next-line no-console
+            console.log(`单元格[${rowValue || ""}][${colValue || ""}] 找到URL:`, url);
           } else {
             // eslint-disable-next-line no-console
-            console.log(
-              `单元格[${rowValue || ""}][${colValue || ""}] 未找到URL`,
-            );
+            // eslint-disable-next-line no-console
+            console.log(`单元格[${rowValue || ""}][${colValue || ""}] 未找到URL`);
           }
         }
       }
 
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.log(`总单元格: ${totalCells}, 找到URL的: ${foundUrls}`);
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.log("---------------------------");
     } else {
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.log("tableData为空，无法渲染表格");
     }
@@ -830,6 +751,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     variableNames,
     task,
     getImageUrl,
+    getAllMatchingImageUrls,
     matrixData,
   ]);
 
@@ -845,6 +767,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         })
         .catch((err) => {
           // eslint-disable-next-line no-console
+          // eslint-disable-next-line no-console
+          // eslint-disable-next-line no-console
           console.error(`全屏请求失败: ${err.message}`);
         });
     } else {
@@ -854,6 +778,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           setIsFullscreen(false);
         })
         .catch((err) => {
+          // eslint-disable-next-line no-console
+          // eslint-disable-next-line no-console
           // eslint-disable-next-line no-console
           console.error(`退出全屏失败: ${err.message}`);
         });
@@ -885,19 +811,14 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded mb-4">
           <div className="flex">
-            <Icon
-              className="w-5 h-5 mr-2"
-              icon="heroicons:exclamation-circle"
-            />
+            <Icon className="w-5 h-5 mr-2" icon="heroicons:exclamation-circle" />
             <span>{error}</span>
           </div>
         </div>
       )}
 
       <div className="mb-4">
-        <h2 className="text-xl font-semibold mb-2">
-          {task.task_name || `任务 ID: ${task.id}`}
-        </h2>
+        <h2 className="text-xl font-semibold mb-2">{task.task_name || `任务 ID: ${task.id}`}</h2>
         <p className="text-sm text-default-500">
           创建时间: {new Date(task.created_at).toLocaleString()}
         </p>
@@ -928,9 +849,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                     }
                     setXAxis(newXAxis);
                     // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
                     console.log("已选择X轴变量:", newXAxis);
                   } else {
                     setXAxis("");
+                    // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
                     // eslint-disable-next-line no-console
                     console.log("已清空X轴变量");
                   }
@@ -960,9 +885,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                     }
                     setYAxis(newYAxis);
                     // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
                     console.log("已选择Y轴变量:", newYAxis);
                   } else {
                     setYAxis("");
+                    // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
                     // eslint-disable-next-line no-console
                     console.log("已清空Y轴变量");
                   }
@@ -971,9 +900,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 {availableVariables.map((variable) => (
                   <SelectItem
                     key={variable}
-                    className={
-                      variable === xAxis ? "opacity-50 pointer-events-none" : ""
-                    }
+                    className={variable === xAxis ? "opacity-50 pointer-events-none" : ""}
                   >
                     {`${variable}:${variableNames[variable] || ""}`}
                   </SelectItem>
@@ -985,15 +912,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 <p>注：只有具有有效名称的变量会显示在选择器中</p>
                 <p>至少选择一个轴才能显示表格</p>
                 {Object.entries(task.variables || {}).some(
-                  ([_, value]) =>
-                    typeof value === "object" &&
-                    "name" in value &&
-                    value.name === "",
-                ) && (
-                  <p className="text-warning mt-1">
-                    当前任务中有未命名变量未显示
-                  </p>
-                )}
+                  ([_, value]) => typeof value === "object" && "name" in value && value.name === ""
+                ) && <p className="text-warning mt-1">当前任务中有未命名变量未显示</p>}
               </div>
               {(xAxis || yAxis) && (
                 <Button
@@ -1003,6 +923,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                   variant="bordered"
                   onPress={() => {
                     // 强制刷新表格数据
+                    // eslint-disable-next-line no-console
+                    // eslint-disable-next-line no-console
                     // eslint-disable-next-line no-console
                     console.log("手动刷新表格数据");
                     const tempX = xAxis;
@@ -1020,9 +942,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       ) : (
         <Card className="mb-6">
           <CardBody>
-            <div className="text-center text-default-500">
-              此任务没有足够的变量来创建表格
-            </div>
+            <div className="text-center text-default-500">此任务没有足够的变量来创建表格</div>
           </CardBody>
         </Card>
       )}
@@ -1043,9 +963,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                   size="sm"
                   step={5}
                   value={tableScale}
-                  onChange={(value) =>
-                    setTableScale(typeof value === "number" ? value : value[0])
-                  }
+                  onChange={(value) => setTableScale(typeof value === "number" ? value : value[0])}
                 />
                 <span className="text-xs text-default-500">{tableScale}%</span>
               </div>
@@ -1053,11 +971,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 size="sm"
                 startContent={
                   <Icon
-                    icon={
-                      isFullscreen
-                        ? "solar:exit-bold-linear"
-                        : "solar:maximize-bold-linear"
-                    }
+                    icon={isFullscreen ? "solar:exit-bold-linear" : "solar:maximize-bold-linear"}
                     width={18}
                   />
                 }
@@ -1167,9 +1081,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                               {imageUrl ? (
                                 <div className="w-full h-full">
                                   {/* 如果有多张图片且是批次任务，显示网格 */}
-                                  {cell.urls &&
-                                  cell.urls.length > 1 &&
-                                  hasBatchTag ? (
+                                  {cell.urls && cell.urls.length > 1 && hasBatchTag ? (
                                     <div
                                       className={`grid gap-1 ${getGridColumns(cell.urls.length)} w-full h-full bg-default-50 overflow-hidden`}
                                       style={{ gridAutoRows: "1fr" }}
@@ -1183,7 +1095,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                           onClick={() => {
                                             viewImageInModal(
                                               url,
-                                              `${cellTitle} - 批次 ${index + 1}`,
+                                              `${cellTitle} - 批次 ${index + 1}`
                                             );
                                           }}
                                           onKeyDown={(e) => {
@@ -1191,7 +1103,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                               e.preventDefault();
                                               viewImageInModal(
                                                 url,
-                                                `${cellTitle} - 批次 ${index + 1}`,
+                                                `${cellTitle} - 批次 ${index + 1}`
                                               );
                                             }
                                           }}
@@ -1204,9 +1116,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                               radius="none"
                                               src={getResizedImageUrl(
                                                 url,
-                                                getImageSizeByBatchCount(
-                                                  cell.urls?.length || 1,
-                                                ),
+                                                getImageSizeByBatchCount(cell.urls?.length || 1)
                                               )}
                                               style={{
                                                 objectFit: "none",
@@ -1216,20 +1126,14 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                               width="auto"
                                               onError={() => {
                                                 // eslint-disable-next-line no-console
-                                                console.log(
-                                                  "图片加载失败:",
-                                                  url,
+                                                // eslint-disable-next-line no-console
+                                                console.log("图片加载失败:", url);
+                                                const imgElements = document.querySelectorAll(
+                                                  `img[src="${getResizedImageUrl(url, getImageSizeByBatchCount(cell.urls?.length || 1))}"]`
                                                 );
-                                                const imgElements =
-                                                  document.querySelectorAll(
-                                                    `img[src="${getResizedImageUrl(url, getImageSizeByBatchCount(cell.urls?.length || 1))}"]`,
-                                                  );
 
                                                 imgElements.forEach((img) => {
-                                                  img.setAttribute(
-                                                    "src",
-                                                    PLACEHOLDER_IMAGE_URL,
-                                                  );
+                                                  img.setAttribute("src", PLACEHOLDER_IMAGE_URL);
                                                 });
                                               }}
                                             />
@@ -1244,27 +1148,15 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                       tabIndex={0}
                                       onClick={() => {
                                         cell.urls && cell.urls.length > 0
-                                          ? viewMultipleImagesInModal(
-                                              cell.urls,
-                                              cellTitle,
-                                            )
-                                          : viewImageInModal(
-                                              imageUrl,
-                                              cellTitle,
-                                            );
+                                          ? viewMultipleImagesInModal(cell.urls, cellTitle)
+                                          : viewImageInModal(imageUrl, cellTitle);
                                       }}
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter" || e.key === " ") {
                                           e.preventDefault();
                                           cell.urls && cell.urls.length > 0
-                                            ? viewMultipleImagesInModal(
-                                                cell.urls,
-                                                cellTitle,
-                                              )
-                                            : viewImageInModal(
-                                                imageUrl,
-                                                cellTitle,
-                                              );
+                                            ? viewMultipleImagesInModal(cell.urls, cellTitle)
+                                            : viewImageInModal(imageUrl, cellTitle);
                                         }
                                       }}
                                     >
@@ -1274,10 +1166,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                           className="max-w-full max-h-full"
                                           height="auto"
                                           radius="none"
-                                          src={getResizedImageUrl(
-                                            imageUrl,
-                                            180,
-                                          )}
+                                          src={getResizedImageUrl(imageUrl, 180)}
                                           style={{
                                             objectFit: "none",
                                             width: "auto",
@@ -1286,20 +1175,14 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                           width="auto"
                                           onError={() => {
                                             // eslint-disable-next-line no-console
-                                            console.log(
-                                              "图片加载失败:",
-                                              imageUrl,
+                                            // eslint-disable-next-line no-console
+                                            console.log("图片加载失败:", imageUrl);
+                                            const imgElements = document.querySelectorAll(
+                                              `img[src="${getResizedImageUrl(imageUrl, 180)}"]`
                                             );
-                                            const imgElements =
-                                              document.querySelectorAll(
-                                                `img[src="${getResizedImageUrl(imageUrl, 180)}"]`,
-                                              );
 
                                             imgElements.forEach((img) => {
-                                              img.setAttribute(
-                                                "src",
-                                                PLACEHOLDER_IMAGE_URL,
-                                              );
+                                              img.setAttribute("src", PLACEHOLDER_IMAGE_URL);
                                             });
                                           }}
                                         />
@@ -1311,9 +1194,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                 <div className="w-full h-full">
                                   <div className="w-full h-full flex items-center justify-center bg-default-50 overflow-hidden">
                                     <div className="text-center p-4">
-                                      <p className="text-default-400 text-sm">
-                                        未找到图片
-                                      </p>
+                                      <p className="text-default-400 text-sm">未找到图片</p>
                                       {xAxis && (
                                         <p className="text-default-300 text-xs mt-2">{`${xAxis}:${(cell as TableCellData)?.xValue || colKey.replace(/#\d+$/, "")}`}</p>
                                       )}
@@ -1322,9 +1203,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                       )}
                                     </div>
                                   </div>
-                                  <span className="text-xs text-default-400 mt-1">
-                                    无数据
-                                  </span>
+                                  <span className="text-xs text-default-400 mt-1">无数据</span>
                                 </div>
                               )}
                             </td>
@@ -1351,28 +1230,20 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 <li>任务结果格式不兼容</li>
                 <li>任务尚未完成所有子任务</li>
               </ul>
-              <p className="text-default-400 text-sm mt-4">
-                请尝试选择其他变量组合或检查任务状态
-              </p>
+              <p className="text-default-400 text-sm mt-4">请尝试选择其他变量组合或检查任务状态</p>
             </div>
           </CardBody>
         </Card>
       )}
 
       {/* 图片查看模态框 */}
-      <Modal
-        isOpen={isImageModalOpen}
-        size="5xl"
-        onClose={() => setIsImageModalOpen(false)}
-      >
+      <Modal isOpen={isImageModalOpen} size="5xl" onClose={() => setIsImageModalOpen(false)}>
         <ModalContent>
           {(onClose) => (
             <>
               <ModalHeader className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-semibold">
-                    {currentImageTitle || "图片查看"}
-                  </h3>
+                  <h3 className="text-lg font-semibold">{currentImageTitle || "图片查看"}</h3>
                   {!isGridView && currentImageUrl && (
                     <p className="text-xs text-default-500 mt-1">
                       {getCoordinateInfo(currentImageUrl)}
@@ -1407,10 +1278,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                   )}
                 </div>
               </ModalHeader>
-              <ModalBody
-                className="bg-default-900 p-4 overflow-auto"
-                style={{ minHeight: "60vh" }}
-              >
+              <ModalBody className="bg-default-900 p-4 overflow-auto" style={{ minHeight: "60vh" }}>
                 {!isGridView && currentImageUrl && (
                   <div className="flex items-center justify-center">
                     <Image
@@ -1421,6 +1289,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                       style={{ maxHeight: "70vh", objectFit: "contain" }}
                       width="auto"
                       onError={() => {
+                        // eslint-disable-next-line no-console
+                        // eslint-disable-next-line no-console
                         // eslint-disable-next-line no-console
                         console.log("大图加载失败:", currentImageUrl);
                       }}
@@ -1459,11 +1329,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                             height="auto"
                             src={getResizedImageUrl(
                               url,
-                              getImageSizeByBatchCount(currentImageUrls.length),
+                              getImageSizeByBatchCount(currentImageUrls.length)
                             )}
                             style={{ objectFit: "contain" }}
                             width="auto"
                             onError={() => {
+                              // eslint-disable-next-line no-console
+                              // eslint-disable-next-line no-console
                               // eslint-disable-next-line no-console
                               console.log("网格图片加载失败:", url);
                             }}
@@ -1480,9 +1352,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
               <ModalFooter>
                 <Button
                   color="primary"
-                  startContent={
-                    <Icon icon="solar:close-circle-linear" width={18} />
-                  }
+                  startContent={<Icon icon="solar:close-circle-linear" width={18} />}
                   variant="bordered"
                   onPress={onClose}
                 >

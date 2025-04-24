@@ -1,16 +1,12 @@
 import { useState } from "react";
 import { useDisclosure } from "@heroui/react";
 
-import {
-  getDefaultValueByType,
-  RESERVED_VARIABLE_NAMES,
-  getTypeDisplayName,
-} from "../tagUtils";
-
 import { alertService } from "@/utils/alertService";
 import { Tag } from "@/types/tag";
 import { VariableValue } from "@/types/variable";
 import { getRandomGradientColors } from "@/config/colors";
+
+import { getDefaultValueByType, RESERVED_VARIABLE_NAMES, getTypeDisplayName } from "../tagUtils";
 
 /**
  * 标签编辑自定义 Hook
@@ -20,7 +16,7 @@ export const useTagEdit = (
   tags: Tag[],
   setTags: React.Dispatch<React.SetStateAction<Tag[]>>,
   variableValues: VariableValue[],
-  setVariableValues: React.Dispatch<React.SetStateAction<VariableValue[]>>,
+  setVariableValues: React.Dispatch<React.SetStateAction<VariableValue[]>>
 ) => {
   // 标签编辑模态框状态
   const {
@@ -41,9 +37,7 @@ export const useTagEdit = (
   // 保存编辑后的标签
   const saveEditTag = (updatedTag: Tag) => {
     setTags((prevTags) => {
-      return prevTags.map((tag) =>
-        tag.id === updatedTag.id ? updatedTag : tag,
-      );
+      return prevTags.map((tag) => (tag.id === updatedTag.id ? updatedTag : tag));
     });
 
     if (updatedTag.isVariable) {
@@ -81,10 +75,7 @@ export const useTagEdit = (
             : {}),
         };
 
-        setVariableValues((prev) => [
-          ...prev.filter((v) => v.tag_id !== updatedTag.id),
-          newValue,
-        ]);
+        setVariableValues((prev) => [...prev.filter((v) => v.tag_id !== updatedTag.id), newValue]);
       }
     }
 
@@ -94,10 +85,7 @@ export const useTagEdit = (
   // 切换标签是否为变量
   const toggleTagVariable = (tag: Tag) => {
     if (tag.type === "batch") {
-      alertService.warning(
-        "类型限制",
-        `${getTypeDisplayName(tag.type)}类型不能设为变量`,
-      );
+      alertService.warning("类型限制", `${getTypeDisplayName(tag.type)}类型不能设为变量`);
 
       return;
     }
@@ -110,10 +98,7 @@ export const useTagEdit = (
         tag.type !== "character" &&
         tags.some((t) => t.isVariable && t.type === tag.type)
       ) {
-        alertService.error(
-          "变量标签类型重复",
-          `已经存在 ${tag.type} 类型的变量标签`,
-        );
+        alertService.error("变量标签类型重复", `已经存在 ${tag.type} 类型的变量标签`);
 
         return;
       }
@@ -128,10 +113,7 @@ export const useTagEdit = (
 
       // 为非prompt和非character类型设置默认变量名
       if (tag.type !== "prompt" && tag.type !== "character") {
-        editTag.name =
-          RESERVED_VARIABLE_NAMES[
-            tag.type as keyof typeof RESERVED_VARIABLE_NAMES
-          ];
+        editTag.name = RESERVED_VARIABLE_NAMES[tag.type as keyof typeof RESERVED_VARIABLE_NAMES];
       } else {
         // prompt类型和character类型需要在编辑界面输入变量名
         editTag.name = "";
@@ -157,9 +139,7 @@ export const useTagEdit = (
   // 删除标签
   const removeTag = (id: string) => {
     setTags((prevTags) => prevTags.filter((tag) => tag.id !== id));
-    setVariableValues((prevValues) =>
-      prevValues.filter((value) => value.tag_id !== id),
-    );
+    setVariableValues((prevValues) => prevValues.filter((value) => value.tag_id !== id));
   };
 
   return {

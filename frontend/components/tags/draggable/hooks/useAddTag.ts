@@ -1,16 +1,16 @@
 import { useState, useRef } from "react";
 
+import { alertService } from "@/utils/alertService";
+import { Tag, TagType } from "@/types/tag";
+import { VariableValue } from "@/types/variable";
+import { getRandomColorValue, getRandomGradientColors } from "@/config/colors";
+
 import {
   getDefaultValueByType,
   isVariableNameUnique,
   isTypeUnique,
   isVariableNameLengthValid,
 } from "../tagUtils";
-
-import { alertService } from "@/utils/alertService";
-import { Tag, TagType } from "@/types/tag";
-import { VariableValue } from "@/types/variable";
-import { getRandomColorValue, getRandomGradientColors } from "@/config/colors";
 
 /**
  * 添加标签自定义 Hook
@@ -19,7 +19,7 @@ import { getRandomColorValue, getRandomGradientColors } from "@/config/colors";
 export const useAddTag = (
   tags: Tag[],
   setTags: React.Dispatch<React.SetStateAction<Tag[]>>,
-  setVariableValues: React.Dispatch<React.SetStateAction<VariableValue[]>>,
+  setVariableValues: React.Dispatch<React.SetStateAction<VariableValue[]>>
 ) => {
   // 控制添加表单显示状态
   const [showAddForm, setShowAddForm] = useState(false);
@@ -85,9 +85,7 @@ export const useAddTag = (
     }
 
     // 使用默认值或用户输入的值
-    const value = data.value.trim()
-      ? data.value
-      : getDefaultValueByType(data.type);
+    const value = data.value.trim() ? data.value : getDefaultValueByType(data.type);
 
     // 根据标签类型决定是否使用渐变色
     const useGradient = data.isVariable;
@@ -103,23 +101,14 @@ export const useAddTag = (
       value: value,
       name: data.isVariable ? data.name : undefined,
       // 添加角色或元素特有属性
-      uuid:
-        data.type === "character" || data.type === "element"
-          ? data.uuid
-          : undefined,
+      uuid: data.type === "character" || data.type === "element" ? data.uuid : undefined,
       header_img:
-        data.type === "character" || data.type === "element"
-          ? data.header_img
-          : undefined,
+        data.type === "character" || data.type === "element" ? data.header_img : undefined,
       heat_score:
-        data.type === "character" || data.type === "element"
-          ? data.heat_score
-          : undefined,
+        data.type === "character" || data.type === "element" ? data.heat_score : undefined,
       // 添加权重属性，只有非变量的character/element/prompt类型才添加权重
       weight:
-        (data.type === "character" ||
-          data.type === "element" ||
-          data.type === "prompt") &&
+        (data.type === "character" || data.type === "element" || data.type === "prompt") &&
         !data.isVariable
           ? data.weight
           : undefined,

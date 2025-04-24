@@ -7,7 +7,7 @@ import { VariableValue } from "@/types/variable";
  * 处理角色和元素选择事件
  */
 export const useEventListeners = (
-  setVariableValues: React.Dispatch<React.SetStateAction<VariableValue[]>>,
+  setVariableValues: React.Dispatch<React.SetStateAction<VariableValue[]>>
 ) => {
   useEffect(() => {
     // 处理角色选择事件
@@ -27,7 +27,7 @@ export const useEventListeners = (
           }
 
           return val;
-        }),
+        })
       );
     };
 
@@ -48,31 +48,19 @@ export const useEventListeners = (
           }
 
           return val;
-        }),
+        })
       );
     };
 
     // 添加事件监听
-    document.addEventListener(
-      "character-selected",
-      handleCharacterSelect as EventListener,
-    );
-    document.addEventListener(
-      "element-selected",
-      handleElementSelect as EventListener,
-    );
+    document.addEventListener("character-selected", handleCharacterSelect as EventListener);
+    document.addEventListener("element-selected", handleElementSelect as EventListener);
 
     // 组件卸载时移除监听
 
     return () => {
-      document.removeEventListener(
-        "character-selected",
-        handleCharacterSelect as EventListener,
-      );
-      document.removeEventListener(
-        "element-selected",
-        handleElementSelect as EventListener,
-      );
+      document.removeEventListener("character-selected", handleCharacterSelect as EventListener);
+      document.removeEventListener("element-selected", handleElementSelect as EventListener);
     };
   }, [setVariableValues]);
 };

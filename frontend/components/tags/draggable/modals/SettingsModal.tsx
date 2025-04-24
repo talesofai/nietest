@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-} from "@heroui/react";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
 import { Input } from "@heroui/input";
 
 interface GlobalSettings {
@@ -40,12 +33,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <ModalBody>
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="max-threads" className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium mb-1" htmlFor="max-threads">
                     最大线程数
                   </label>
                   <Input
-                    id="max-threads"
                     className="w-full"
+                    id="max-threads"
                     max={32}
                     min={1}
                     type="number"
@@ -63,12 +56,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label htmlFor="x-token" className="block text-sm font-medium mb-1">
+                  <label className="block text-sm font-medium mb-1" htmlFor="x-token">
                     X-Token
                   </label>
                   <Input
-                    id="x-token"
                     className="w-full"
+                    id="x-token"
                     type="password"
                     value={globalSettings.xToken}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,0 +1,41 @@
+# 构建输出
+.next
+out
+build
+dist
+
+# 依赖
+node_modules
+
+# 日志
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 环境变量
+.env
+.env.*
+
+# 缓存
+.cache
+.npm
+.eslintcache
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 示例目录
+example
+example/**/*
+
+# 其他
+coverage
+.vercel
+.now
+.changeset
+public/sw.js
+public/workbox-*.js

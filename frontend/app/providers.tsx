@@ -8,7 +8,7 @@ import { HeroUIProvider } from "@heroui/system";
 import { useRouter } from "next/navigation";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 
-import { AuthProvider } from "@/app/api/v1/auth";
+import { AuthProvider } from "@/lib/auth";
 
 export interface ProvidersProps {
   children: React.ReactNode;
@@ -17,9 +17,7 @@ export interface ProvidersProps {
 
 declare module "@react-types/shared" {
   interface RouterConfig {
-    routerOptions: NonNullable<
-      Parameters<ReturnType<typeof useRouter>["push"]>[1]
-    >;
+    routerOptions: NonNullable<Parameters<ReturnType<typeof useRouter>["push"]>[1]>;
   }
 }
 
@@ -44,11 +42,7 @@ export function Providers({ children, themeProps }: ProvidersProps) {
           {/* 使用div包装并添加suppressHydrationWarning属性 */}
           <div suppressHydrationWarning>
             {/* 在服务器端渲染和初始客户端渲染时，渲染一个占位符 */}
-            {!mounted ? (
-              <div style={{ visibility: "hidden" }}>{children}</div>
-            ) : (
-              children
-            )}
+            {!mounted ? <div style={{ visibility: "hidden" }}>{children}</div> : children}
           </div>
         </AuthProvider>
       </NextThemesProvider>

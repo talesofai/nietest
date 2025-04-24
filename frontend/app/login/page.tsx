@@ -7,7 +7,7 @@ import { Button } from "@heroui/button";
 import { useRouter } from "next/navigation";
 
 import { title } from "@/components/primitives";
-import { useAuth } from "@/app/api/v1/auth";
+import { useAuth } from "@/lib/auth";
 
 /**
  * 登录页面组件
@@ -23,6 +23,8 @@ const LoginPage = () => {
   // 如果用户已登录，重定向到首页
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.log("用户已登录，重定向到首页", user);
       router.push("/");
@@ -43,15 +45,17 @@ const LoginPage = () => {
 
     try {
       // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       console.log(`尝试登录，用户名: ${email}`);
       const success = await login(email, password);
 
       // 设置调试信息
-      setDebugInfo(
-        `登录结果: ${success ? "成功" : "失败"}, 认证错误: ${authError || "无"}`,
-      );
+      setDebugInfo(`登录结果: ${success ? "成功" : "失败"}, 认证错误: ${authError || "无"}`);
 
       if (success) {
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         // eslint-disable-next-line no-console
         console.log("登录成功，正在重定向...");
         router.push("/");
@@ -63,6 +67,8 @@ const LoginPage = () => {
       const errorMessage = err instanceof Error ? err.message : String(err);
 
       setLocalError(`网络错误，请稍后重试: ${errorMessage}`);
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error("登录请求失败:", err);
     }
@@ -89,9 +95,7 @@ const LoginPage = () => {
             {debugInfo && process.env.NODE_ENV === "development" && (
               <div className="bg-gray-100 border border-gray-300 rounded-md p-2 mb-4 text-xs">
                 <details>
-                  <summary className="cursor-pointer font-semibold">
-                    调试信息
-                  </summary>
+                  <summary className="cursor-pointer font-semibold">调试信息</summary>
                   <pre className="mt-2 whitespace-pre-wrap">{debugInfo}</pre>
                 </details>
               </div>

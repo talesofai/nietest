@@ -18,16 +18,14 @@ import {
 import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 
 // 导入子组件
+
+import { truncateText, getTypeDisplayName } from "@/components/tags/draggable/tagUtils";
+import { Tag } from "@/types/tag";
+import ColorButton from "@/components/ColorButton";
+
 import { SortableTagItem, END_PLACEHOLDER_ID, UserIcon } from "../draggable";
 
 import AddTagForm from "./modals/AddTagForm";
-
-import {
-  truncateText,
-  getTypeDisplayName,
-} from "@/components/tags/draggable/tagUtils";
-import { Tag } from "@/types/tag";
-import ColorButton from "@/components/ColorButton";
 
 interface TagAreaProps {
   tags: Tag[];
@@ -89,10 +87,7 @@ const TagArea: React.FC<TagAreaProps> = ({
     return (
       <AnimatePresence mode="wait">
         {showAddForm ? (
-          <AddTagForm
-            onAdd={handleAddTag}
-            onCancel={() => setShowAddForm(false)}
-          />
+          <AddTagForm onAdd={handleAddTag} onCancel={() => setShowAddForm(false)} />
         ) : (
           <motion.div
             key="add-button"
@@ -167,9 +162,7 @@ const TagArea: React.FC<TagAreaProps> = ({
                 ))}
 
                 {/* 将加号按钮作为标签流的一部分紧跟在最后一个标签后面 */}
-                {!activeId && (
-                  <div className="inline-flex">{renderAddTagButton()}</div>
-                )}
+                {!activeId && <div className="inline-flex">{renderAddTagButton()}</div>}
 
                 {/* 末尾空白占位元素，提供末尾拖放区域，放在按钮后面 */}
                 <div
@@ -201,8 +194,7 @@ const TagArea: React.FC<TagAreaProps> = ({
                 gradientToColor={activeTag.gradientToColor}
                 hexColor={activeTag.color}
                 startContent={
-                  (activeTag.type === "character" ||
-                    activeTag.type === "element") &&
+                  (activeTag.type === "character" || activeTag.type === "element") &&
                   activeTag.header_img ? (
                     <div className="h-6 w-6 flex-shrink-0 bg-transparent rounded-full overflow-hidden">
                       <img
@@ -215,8 +207,7 @@ const TagArea: React.FC<TagAreaProps> = ({
                         }}
                       />
                     </div>
-                  ) : activeTag.isVariable &&
-                    activeTag.type.includes("character") ? (
+                  ) : activeTag.isVariable && activeTag.type.includes("character") ? (
                     <div className="h-6 w-6 flex-shrink-0 text-foreground">
                       <UserIcon size={24} />
                     </div>
@@ -232,10 +223,7 @@ const TagArea: React.FC<TagAreaProps> = ({
                     text = `${activeTag.name || ""} [变量]`;
                   } else if (activeTag.type === "prompt") {
                     text = truncateText(activeTag.value);
-                  } else if (
-                    activeTag.type === "character" ||
-                    activeTag.type === "element"
-                  ) {
+                  } else if (activeTag.type === "character" || activeTag.type === "element") {
                     text = truncateText(activeTag.value);
                   } else {
                     text = `${getTypeDisplayName(activeTag.type)}: ${truncateText(activeTag.value)}`;
@@ -243,8 +231,7 @@ const TagArea: React.FC<TagAreaProps> = ({
 
                   // 如果有权重，显示权重信息
                   if (
-                    (activeTag.type === "character" ||
-                      activeTag.type === "element") &&
+                    (activeTag.type === "character" || activeTag.type === "element") &&
                     activeTag.weight !== undefined
                   ) {
                     text += ` [权重: ${activeTag.weight}]`;

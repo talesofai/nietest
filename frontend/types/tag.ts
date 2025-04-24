@@ -5,14 +5,7 @@
 /**
  * 标签类型
  */
-export type TagType =
-  | "prompt"
-  | "ratio"
-  | "batch"
-  | "seed"
-  | "polish"
-  | "character"
-  | "element";
+export type TagType = "prompt" | "ratio" | "batch" | "seed" | "polish" | "character" | "element";
 
 /**
  * 标签数据接口

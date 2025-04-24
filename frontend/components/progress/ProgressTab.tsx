@@ -1,20 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Progress,
-  Chip,
-  Button,
-  Spinner,
-} from "@heroui/react";
+import { Card, CardBody, CardHeader, Progress, Chip, Button, Spinner } from "@heroui/react";
 import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { useRouter } from "next/navigation";
 
-import { TaskStatus, TaskDetail } from "@/app/api/client";
+import { TaskStatus, TaskDetail } from "@/types/task";
 import { getTaskList, cancelTask } from "@/utils/taskService";
 import { alertService } from "@/utils/alertService";
 
@@ -89,6 +81,8 @@ const ProgressTab: React.FC = () => {
       } catch (err) {
         setError(err instanceof Error ? err.message : "加载任务列表失败");
         // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
         console.error("加载任务列表失败:", err);
         setTasks([]);
       } finally {
@@ -124,10 +118,9 @@ const ProgressTab: React.FC = () => {
         setRefreshKey((prev) => prev + 1);
       }
     } catch (err) {
-      alertService.error(
-        "取消任务失败",
-        err instanceof Error ? err.message : "发生未知错误",
-      );
+      alertService.error("取消任务失败", err instanceof Error ? err.message : "发生未知错误");
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error("取消任务失败:", err);
     }
@@ -167,11 +160,7 @@ const ProgressTab: React.FC = () => {
         <div className="text-center text-danger p-4 border border-danger rounded-lg">
           {error}
           <div className="mt-2">
-            <Button
-              color="primary"
-              size="sm"
-              onPress={() => setRefreshKey((prev) => prev + 1)}
-            >
+            <Button color="primary" size="sm" onPress={() => setRefreshKey((prev) => prev + 1)}>
               重试
             </Button>
           </div>
@@ -189,10 +178,7 @@ const ProgressTab: React.FC = () => {
             >
               <CardHeader className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold">{task.task_name}</h3>
-                <Chip
-                  color={getStatusColor(task.status as TaskStatus)}
-                  variant="flat"
-                >
+                <Chip color={getStatusColor(task.status as TaskStatus)} variant="flat">
                   {getStatusText(task.status as TaskStatus)}
                 </Chip>
               </CardHeader>
@@ -200,12 +186,9 @@ const ProgressTab: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between mb-1">
+                      <span className="text-sm">进度: {task.progress || 0}%</span>
                       <span className="text-sm">
-                        进度: {task.progress || 0}%
-                      </span>
-                      <span className="text-sm">
-                        {task.processed_images || 0}/{task.total_images || 0}{" "}
-                        张图片
+                        {task.processed_images || 0}/{task.total_images || 0} 张图片
                       </span>
                     </div>
                     <Progress
@@ -224,9 +207,7 @@ const ProgressTab: React.FC = () => {
                         <Button
                           color="danger"
                           size="sm"
-                          startContent={
-                            <Icon icon="solar:close-circle-linear" width={16} />
-                          }
+                          startContent={<Icon icon="solar:close-circle-linear" width={16} />}
                           variant="bordered"
                           onPress={() => handleCancelTask(task.id)}
                         >
@@ -237,9 +218,7 @@ const ProgressTab: React.FC = () => {
                         <Button
                           color="danger"
                           size="sm"
-                          startContent={
-                            <Icon icon="solar:close-circle-linear" width={16} />
-                          }
+                          startContent={<Icon icon="solar:close-circle-linear" width={16} />}
                           variant="bordered"
                           onPress={() => handleCancelTask(task.id)}
                         >
@@ -250,9 +229,7 @@ const ProgressTab: React.FC = () => {
                         <Button
                           color="primary"
                           size="sm"
-                          startContent={
-                            <Icon icon="solar:eye-linear" width={16} />
-                          }
+                          startContent={<Icon icon="solar:eye-linear" width={16} />}
                           variant="bordered"
                           onPress={() => handleViewResults(task.id)}
                         >

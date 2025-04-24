@@ -10,6 +10,8 @@ export const getCurrentUsername = async (): Promise<string> => {
 
   if (!token) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.log("未找到有效的认证令牌，使用匿名用户名");
 
     return "anonymous_user";
@@ -19,6 +21,8 @@ export const getCurrentUsername = async (): Promise<string> => {
     // 调用API获取当前用户信息
     const userResponse = await getCurrentUser();
 
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.log("用户响应数据:", userResponse);
 
@@ -46,10 +50,14 @@ export const getCurrentUsername = async (): Promise<string> => {
 
     // 如果无法获取用户信息，使用匿名用户名
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.log("无法从响应中解析有效的用户标识符");
 
     return "anonymous_user";
   } catch (error) {
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("获取用户信息失败:", error);
 

@@ -8,11 +8,7 @@ import { getCurrentUsername, checkUserLoggedIn } from "@/utils/user/userUtils";
  * 显示通知消息
  * @param options 通知选项
  */
-const showAlert = (options: {
-  title: string;
-  description: string;
-  variant?: string;
-}) => {
+const showAlert = (options: { title: string; description: string; variant?: string }) => {
   // 直接使用alertService
   alertService.show(options);
 };
@@ -35,9 +31,7 @@ export const checkTagsExist = (tags: Tag[]): { message: string } | null => {
 /**
  * 检查变量标签数量是否超过限制 (最多6个变量标签)
  */
-export const checkVariableTagsCount = (
-  tags: Tag[],
-): { code: string; message: string } | null => {
+export const checkVariableTagsCount = (tags: Tag[]): { code: string; message: string } | null => {
   const variableTags = tags.filter((tag) => tag.isVariable);
 
   if (variableTags.length > 6) {
@@ -58,7 +52,7 @@ export const checkVariableTagsCount = (
  */
 export const checkVariableValuesCount = (
   variables: any,
-  tags: Tag[],
+  tags: Tag[]
 ): { code: string; message: string } | null => {
   // 找出所有变量标签
   const variableTags = tags.filter((tag) => tag.isVariable);
@@ -115,7 +109,7 @@ export const checkVariableValuesCount = (
  * @returns 如果有错误返回错误对象，否则返回null
  */
 export const checkForbiddenTagCombinations = (
-  tags: Tag[],
+  tags: Tag[]
 ): { code: string; message: string } | null => {
   // 示例：检查标签组合。在实际应用中，可能需要根据具体业务逻辑进行定制
   const tagNames = tags.map((tag) => (tag.name || "").toLowerCase());
@@ -139,7 +133,7 @@ export const checkForbiddenTagCombinations = (
  */
 const convertToVariableSlots = (
   variableValues: VariableValue[],
-  tags: Tag[],
+  tags: Tag[]
 ): Record<string, any> => {
   const result: Record<string, any> = {};
 
@@ -175,7 +169,7 @@ const convertToVariableSlots = (
  */
 export const validateSubmission = (
   tags: Tag[],
-  variableValues: VariableValue[],
+  variableValues: VariableValue[]
 ): { code: string; message: string } | null => {
   // 检查用户是否已登录
   const loginError = checkUserLoggedIn();
@@ -211,10 +205,7 @@ export const validateSubmission = (
  * @param variableValues 变量值数组
  * @returns 如果验证通过返回true，否则返回false
  */
-export const validateBeforeSubmit = (
-  tags: Tag[],
-  variableValues: VariableValue[],
-): boolean => {
+export const validateBeforeSubmit = (tags: Tag[], variableValues: VariableValue[]): boolean => {
   // 检查标签是否存在
   const tagsError = checkTagsExist(tags);
 
@@ -293,7 +284,7 @@ interface SubmitResponse {
 export const prepareSubmitData = async (
   tags: Tag[],
   variableValues: VariableValue[],
-  taskName: string = "无标题任务", // 默认任务名称
+  taskName: string = "无标题任务" // 默认任务名称
 ): Promise<SubmitData> => {
   // 获取当前登录用户的名称（通过API调用）
   let username = "";
@@ -301,6 +292,8 @@ export const prepareSubmitData = async (
   try {
     username = await getCurrentUsername();
   } catch (error) {
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("获取用户名失败:", error);
     username = "anonymous_user"; // 默认匿名用户名
@@ -375,9 +368,7 @@ export const prepareSubmitData = async (
 
   if (typeof window !== "undefined") {
     try {
-      const storedSettings = localStorage.getItem(
-        "droppable-tags-v2-global-settings",
-      );
+      const storedSettings = localStorage.getItem("droppable-tags-v2-global-settings");
 
       if (storedSettings) {
         const parsedSettings = JSON.parse(storedSettings);
@@ -385,10 +376,7 @@ export const prepareSubmitData = async (
         // 验证设置数据结构
         if (parsedSettings && typeof parsedSettings === "object") {
           // 确保 maxThreads 是有效数字
-          if (
-            typeof parsedSettings.maxThreads === "number" &&
-            !isNaN(parsedSettings.maxThreads)
-          ) {
+          if (typeof parsedSettings.maxThreads === "number" && !isNaN(parsedSettings.maxThreads)) {
             globalSettings.maxThreads = parsedSettings.maxThreads;
           }
           // 确保 xToken 是字符串
@@ -398,6 +386,8 @@ export const prepareSubmitData = async (
         }
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
+      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error("加载全局设置失败:", error);
     }
@@ -427,25 +417,32 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
   try {
     // 记录提交数据（用于调试）
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.log("===== 提交数据开始 =====");
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.log("用户名:", data.username || "未指定");
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.log("任务名称:", data.task_name || "无标题任务");
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.log("标签数量:", data.tags?.length || 0);
 
     // 再次检查变量标签数量
-    const variableTagsCount =
-      data.tags?.filter((tag) => tag.isVariable).length || 0;
+    const variableTagsCount = data.tags?.filter((tag) => tag.isVariable).length || 0;
 
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.log(`变量标签数量: ${variableTagsCount}`);
 
     if (variableTagsCount > 6) {
-      throw new Error(
-        `变量标签数量不能超过6个，当前有 ${variableTagsCount} 个`,
-      );
+      throw new Error(`变量标签数量不能超过6个，当前有 ${variableTagsCount} 个`);
     }
 
     // 准备提交到API的数据
@@ -466,12 +463,16 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
     };
 
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.log("准备提交到API的数据:", apiData);
 
     // 使用apiRequest.post方法发送请求
     const apiResponse = await apiRequest.post("/api/v1/tasks", apiData);
 
     // 检查响应
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.log("API响应:", apiResponse);
 
@@ -495,6 +496,8 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
     };
   } catch (error) {
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.error("提交失败:", error);
     showAlert({
       title: "提交失败",
@@ -511,10 +514,7 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
  * @param variableValues 变量值数组
  * @returns 图片总数
  */
-export const calculateTotalImages = (
-  tags: Tag[],
-  variableValues: VariableValue[],
-): number => {
+export const calculateTotalImages = (tags: Tag[], variableValues: VariableValue[]): number => {
   // 默认生成一张图片
   let totalImages = 1;
 
@@ -575,7 +575,7 @@ export const calculateTotalImages = (
 export const completeSubmitProcess = async (
   tags: Tag[],
   variableValues: VariableValue[],
-  taskName: string = "无标题任务",
+  taskName: string = "无标题任务"
 ): Promise<SubmitResponse | null> => {
   // 第一步：验证
   // 先检查变量标签数量
@@ -606,34 +606,33 @@ export const completeSubmitProcess = async (
 
     // 提交成功后记录详细信息
     // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     console.log("提交成功:", result);
 
     // 统计标签和变量数据
     const totalTagsCount = tags.length;
     const variableTagsCount = tags.filter((tag) => tag.isVariable).length;
     const variableNames = Object.keys(data.variables || {}).length;
-    const totalVariableValues = Object.values(data.variables || {}).reduce(
-      (sum, variable) => {
-        return sum + (variable.values ? variable.values.length : 0);
-      },
-      0,
-    );
+    const totalVariableValues = Object.values(data.variables || {}).reduce((sum, variable) => {
+      return sum + (variable.values ? variable.values.length : 0);
+    }, 0);
 
     // 记录详细的统计信息
     // eslint-disable-next-line no-console
-    console.log(
-      `标签统计: 共 ${totalTagsCount} 个标签(其中变量标签 ${variableTagsCount} 个)`,
-    );
     // eslint-disable-next-line no-console
-    console.log(
-      `变量统计: 共 ${variableNames} 个变量(共 ${totalVariableValues} 个值)`,
-    );
+    console.log(`标签统计: 共 ${totalTagsCount} 个标签(其中变量标签 ${variableTagsCount} 个)`);
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    console.log(`变量统计: 共 ${variableNames} 个变量(共 ${totalVariableValues} 个值)`);
 
     // 注意: submitPost函数已经显示了成功通知，这里不需要再显示
 
     return result;
   } catch (error) {
     // 错误已在submitPost中处理
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("提交流程出错:", error);
 
