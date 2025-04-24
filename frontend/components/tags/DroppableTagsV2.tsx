@@ -4,15 +4,14 @@ import React from "react";
 import { Button } from "@heroui/react";
 import { useDisclosure } from "@heroui/react";
 
-// 导入子组件
 import { useAuth } from "@/lib/auth";
 
-import TagArea from "./draggable/TagArea";
+// 导入子组件
 import { ActionButtons } from "./draggable";
+import TagArea from "./draggable/TagArea";
+import EditTagModal from "./draggable/modals/EditTagModal";
 import { SettingsModal, SubmitModals } from "./draggable/modals";
 import VariableValueList from "./variablevalue/VariableValueList";
-import EditTagModal from "./draggable/modals/EditTagModal";
-
 // 导入自定义 hooks
 import {
   useAddTag,

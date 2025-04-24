@@ -34,6 +34,75 @@ export const useAddTag = (
     previewGradientColorRef.current = getRandomGradientColors();
   };
 
+  // 验证变量标签数据
+  const validateVariableTag = (data: {
+    name: string;
+    type: TagType;
+    isVariable: boolean;
+  }): string | null => {
+    if (!data.isVariable) {
+      return null; // 非变量标签不需要验证
+    }
+
+    // 检查变量名是否为空
+    if (!data.name.trim()) {
+      return "变量名称不能为空";
+    }
+
+    // 检查变量名是否唯一
+    if (!isVariableNameUnique(data.name, tags)) {
+      return "变量名称重复";
+    }
+
+    // 检查变量名长度是否合法
+    if (!isVariableNameLengthValid(data.name)) {
+      return "变量名称过长";
+    }
+
+    return null; // 验证通过
+  };
+
+  // 创建变量值
+  const createVariableValues = (
+    tag: Tag,
+    data: {
+      uuid?: string;
+      header_img?: string;
+    }
+  ): VariableValue[] => {
+    if (tag.type === "polish") {
+      // 对于润色类型，创建true和false两个变量值
+      return [
+        {
+          variable_id: Date.now().toString() + "-true",
+          tag_id: tag.id,
+          value: "true",
+        },
+        {
+          variable_id: Date.now().toString() + "-false",
+          tag_id: tag.id,
+          value: "false",
+        },
+      ];
+    }
+
+    // 对于其他类型，创建默认值
+    const defaultValue: VariableValue = {
+      variable_id: Date.now().toString() + "-default",
+      tag_id: tag.id,
+      value: getDefaultValueByType(tag.type),
+      // 如果是角色或元素类型，添加相关信息
+      ...(tag.type === "character" || tag.type === "element"
+        ? {
+            uuid: data.uuid,
+            header_img: data.header_img,
+          }
+        : {}),
+    };
+
+    return [defaultValue];
+  };
+
   // 处理添加标签
   const handleAddTag = (data: {
     name: string;
@@ -46,30 +115,15 @@ export const useAddTag = (
     header_img?: string;
   }) => {
     // 获取预设的随机颜色和渐变色
-    // const colorValue = previewColorRef.current; // 未使用的变量
     const gradientConfig = previewGradientColorRef.current;
 
-    // 对于变量标签，需要名称
-    if (data.isVariable) {
-      if (!data.name.trim()) {
-        alertService.error("变量名称不能为空", "请输入变量名称");
+    // 对于变量标签，验证数据
+    const validationError = validateVariableTag(data);
 
-        return;
-      }
+    if (validationError) {
+      alertService.error(validationError, "请检查输入");
 
-      // 检查变量名是否唯一
-      if (!isVariableNameUnique(data.name, tags)) {
-        alertService.error("变量名称重复", "变量名必须唯一");
-
-        return;
-      }
-
-      // 检查变量名长度是否合法
-      if (!isVariableNameLengthValid(data.name)) {
-        alertService.error("变量名称过长", `变量名最长12个字符`);
-
-        return;
-      }
+      return;
     }
 
     // 检查除了prompt类型和character类型外的标签唯一性
@@ -90,7 +144,7 @@ export const useAddTag = (
     // 根据标签类型决定是否使用渐变色
     const useGradient = data.isVariable;
 
-    // 添加角色特有属性
+    // 创建新标签
     const newTag: Tag = {
       id: Date.now().toString(),
       type: data.type,
@@ -119,38 +173,12 @@ export const useAddTag = (
 
     // 如果是变量标签，添加默认变量值
     if (newTag.isVariable) {
-      if (newTag.type === "polish") {
-        // 对于润色类型，创建true和false两个变量值
-        const trueValue: VariableValue = {
-          variable_id: Date.now().toString() + "-true",
-          tag_id: newTag.id,
-          value: "true",
-        };
+      const variableValues = createVariableValues(newTag, {
+        uuid: data.uuid,
+        header_img: data.header_img,
+      });
 
-        const falseValue: VariableValue = {
-          variable_id: Date.now().toString() + "-false",
-          tag_id: newTag.id,
-          value: "false",
-        };
-
-        setVariableValues((prev) => [...prev, trueValue, falseValue]);
-      } else {
-        // 对于其他类型，创建默认值
-        const defaultValue: VariableValue = {
-          variable_id: Date.now().toString() + "-default",
-          tag_id: newTag.id,
-          value: getDefaultValueByType(newTag.type),
-          // 如果是角色或元素类型，添加相关信息
-          ...(newTag.type === "character" || newTag.type === "element"
-            ? {
-                uuid: data.uuid,
-                header_img: data.header_img,
-              }
-            : {}),
-        };
-
-        setVariableValues((prev) => [...prev, defaultValue]);
-      }
+      setVariableValues((prev) => [...prev, ...variableValues]);
     }
 
     // 重置添加标签窗口

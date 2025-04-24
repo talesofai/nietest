@@ -45,6 +45,69 @@ export const checkVariableTagsCount = (tags: Tag[]): { code: string; message: st
 };
 
 /**
+ * 检查单个变量的值数量
+ * @param variable 变量配置
+ * @param tagName 标签名称
+ * @param tagId 标签ID
+ * @returns 如果有错误返回错误对象，否则返回null
+ */
+const checkSingleVariableValues = (
+  variable: any,
+  tagName: string | undefined,
+  tagId: string
+): { code: string; message: string } | null => {
+  // 检查变量值数量
+  if (!variable.values || variable.values.length === 0) {
+    return {
+      code: "MISSING_VARIABLE_VALUES",
+      message: `变量 "${variable.name || tagName || `ID:${tagId}`}" 需要至少一个值`,
+    };
+  }
+
+  if (variable.values.length > 10) {
+    return {
+      code: "TOO_MANY_VARIABLE_VALUES",
+      message: `变量 "${variable.name || tagName || `ID:${tagId}`}" 的值不能超过10个`,
+    };
+  }
+
+  return null;
+};
+
+/**
+ * 查找变量标签对应的变量配置
+ * @param tag 标签
+ * @param variables 变量配置对象
+ * @returns 找到的变量配置和错误信息
+ */
+const findVariableConfig = (
+  tag: Tag,
+  variables: any
+): { found: boolean; variable: any; error: { code: string; message: string } | null } => {
+  // 遍历v0-v6变量槽
+  for (const key of ["v0", "v1", "v2", "v3", "v4", "v5", "v6"]) {
+    const variable = variables[key];
+
+    if (variable && variable.tag_id === tag.id) {
+      // 检查变量值数量
+      const error = checkSingleVariableValues(variable, tag.name, tag.id);
+
+      return { found: true, variable, error };
+    }
+  }
+
+  // 未找到对应的变量配置
+  return {
+    found: false,
+    variable: null,
+    error: {
+      code: "VARIABLE_CONFIG_MISSING",
+      message: `变量 "${tag.name || `ID:${tag.id}`}" 缺少对应的变量配置`,
+    },
+  };
+};
+
+/**
  * 检查变量值的数量，确保每个变量标签都有足够的值
  * @param variables 变量配置对象
  * @param tags 标签数组
@@ -63,40 +126,10 @@ export const checkVariableValuesCount = (
 
   // 检查每个变量标签
   for (const tag of variableTags) {
-    // 查找对应的变量配置
-    let found = false;
+    const { found, error } = findVariableConfig(tag, variables);
 
-    // 遍历v0-v6变量槽
-    for (const key of ["v0", "v1", "v2", "v3", "v4", "v5", "v6"]) {
-      const variable = variables[key];
-
-      if (variable && variable.tag_id === tag.id) {
-        found = true;
-
-        // 检查变量值数量
-        if (!variable.values || variable.values.length === 0) {
-          return {
-            code: "MISSING_VARIABLE_VALUES",
-            message: `变量 "${variable.name || tag.name || `ID:${tag.id}`}" 需要至少一个值`,
-          };
-        }
-
-        if (variable.values.length > 10) {
-          return {
-            code: "TOO_MANY_VARIABLE_VALUES",
-            message: `变量 "${variable.name || tag.name || `ID:${tag.id}`}" 的值不能超过10个`,
-          };
-        }
-
-        break;
-      }
-    }
-
-    if (!found) {
-      return {
-        code: "VARIABLE_CONFIG_MISSING",
-        message: `变量 "${tag.name || `ID:${tag.id}`}" 缺少对应的变量配置`,
-      };
+    if (!found || error) {
+      return error;
     }
   }
 
@@ -275,33 +308,30 @@ interface SubmitResponse {
 }
 
 /**
- * 准备提交数据
- * @param tags 标签数组
- * @param variableValues 变量值数组
- * @param taskName 任务名称
- * @returns 准备好的提交数据对象
+ * 获取用户名
+ * @returns 用户名或默认匿名用户名
  */
-export const prepareSubmitData = async (
-  tags: Tag[],
-  variableValues: VariableValue[],
-  taskName: string = "无标题任务" // 默认任务名称
-): Promise<SubmitData> => {
-  // 获取当前登录用户的名称（通过API调用）
-  let username = "";
-
+const getUsernameForSubmit = async (): Promise<string> => {
   try {
-    username = await getCurrentUsername();
+    return await getCurrentUsername();
   } catch (error) {
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.error("获取用户名失败:", error);
-    username = "anonymous_user"; // 默认匿名用户名
+
+    return "anonymous_user"; // 默认匿名用户名
   }
+};
 
-  // 获取所有变量标签
-  const variableTags = tags.filter((tag) => tag.isVariable);
-
+/**
+ * 创建变量槽数据
+ * @param variableTags 变量标签数组
+ * @param variableValues 变量值数组
+ * @returns 变量槽数据
+ */
+const createVariableSlots = (
+  variableTags: Tag[],
+  variableValues: VariableValue[]
+): Record<string, any> => {
   // 创建变量槽格式数据 (v0-v5)，确保所有槽位都存在
   const variables: Record<string, any> = {
     v0: { name: "", values: [] },
@@ -317,7 +347,6 @@ export const prepareSubmitData = async (
     if (index >= 6) return; // 最多支持6个变量槽 (v0-v5)
 
     const slotKey = `v${index}`;
-
     // 查找与当前标签相关的所有变量值
     const tagValues = variableValues.filter((value) => value.tag_id === tag.id);
 
@@ -340,6 +369,19 @@ export const prepareSubmitData = async (
     }
   });
 
+  return variables;
+};
+
+/**
+ * 创建标签数据
+ * @param tags 标签数组
+ * @param variableValues 变量值数组
+ * @returns 标签数据
+ */
+const createTagData = (
+  tags: Tag[],
+  variableValues: VariableValue[]
+): Array<Tag & { values?: string[] }> => {
   // 按标签ID分组变量值（用于tags附加数据）
   const variablesByTagId: Record<string, string[]> = {};
 
@@ -351,7 +393,7 @@ export const prepareSubmitData = async (
   });
 
   // 准备标签数据，保留id字段
-  const tagData = tags.map((tag) => {
+  return tags.map((tag) => {
     // 对于变量标签，附加其值
     if (tag.isVariable) {
       return {
@@ -362,42 +404,74 @@ export const prepareSubmitData = async (
 
     return tag; // 保留所有字段，包括id
   });
+};
 
-  // 获取全局设置
-  let globalSettings = { maxThreads: 4, xToken: "" };
+/**
+ * 获取全局设置
+ * @returns 全局设置对象
+ */
+const getGlobalSettings = (): { maxThreads: number; xToken: string } => {
+  const defaultSettings = { maxThreads: 4, xToken: "" };
 
-  if (typeof window !== "undefined") {
-    try {
-      const storedSettings = localStorage.getItem("droppable-tags-v2-global-settings");
+  if (typeof window === "undefined") return defaultSettings;
 
-      if (storedSettings) {
-        const parsedSettings = JSON.parse(storedSettings);
+  try {
+    const storedSettings = localStorage.getItem("droppable-tags-v2-global-settings");
 
-        // 验证设置数据结构
-        if (parsedSettings && typeof parsedSettings === "object") {
-          // 确保 maxThreads 是有效数字
-          if (typeof parsedSettings.maxThreads === "number" && !isNaN(parsedSettings.maxThreads)) {
-            globalSettings.maxThreads = parsedSettings.maxThreads;
-          }
-          // 确保 xToken 是字符串
-          if (typeof parsedSettings.xToken === "string") {
-            globalSettings.xToken = parsedSettings.xToken;
-          }
-        }
+    if (!storedSettings) return defaultSettings;
+
+    const parsedSettings = JSON.parse(storedSettings);
+
+    // 验证设置数据结构
+    if (parsedSettings && typeof parsedSettings === "object") {
+      // 确保 maxThreads 是有效数字
+      if (typeof parsedSettings.maxThreads === "number" && !isNaN(parsedSettings.maxThreads)) {
+        defaultSettings.maxThreads = parsedSettings.maxThreads;
       }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.error("加载全局设置失败:", error);
+      // 确保 xToken 是字符串
+      if (typeof parsedSettings.xToken === "string") {
+        defaultSettings.xToken = parsedSettings.xToken;
+      }
     }
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("加载全局设置失败:", error);
   }
 
-  // 返回最终提交数据 - 只有顶级字段不包含id
+  return defaultSettings;
+};
 
+/**
+ * 准备提交数据
+ * @param tags 标签数组
+ * @param variableValues 变量值数组
+ * @param taskName 任务名称
+ * @returns 准备好的提交数据对象
+ */
+export const prepareSubmitData = async (
+  tags: Tag[],
+  variableValues: VariableValue[],
+  taskName: string = "无标题任务" // 默认任务名称
+): Promise<SubmitData> => {
+  // 获取当前登录用户的名称
+  const username = await getUsernameForSubmit();
+
+  // 获取所有变量标签
+  const variableTags = tags.filter((tag) => tag.isVariable);
+
+  // 创建变量槽数据
+  const variables = createVariableSlots(variableTags, variableValues);
+
+  // 创建标签数据
+  const tagData = createTagData(tags, variableValues);
+
+  // 获取全局设置
+  const globalSettings = getGlobalSettings();
+
+  // 返回最终提交数据
   return {
     username,
-    task_name: taskName, // 添加任务名称
+    task_name: taskName,
     tags: tagData,
     variables,
     settings: {

@@ -12,13 +12,13 @@ interface SubmitModalsProps {
   isConfirmOpen: boolean;
   onConfirmClose: () => void;
   onConfirmOpen: () => void; // 添加打开确认模态框的函数
-  onConfirmAccept: () => void;
+  onConfirmAccept?: () => void;
   totalImages: number;
 
   // 二次确认模态框
   isSecondConfirmOpen: boolean;
   onSecondConfirmClose: () => void;
-  onSecondConfirmAccept: () => void;
+  onSecondConfirmAccept?: () => void;
 
   // 任务名称输入模态框
   isTaskNameModalOpen: boolean;
@@ -27,11 +27,6 @@ interface SubmitModalsProps {
   taskName: string;
   setTaskName: (name: string) => void;
   onSubmit: (taskName: string) => void;
-
-  // 未使用的参数
-  _onConfirmOpen?: () => void;
-  _onConfirmAccept?: () => void;
-  _onSecondConfirmAccept?: () => void;
 }
 
 /**
@@ -47,14 +42,14 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
   // 提交确认模态框
   isConfirmOpen,
   onConfirmClose,
-  _onConfirmOpen: onConfirmOpen, // 未使用的参数改为下划线开头
-  _onConfirmAccept: onConfirmAccept, // 未使用的参数改为下划线开头
+  onConfirmOpen: _onConfirmOpen,
+  onConfirmAccept: _onConfirmAccept,
   totalImages,
 
   // 二次确认模态框
   isSecondConfirmOpen,
   onSecondConfirmClose,
-  _onSecondConfirmAccept: onSecondConfirmAccept, // 未使用的参数改为下划线开头
+  onSecondConfirmAccept: _onSecondConfirmAccept,
 
   // 任务名称输入模态框
   isTaskNameModalOpen,

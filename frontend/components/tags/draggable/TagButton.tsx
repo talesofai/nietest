@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Button } from "@heroui/react";
+import Image from "next/image";
 
 interface TagButtonProps {
   label: string;
@@ -44,15 +45,17 @@ const TagButton: React.FC<TagButtonProps> = ({
       color={color}
       size={size}
       variant={variant}
-      onClick={onClick}
+      onPress={onClick}
     >
       {/* 圆形图像 */}
       {imageUrl && (
         <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0 bg-gray-100">
-          <img
+          <Image
             alt={label}
             className="w-full h-full object-cover"
+            height={20}
             src={imageUrl}
+            width={20}
             onError={handleImageError}
           />
         </div>

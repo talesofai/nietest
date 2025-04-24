@@ -1,7 +1,7 @@
 import React from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@heroui/react";
-
 // dnd-kit 相关导入
 import {
   DndContext,
@@ -197,12 +197,16 @@ const TagArea: React.FC<TagAreaProps> = ({
                   (activeTag.type === "character" || activeTag.type === "element") &&
                   activeTag.header_img ? (
                     <div className="h-6 w-6 flex-shrink-0 bg-transparent rounded-full overflow-hidden">
-                      <img
+                      <Image
                         alt=""
                         className="h-full w-full object-cover"
+                        height={24}
                         src={activeTag.header_img}
+                        width={24}
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src =
+                          const target = e.target as HTMLImageElement;
+
+                          target.src =
                             'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23dddddd"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="12" fill="%23888888" text-anchor="middle" dominant-baseline="middle"%3E角色%3C/text%3E%3C/svg%3E';
                         }}
                       />

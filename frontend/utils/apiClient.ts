@@ -9,6 +9,7 @@ export const getApiBaseUrl = (): string => {
 const API_BASE_URL = getApiBaseUrl();
 
 // 静态导出模式下，不使用代理，直接调用后端API
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const USE_PROXY = false;
 
 /**
@@ -81,6 +82,7 @@ apiClient.interceptors.request.use(
     config.headers["x-platform"] = "nieta-app/web";
 
     // 打印请求信息
+    // eslint-disable-next-line no-console
     console.log(
       `发送请求: ${config.method?.toUpperCase()} ${config.baseURL || ""}${config.url}${config.params ? `?${new URLSearchParams(config.params).toString()}` : ""}`
     );
@@ -207,49 +209,176 @@ interface UpdateTaskRequest {
   // 根据实际需求添加其他字段
 }
 
-// 处理请求
+/**
+ * 处理URL格式
+ * @param url 原始URL
+ * @returns 处理后的URL
+ */
+const processUrl = (url: string): string => {
+  let processedUrl = url;
+
+  // 调试信息：输出请求基础信息
+  // eslint-disable-next-line no-console
+  console.log(`[API请求] 原始URL: ${url}`);
+  // eslint-disable-next-line no-console
+  console.log(`[API请求] API基础URL: ${API_BASE_URL}`);
+
+  // 处理URL路径
+  // 注意：现在我们在NEXT_PUBLIC_API_BASE_URL中已经包含了/api前缀
+  // 所以这里不需要移除/api前缀，而是确保路径中不重复包含/api
+  if (processedUrl.startsWith("/api/")) {
+    // 如果路径已经包含/api/，则移除它，因为基础URL中已经有了
+    processedUrl = processedUrl.substring(4); // 移除'/api'前缀
+  }
+
+  // 确保URL格式正确
+  if (!processedUrl.startsWith("/") && !processedUrl.startsWith("http")) {
+    processedUrl = "/" + processedUrl;
+  }
+
+  // 确保API路径末尾有斜杠（除非URL中包含查询参数或片段标识符）
+  if (!processedUrl.includes("?") && !processedUrl.includes("#") && !processedUrl.endsWith("/")) {
+    processedUrl = processedUrl + "/";
+  }
+
+  // eslint-disable-next-line no-console
+  console.log(`[API请求] 处理后URL: ${processedUrl}`);
+
+  return processedUrl;
+};
+
+/**
+ * 处理成功响应
+ * @param response Axios响应对象
+ * @param processedUrl 处理后的URL
+ * @returns 标准化的API响应
+ */
+const handleSuccessResponse = (response: AxiosResponse, processedUrl: string): ApiResponse => {
+  // 请求成功，记录响应
+  // eslint-disable-next-line no-console
+  console.log(`[API响应] 状态: ${response.status}, URL: ${processedUrl}`);
+
+  // 检查响应格式是否符合标准格式 {code, message, data}
+  const responseData = response.data;
+
+  if (
+    responseData &&
+    typeof responseData === "object" &&
+    "code" in responseData &&
+    "data" in responseData
+  ) {
+    // 标准格式响应，提取data字段
+    return {
+      success: true,
+      data: responseData.data,
+      status: responseData.code || response.status,
+      message: responseData.message,
+      headers: response.headers,
+    };
+  }
+
+  // 非标准格式，直接返回整个响应
+  return {
+    success: true,
+    data: responseData,
+    status: response.status,
+    headers: response.headers,
+  };
+};
+
+/**
+ * 处理网络错误
+ * @param axiosError Axios错误对象
+ * @param url 原始URL
+ * @param processedUrl 处理后的URL
+ * @param method HTTP方法
+ * @returns 标准化的API错误响应
+ */
+const handleNetworkError = (
+  axiosError: AxiosError,
+  url: string,
+  processedUrl: string,
+  method: string
+): ApiResponse => {
+  // eslint-disable-next-line no-console
+  console.error("[API错误] 网络连接失败或超时");
+
+  // 构建详细的错误信息
+  const errorDetails = {
+    url: url,
+    processedUrl: processedUrl,
+    method: method,
+    message: axiosError.message,
+    code: axiosError.code || "NETWORK_ERROR",
+  };
+
+  // eslint-disable-next-line no-console
+  console.error("[API错误] 详细信息:", errorDetails);
+
+  return {
+    success: false,
+    data: null,
+    error: "网络连接失败，可能原因：(1)后端服务未启动 (2)CORS配置错误 (3)网络连接问题",
+    errorDetails: errorDetails,
+    status: 0,
+  };
+};
+
+/**
+ * 处理服务器错误
+ * @param axiosError Axios错误对象
+ * @returns 标准化的API错误响应
+ */
+const handleServerError = (axiosError: AxiosError): ApiResponse => {
+  // 服务器返回的错误
+  // eslint-disable-next-line no-console
+  console.error(
+    `[API错误] 服务器响应错误: ${axiosError.response?.status}`,
+    axiosError.response?.data
+  );
+
+  // 检查响应是否符合标准格式 {code, message, data}
+  const responseData = axiosError.response?.data;
+  let errorMessage = "";
+
+  if (responseData && typeof responseData === "object") {
+    if ("message" in responseData && typeof responseData.message === "string") {
+      errorMessage = responseData.message;
+    } else if ("detail" in responseData && typeof responseData.detail === "string") {
+      errorMessage = responseData.detail;
+    } else {
+      errorMessage = JSON.stringify(responseData);
+    }
+  } else {
+    errorMessage = axiosError.message || "服务器错误";
+  }
+
+  return {
+    success: false,
+    data: null,
+    error: errorMessage,
+    status: axiosError.response?.status || 500,
+  };
+};
+
+/**
+ * 处理请求
+ * @param method HTTP方法
+ * @param url 请求URL
+ * @param data 请求数据
+ * @param params 请求参数
+ * @returns 标准化的API响应
+ */
 const processRequest = async (
   method: string,
   url: string,
   data?: any,
   params?: any
-): Promise<any> => {
+): Promise<ApiResponse> => {
   // 处理URL格式
-  let processedUrl = url;
+  const processedUrl = processUrl(url);
 
   try {
-    // 调试信息：输出请求基础信息
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    console.log(`[API请求] 方法: ${method}, 原始URL: ${url}`);
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    console.log(`[API请求] API基础URL: ${API_BASE_URL}`);
-
-    // 处理URL路径
-    // 注意：现在我们在NEXT_PUBLIC_API_BASE_URL中已经包含了/api前缀
-    // 所以这里不需要移除/api前缀，而是确保路径中不重复包含/api
-    if (processedUrl.startsWith("/api/")) {
-      // 如果路径已经包含/api/，则移除它，因为基础URL中已经有了
-      processedUrl = processedUrl.substring(4); // 移除'/api'前缀
-    }
-
-    // 确保URL格式正确
-    if (!processedUrl.startsWith("/") && !processedUrl.startsWith("http")) {
-      processedUrl = "/" + processedUrl;
-    }
-
-    // 确保API路径末尾有斜杠（除非URL中包含查询参数或片段标识符）
-    if (!processedUrl.includes("?") && !processedUrl.includes("#") && !processedUrl.endsWith("/")) {
-      processedUrl = processedUrl + "/";
-    }
-
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    console.log(`[API请求] 处理后URL: ${processedUrl}`);
-
     // 发送请求
     const response: AxiosResponse = await apiClient.request({
       method,
@@ -258,107 +387,20 @@ const processRequest = async (
       params,
     });
 
-    // 请求成功，记录响应
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    console.log(`[API响应] 状态: ${response.status}, URL: ${processedUrl}`);
-
-    // 检查响应格式是否符合标准格式 {code, message, data}
-    const responseData = response.data;
-
-    if (
-      responseData &&
-      typeof responseData === "object" &&
-      "code" in responseData &&
-      "data" in responseData
-    ) {
-      // 标准格式响应，提取data字段
-
-      return {
-        success: true,
-        data: responseData.data,
-        status: responseData.code || response.status,
-        message: responseData.message,
-        headers: response.headers,
-      };
-    } else {
-      // 非标准格式，直接返回整个响应
-
-      return {
-        success: true,
-        data: responseData,
-        status: response.status,
-        headers: response.headers,
-      };
-    }
+    return handleSuccessResponse(response, processedUrl);
   } catch (error: any) {
     // 处理错误
     const axiosError = error as AxiosError;
 
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.error(`[API错误] 请求失败: ${method} ${url}`, axiosError);
 
     // 检查是否是网络错误或超时
     if (!axiosError.response) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.error("[API错误] 网络连接失败或超时");
-
-      // 构建详细的错误信息
-      const errorDetails = {
-        url: url,
-        processedUrl: processedUrl,
-        method: method,
-        message: axiosError.message,
-        code: axiosError.code || "NETWORK_ERROR",
-      };
-
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.error("[API错误] 详细信息:", errorDetails);
-
-      return {
-        success: false,
-        data: null,
-        error: "网络连接失败，可能原因：(1)后端服务未启动 (2)CORS配置错误 (3)网络连接问题",
-        errorDetails: errorDetails,
-        status: 0,
-      };
+      return handleNetworkError(axiosError, url, processedUrl, method);
     }
 
-    // 服务器返回的错误
-    console.error(
-      `[API错误] 服务器响应错误: ${axiosError.response?.status}`,
-      axiosError.response?.data
-    );
-
-    // 检查响应是否符合标准格式 {code, message, data}
-    const responseData = axiosError.response?.data;
-    let errorMessage = "";
-
-    if (responseData && typeof responseData === "object") {
-      if ("message" in responseData && typeof responseData.message === "string") {
-        errorMessage = responseData.message;
-      } else if ("detail" in responseData && typeof responseData.detail === "string") {
-        errorMessage = responseData.detail;
-      } else {
-        errorMessage = JSON.stringify(responseData);
-      }
-    } else {
-      errorMessage = axiosError.message || "服务器错误";
-    }
-
-    return {
-      success: false,
-      data: null,
-      error: errorMessage,
-      status: axiosError.response?.status || 500,
-    };
+    return handleServerError(axiosError);
   }
 };
 

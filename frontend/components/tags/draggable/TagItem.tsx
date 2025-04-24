@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { motion, Reorder } from "framer-motion";
 import { Button } from "@heroui/react";
+import Image from "next/image";
 
 import { Tag } from "@/types/tag";
 import { getTagDisplayText } from "@/components/tags/draggable/tagUtils";
@@ -110,21 +111,23 @@ const TagItem: React.FC<TagItemProps> = ({
             hexColor={tag.color}
             useGradient={tag.useGradient}
             variant={buttonVariant}
-            onClick={handleClick}
+            onPress={handleClick}
           >
             {/* 左侧图片 - 如果是角色或元素类型则显示 */}
             {(tag.type === "character" || tag.type === "element") && tag.header_img && (
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 inline-block">
-                  <img
+                  <Image
                     alt={tag.value}
                     className="w-full h-full object-cover"
+                    height={24}
                     src={tag.header_img}
+                    width={24}
                     onError={(e) => {
                       const text = tag.type === "character" ? "角" : "元";
+                      const target = e.target as HTMLImageElement;
 
-                      (e.target as HTMLImageElement).src =
-                        `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23dddddd"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="12" fill="%23888888" text-anchor="middle" dominant-baseline="middle"%3E${text}%3C/text%3E%3C/svg%3E`;
+                      target.src = `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23dddddd"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="12" fill="%23888888" text-anchor="middle" dominant-baseline="middle"%3E${text}%3C/text%3E%3C/svg%3E`;
                     }}
                   />
                 </div>
@@ -149,8 +152,7 @@ const TagItem: React.FC<TagItemProps> = ({
             color="danger"
             size="sm"
             variant="shadow"
-            onClick={(e) => {
-              e.stopPropagation();
+            onPress={() => {
               onRemove();
             }}
           >
