@@ -1,10 +1,11 @@
+import axios, { AxiosInstance, AxiosResponse } from "axios";
+
 import { ApiResponse } from "@/types/api";
 import { TaskCreateRequest, TaskDetail, TaskMatrix, TaskResponse } from "@/types/task";
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 
 // 获取API基础URL
 const getApiBaseUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 };
 
 // 设置API基本URL
@@ -14,31 +15,35 @@ const NEXT_PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || API_BAS
 
 // 获取认证令牌
 const getAuthToken = (): string | null => {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     // 尝试从多个可能的位置获取token
-    const token = localStorage.getItem('access_token') ||
-                  localStorage.getItem('auth_token') ||
-                  sessionStorage.getItem('access_token');
+    const token =
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("auth_token") ||
+      sessionStorage.getItem("access_token");
 
-    if (token && token !== 'undefined' && token !== 'null') {
+    if (token && token !== "undefined" && token !== "null") {
       return token;
     }
   }
+
   return null;
 };
 
 // 创建axios实例
 const createAuthAxios = (): AxiosInstance => {
   // 确保使用正确的API基础URL
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-  console.log('API基础URL:', baseUrl);
+  // eslint-disable-next-line no-console
+  console.log("API基础URL:", baseUrl);
 
   const instance = axios.create({
     baseURL: `${baseUrl}/api/v1`,
     timeout: 30000, // 30秒超时
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
@@ -46,9 +51,11 @@ const createAuthAxios = (): AxiosInstance => {
   instance.interceptors.request.use(
     (config) => {
       const token = getAuthToken();
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
       return config;
     },
     (error) => {
@@ -65,6 +72,7 @@ const createAuthAxios = (): AxiosInstance => {
       // 如果是401错误（未授权），可以重定向到登录页面
       if (error.response && error.response.status === 401) {
       }
+
       return Promise.reject(error);
     }
   );
@@ -82,9 +90,9 @@ const handleSuccessResponse = (response: AxiosResponse): ApiResponse<any> => {
 
   if (
     responseData &&
-    typeof responseData === 'object' &&
-    'code' in responseData &&
-    'data' in responseData
+    typeof responseData === "object" &&
+    "code" in responseData &&
+    "data" in responseData
   ) {
     // 标准格式响应，提取data字段
     return {
@@ -130,13 +138,13 @@ const taskApi = {
       };
 
       // 发送请求
-      const response = await authAxios.get('/tasks', { params });
+      const response = await authAxios.get("/tasks", { params });
 
       return handleSuccessResponse(response);
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : '获取任务列表失败',
+        error: error instanceof Error ? error.message : "获取任务列表失败",
         status: 500,
       };
     }
@@ -150,11 +158,12 @@ const taskApi = {
   getTaskDetail: async (taskId: string): Promise<ApiResponse<TaskDetail>> => {
     try {
       const response = await authAxios.get(`/tasks/${taskId}`);
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : '获取任务详情失败',
+        error: error instanceof Error ? error.message : "获取任务详情失败",
         status: 500,
       };
     }
@@ -168,11 +177,12 @@ const taskApi = {
   getTaskByUuid: async (taskUuid: string): Promise<ApiResponse<TaskDetail>> => {
     try {
       const response = await authAxios.get(`/tasks/uuid/${taskUuid}`);
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : '获取任务详情失败',
+        error: error instanceof Error ? error.message : "获取任务详情失败",
         status: 500,
       };
     }
@@ -185,7 +195,8 @@ const taskApi = {
    */
   createTask: async (data: TaskCreateRequest): Promise<ApiResponse<any>> => {
     try {
-      const response = await authAxios.post('/tasks', data);
+      const response = await authAxios.post("/tasks", data);
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -208,6 +219,7 @@ const taskApi = {
   ): Promise<ApiResponse<any>> => {
     try {
       const response = await authAxios.put(`/tasks/${taskId}`, data);
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -226,6 +238,7 @@ const taskApi = {
   deleteTask: async (taskId: string): Promise<ApiResponse<any>> => {
     try {
       const response = await authAxios.delete(`/tasks/${taskId}`);
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -244,6 +257,7 @@ const taskApi = {
   cancelTask: async (taskId: string): Promise<ApiResponse<any>> => {
     try {
       const response = await authAxios.post(`/tasks/${taskId}/cancel`);
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -262,6 +276,7 @@ const taskApi = {
   getTaskMatrix: async (taskId: string): Promise<ApiResponse<TaskMatrix>> => {
     try {
       const response = await authAxios.get(`/tasks/${taskId}/matrix`);
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -283,7 +298,8 @@ const userApi = {
    */
   getCurrentUser: async (): Promise<ApiResponse<any>> => {
     try {
-      const response = await authAxios.get('/users/me');
+      const response = await authAxios.get("/users/me");
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -304,24 +320,33 @@ const userApi = {
     try {
       // 创建FormData对象
       const formData = new FormData();
+
       formData.append("username", email);
       formData.append("password", password);
 
       // 使用正确的API基础URL
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      console.log('登录API基础URL:', baseUrl);
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+      // eslint-disable-next-line no-console
+      console.log("登录API基础URL:", baseUrl);
 
       // 使用axios直接调用登录接口，不需要认证
       const response = await axios.post(`${baseUrl}/api/v1/auth/login`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
 
       // 如果登录成功，保存token
-      if (response.status === 200 && response.data && response.data.data && response.data.data.access_token) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('auth_token', response.data.data.access_token);
+      if (
+        response.status === 200 &&
+        response.data &&
+        response.data.data &&
+        response.data.data.access_token
+      ) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("auth_token", response.data.data.access_token);
         }
       }
 
@@ -355,8 +380,11 @@ const userApi = {
   ): Promise<ApiResponse<any>> => {
     try {
       // 使用正确的API基础URL
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
-      console.log('注册API基础URL:', baseUrl);
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+      // eslint-disable-next-line no-console
+      console.log("注册API基础URL:", baseUrl);
 
       // 注册不需要认证
       const response = await axios.post(`${baseUrl}/api/v1/auth/register`, {
@@ -364,6 +392,7 @@ const userApi = {
         password,
         fullname,
       });
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -380,12 +409,13 @@ const userApi = {
    */
   logout: async (): Promise<ApiResponse<any>> => {
     try {
-      const response = await authAxios.post('/auth/logout');
+      const response = await authAxios.post("/auth/logout");
 
       // 退出登录后，清除token
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_token');
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("auth_token");
       }
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -408,8 +438,10 @@ const systemApi = {
   getHealth: async (): Promise<ApiResponse<any>> => {
     try {
       // 健康检查不需要认证，但使用正确的API基础URL
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
       const response = await axios.get(`${baseUrl}/api/v1/health`);
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -427,8 +459,10 @@ const systemApi = {
   getVersion: async (): Promise<ApiResponse<any>> => {
     try {
       // 版本信息不需要认证，但使用正确的API基础URL
-      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+      const baseUrl =
+        process.env.NEXT_PUBLIC_API_BASE_URL || NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
       const response = await axios.get(`${baseUrl}/api/v1/version`);
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {
@@ -465,6 +499,7 @@ const searchApi = {
           page_size: pageSize,
         },
       });
+
       return handleSuccessResponse(response);
     } catch (error) {
       return {

@@ -224,6 +224,52 @@ export const deleteTask = async (taskId: string) => {
  * @param taskId 任务ID
  * @returns 任务矩阵数据
  */
+/**
+ * 处理详细的错误信息
+ * @param error 捕获的错误
+ * @param logPrefix 日志前缀
+ * @returns 格式化的错误信息
+ */
+const handleDetailedError = (error: unknown, logPrefix: string): string => {
+  // eslint-disable-next-line no-console
+  console.error(`${logPrefix}:`, error);
+
+  let errorMessage = "未知错误";
+
+  if (error instanceof Error) {
+    errorMessage = error.message;
+
+    // 特殊处理网络错误
+    if (errorMessage === "Network Error") {
+      return "网络连接错误，无法连接到服务器";
+    }
+
+    // 检查是否有更详细的错误信息
+    const errorWithDetails = error as any;
+
+    if (errorWithDetails.errorDetails) {
+      const details = errorWithDetails.errorDetails;
+
+      // eslint-disable-next-line no-console
+      console.error("详细错误信息:", details);
+
+      if (details.code === "ECONNREFUSED") {
+        return "无法连接到服务器，请检查服务器是否运行";
+      }
+      if (details.code === "ECONNABORTED") {
+        return "请求超时，请稍后重试";
+      }
+    }
+  }
+
+  return errorMessage;
+};
+
+/**
+ * 获取任务矩阵数据（六维空间坐标系统）
+ * @param taskId 任务ID
+ * @returns 任务矩阵数据
+ */
 export const getTaskMatrix = async (taskId: string) => {
   try {
     // 确保taskId有效
@@ -250,33 +296,7 @@ export const getTaskMatrix = async (taskId: string) => {
       data: response.data,
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error("获取任务矩阵数据出错:", error);
-
-    // 提供更详细的错误信息
-    let errorMessage = "未知错误";
-
-    if (error instanceof Error) {
-      errorMessage = error.message;
-
-      // 特殊处理网络错误
-      if (errorMessage === "Network Error") {
-        errorMessage = "网络连接错误，无法连接到服务器";
-      }
-
-      // 检查是否有更详细的错误信息
-      if ((error as any).errorDetails) {
-        const details = (error as any).errorDetails;
-        // eslint-disable-next-line no-console
-        console.error("详细错误信息:", details);
-
-        if (details.code === "ECONNREFUSED") {
-          errorMessage = "无法连接到服务器，请检查服务器是否运行";
-        } else if (details.code === "ECONNABORTED") {
-          errorMessage = "请求超时，请稍后重试";
-        }
-      }
-    }
+    const errorMessage = handleDetailedError(error, "获取任务矩阵数据出错");
 
     return {
       success: false,

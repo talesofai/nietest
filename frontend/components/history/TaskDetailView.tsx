@@ -19,6 +19,7 @@ import { Icon } from "@iconify/react";
 
 import { TaskDetail } from "@/types/task";
 import { apiService } from "@/utils/api/apiService";
+import * as logger from "@/utils/logger";
 
 // 占位图片URL
 const PLACEHOLDER_IMAGE_URL = "/placeholder-image.png";
@@ -210,25 +211,21 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
     // 如果已经有请求在进行中，则不再发起新请求
     if (isRequestPendingRef.current) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`已有请求正在进行，跳过新请求: ${taskId}`);
-      }
+      logger.log(`已有请求正在进行，跳过新请求: ${taskId}`);
+
       return;
     }
 
     // 如果已经加载过该ID的数据且不是强制刷新，则不再重复请求
     if (!forceRefresh && dataLoadedRef.current && taskIdRef.current === taskId) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`数据已加载，跳过请求: ${taskId}`);
-      }
+      logger.log(`数据已加载，跳过请求: ${taskId}`);
+
       return;
     }
 
     // 标记请求开始
     isRequestPendingRef.current = true;
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`开始请求矩阵数据: ${taskId}, 强制刷新: ${forceRefresh}`);
-    }
+    logger.log(`开始请求矩阵数据: ${taskId}, 强制刷新: ${forceRefresh}`);
 
     setIsLoading(true);
     setError(null);
@@ -242,15 +239,16 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       let response;
 
       // 尝试从sessionStorage获取缓存数据
-      const cachedData = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null;
+      const cachedData = typeof window !== "undefined" ? sessionStorage.getItem(cacheKey) : null;
 
       if (!forceRefresh && cachedData) {
         try {
           response = { success: true, data: JSON.parse(cachedData) };
-          if (process.env.NODE_ENV === 'development') {
+          if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
             console.log(`使用缓存的矩阵数据: ${taskId}`);
           }
-        } catch (e) {
+        } catch {
           // 如果解析缓存数据失败，则从API获取
           response = await apiService.task.getTaskMatrix(taskId);
         }
@@ -259,11 +257,11 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         response = await apiService.task.getTaskMatrix(taskId);
 
         // 缓存数据到sessionStorage
-        if (response.success && response.data && typeof window !== 'undefined') {
+        if (response.success && response.data && typeof window !== "undefined") {
           try {
             sessionStorage.setItem(cacheKey, JSON.stringify(response.data));
-          } catch (e) {
-            console.error('缓存矩阵数据失败:', e);
+          } catch (error) {
+            logger.error("缓存矩阵数据失败:", error);
           }
         }
       }
@@ -275,9 +273,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         throw new Error(response.error || "获取矩阵数据失败");
       }
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`成功获取矩阵数据: ${taskId}`);
-      }
+      logger.log(`成功获取矩阵数据: ${taskId}`);
 
       // 设置矩阵数据
       setMatrixData(response.data);
@@ -351,7 +347,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       // 如果组件已卸载，不再更新状态
       if (!isMountedRef.current) return;
 
-      console.error("Error fetching matrix data:", err);
+      logger.error("Error fetching matrix data:", err);
       setError("获取矩阵数据失败，请刷新页面重试");
       dataLoadedRef.current = false;
     } finally {
@@ -371,9 +367,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
     // 如果有任务ID，且数据未加载或任务ID变化，则获取数据
     if (task?.id && (!dataLoadedRef.current || taskIdRef.current !== task.id)) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`任务ID变化或数据未加载: ${taskIdRef.current} -> ${task.id}`);
-      }
+      logger.log(`任务ID变化或数据未加载: ${taskIdRef.current} -> ${task.id}`);
       // 重置加载状态
       dataLoadedRef.current = false;
       // 获取矩阵数据
@@ -392,8 +386,10 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       const batchTag = task.tags.find(
         (tag) => tag.type === "batch" && !tag.isVariable && parseInt(tag.value) > 1
       );
+
       return !!batchTag;
     }
+
     return false;
   }, [task?.tags]);
 
@@ -421,24 +417,23 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
   const getImageUrl = useCallback(
     (xValue: string, yValue: string) => {
       if (!matrixData || !task) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log("没有矩阵数据或任务数据");
-        }
+        logger.log("没有矩阵数据或任务数据");
+
         return null;
       }
 
       // 使用缓存来避免重复计算
       const cacheKey = `${xAxis}_${xValue}_${yAxis}_${yValue}`;
+
       if (urlCache.current[cacheKey]) {
         return urlCache.current[cacheKey];
       }
 
       // 为调试添加唯一ID，只在开发环境下生成
-      const debugId = process.env.NODE_ENV === 'development' ? Math.random().toString(36).substring(2, 8) : '';
+      const debugId =
+        process.env.NODE_ENV === "development" ? Math.random().toString(36).substring(2, 8) : "";
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[${debugId}] 尝试获取 [${xValue}][${yValue}] 的图片URL`);
-      }
+      logger.log(`[${debugId}] 尝试获取 [${xValue}][${yValue}] 的图片URL`);
 
       // 获取变量索引
       const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null; // 例如，从 'v0' 提取 0
@@ -449,9 +444,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       // 从坐标映射中查找匹配的图片URL
       if (Object.keys(matrixData.coordinates).length > 0) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[${debugId}] 从坐标映射中查找匹配的图片`);
-        }
+        logger.log(`[${debugId}] 从坐标映射中查找匹配的图片`);
 
         // 遍历所有坐标映射
         for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
@@ -462,25 +455,19 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
             // 两个轴都有值
             if (coordParts[xVarIndex] === xValue && coordParts[yVarIndex] === yValue) {
-              if (process.env.NODE_ENV === 'development') {
-                console.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
-              }
+              logger.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
               matchingUrls.push(url);
             }
           } else if (xAxis && xVarIndex !== null) {
             // 只有X轴有值
             if (coordParts[xVarIndex] === xValue) {
-              if (process.env.NODE_ENV === 'development') {
-                console.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
-              }
+              logger.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
               matchingUrls.push(url);
             }
           } else if (yAxis && yVarIndex !== null) {
             // 只有Y轴有值
             if (coordParts[yVarIndex] === yValue) {
-              if (process.env.NODE_ENV === 'development') {
-                console.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
-              }
+              logger.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
               matchingUrls.push(url);
             }
           }
@@ -489,11 +476,10 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       // 如果找到了匹配的URL，返回第一个
       if (matchingUrls.length > 0) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[${debugId}] 找到 ${matchingUrls.length} 个匹配的图片URL`);
-        }
+        logger.log(`[${debugId}] 找到 ${matchingUrls.length} 个匹配的图片URL`);
         // 缓存结果
         urlCache.current[cacheKey] = matchingUrls[0];
+
         return matchingUrls[0];
       }
 
@@ -502,21 +488,19 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         const firstUrl = Object.values(matrixData.coordinates)[0];
 
         if (firstUrl) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[${debugId}] 未找到匹配的图片，返回第一个图片URL:`, firstUrl);
-          }
+          logger.log(`[${debugId}] 未找到匹配的图片，返回第一个图片URL:`, firstUrl);
           // 缓存结果
           urlCache.current[cacheKey] = firstUrl;
+
           return firstUrl;
         }
       }
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[${debugId}] 未找到 [${xValue}][${yValue}] 的图片URL`);
-      }
+      logger.log(`[${debugId}] 未找到 [${xValue}][${yValue}] 的图片URL`);
 
       // 缓存空结果
       urlCache.current[cacheKey] = null;
+
       return null;
     },
     [matrixData, task, xAxis, yAxis]
@@ -704,9 +688,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     const debugId = Math.random().toString(36).substring(2, 8);
 
     if (!task || !matrixData) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error("无法生成表格数据：任务对象或矩阵数据不存在");
-      }
+      logger.error("无法生成表格数据：任务对象或矩阵数据不存在");
+
       return [];
     }
 
@@ -732,26 +715,20 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       rowValues = yAxisVar.values.map((val: any) => val.value || "");
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[${debugId}] 原始列值:`, columnValues);
-      console.log(`[${debugId}] 原始行值:`, rowValues);
-    }
+    logger.log(`[${debugId}] 原始列值:`, columnValues);
+    logger.log(`[${debugId}] 原始行值:`, rowValues);
 
     // 处理列值和行值中有重名的情况
     const [processedColumnValues, columnValueMap] = processVariableValues(columnValues);
     const [processedRowValues, rowValueMap] = processVariableValues(rowValues);
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[${debugId}] 处理后的列值:`, processedColumnValues);
-      console.log(`[${debugId}] 处理后的行值:`, processedRowValues);
-    }
+    logger.log(`[${debugId}] 处理后的列值:`, processedColumnValues);
+    logger.log(`[${debugId}] 处理后的行值:`, processedRowValues);
 
     // 预先缓存图片URL
     const imageUrlCache = cacheImageUrls(rowValues, columnValues);
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[${debugId}] 图片URL缓存:`, imageUrlCache);
-    }
+    logger.log(`[${debugId}] 图片URL缓存:`, imageUrlCache);
 
     // 生成表格数据
     return processedRowValues.map((processedRowValue) => {
@@ -772,11 +749,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           rowData[processedColValue] = cellData;
         } else {
           rowData[processedColValue] = null;
-          if (process.env.NODE_ENV === 'development') {
-            console.log(
-              `[${debugId}] 没有为 [${originalColValue || ""}][${originalRowValue || ""}] 找到URL`
-            );
-          }
+          logger.log(
+            `[${debugId}] 没有为 [${originalColValue || ""}][${originalRowValue || ""}] 找到URL`
+          );
         }
       });
 
@@ -790,6 +765,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     if (!task || !matrixData || (!xAxis && !yAxis)) {
       return [];
     }
+
     return generateTableData();
   }, [task, matrixData, xAxis, yAxis, generateTableData]);
 
@@ -799,7 +775,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
   // 添加调试代码，验证数据获取和渲染，仅在开发环境下执行
   useEffect(() => {
     // 只在开发环境下输出调试信息
-    if (process.env.NODE_ENV !== 'development') return;
+    if (process.env.NODE_ENV !== "development") return;
 
     // 获取调试ID
     const debugId = debugIdRef.current;
@@ -807,9 +783,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     // 避免频繁执行，使用防抖
     const timeoutId = setTimeout(() => {
       if (tableData && tableData.length > 0) {
-        console.log(`[${debugId}] --------- 表格数据验证 ---------`);
-        console.log(`[${debugId}] 可用变量:`, availableVariables);
-        console.log(`[${debugId}] 过滤后的变量名:`, variableNames);
+        logger.log(`[${debugId}] --------- 表格数据验证 ---------`);
+        logger.log(`[${debugId}] 可用变量:`, availableVariables);
+        logger.log(`[${debugId}] 过滤后的变量名:`, variableNames);
 
         // 获取表格中实际显示的X和Y值
         const xAxisVar = xAxis ? task?.variables?.[xAxis as keyof typeof task.variables] : null;
@@ -818,8 +794,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         const columnValues = xAxisVar?.values?.map((val: any) => val.value) || [""];
         const rowValues = yAxisVar?.values?.map((val: any) => val.value) || [""];
 
-        console.log(`[${debugId}] X轴变量:`, xAxis, "值:", columnValues);
-        console.log(`[${debugId}] Y轴变量:`, yAxis, "值:", rowValues);
+        logger.log(`[${debugId}] X轴变量:`, xAxis, "值:", columnValues);
+        logger.log(`[${debugId}] Y轴变量:`, yAxis, "值:", rowValues);
 
         // 验证所有单元格URL - 仅在首次渲染时执行一次
         if (!urlValidationDoneRef.current) {
@@ -843,19 +819,22 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
               if (url) {
                 foundUrls++;
-                console.log(`[${debugId}] 单元格[${rowValue || ""}][${colValue || ""}] 找到URL:`, url);
+                logger.log(
+                  `[${debugId}] 单元格[${rowValue || ""}][${colValue || ""}] 找到URL:`,
+                  url
+                );
               } else {
-                console.log(`[${debugId}] 单元格[${rowValue || ""}][${colValue || ""}] 未找到URL`);
+                logger.log(`[${debugId}] 单元格[${rowValue || ""}][${colValue || ""}] 未找到URL`);
               }
             }
           }
 
-          console.log(`[${debugId}] 总单元格: ${totalCells}, 找到URL的: ${foundUrls}`);
+          logger.log(`[${debugId}] 总单元格: ${totalCells}, 找到URL的: ${foundUrls}`);
         }
 
-        console.log(`[${debugId}] ---------------------------`);
+        logger.log(`[${debugId}] ---------------------------`);
       } else {
-        console.log(`[${debugId}] tableData为空，无法渲染表格`);
+        logger.log(`[${debugId}] tableData为空，无法渲染表格`);
       }
     }, 500); // 添加500ms延迟，避免频繁执行
 
@@ -863,15 +842,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [
-    tableData,
-    xAxis,
-    yAxis,
-    availableVariables,
-    variableNames,
-    task,
-    getImageUrl,
-  ]); // 移除不必要的依赖项
+  }, [tableData, xAxis, yAxis, availableVariables, variableNames, task, getImageUrl]); // 移除不必要的依赖项
 
   // 处理全屏模式切换
   const toggleFullscreen = () => {
@@ -1053,7 +1024,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                   variant="bordered"
                   onPress={() => {
                     // 强制刷新表格数据
-                    console.log("手动刷新表格数据");
+                    logger.log("手动刷新表格数据");
 
                     // 使用强制刷新参数
                     if (task?.id) {
@@ -1253,7 +1224,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                               }}
                                               width="auto"
                                               onError={() => {
-                                                console.log("图片加载失败:", url);
+                                                logger.log("图片加载失败:", url);
                                                 // 使用setTimeout避免在渲染过程中修改DOM
                                                 setTimeout(() => {
                                                   const imgElements = document.querySelectorAll(
@@ -1262,7 +1233,10 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
                                                   if (imgElements.length > 0) {
                                                     imgElements.forEach((img) => {
-                                                      if (img instanceof HTMLImageElement && img.src !== PLACEHOLDER_IMAGE_URL) {
+                                                      if (
+                                                        img instanceof HTMLImageElement &&
+                                                        img.src !== PLACEHOLDER_IMAGE_URL
+                                                      ) {
                                                         img.src = PLACEHOLDER_IMAGE_URL;
                                                       }
                                                     });
@@ -1307,7 +1281,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                           }}
                                           width="auto"
                                           onError={() => {
-                                            console.log("图片加载失败:", imageUrl);
+                                            logger.log("图片加载失败:", imageUrl);
                                             // 使用setTimeout避免在渲染过程中修改DOM
                                             setTimeout(() => {
                                               const imgElements = document.querySelectorAll(
@@ -1316,7 +1290,10 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
                                               if (imgElements.length > 0) {
                                                 imgElements.forEach((img) => {
-                                                  if (img instanceof HTMLImageElement && img.src !== PLACEHOLDER_IMAGE_URL) {
+                                                  if (
+                                                    img instanceof HTMLImageElement &&
+                                                    img.src !== PLACEHOLDER_IMAGE_URL
+                                                  ) {
                                                     img.src = PLACEHOLDER_IMAGE_URL;
                                                   }
                                                 });
@@ -1427,7 +1404,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                       style={{ maxHeight: "70vh", objectFit: "contain" }}
                       width="auto"
                       onError={() => {
-                        console.log("大图加载失败:", currentImageUrl);
+                        logger.log("大图加载失败:", currentImageUrl);
                         // 不在这里修改DOM，避免无限循环
                       }}
                     />
@@ -1463,11 +1440,16 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                             alt={`${currentImageTitle} - 批次 ${index + 1}`}
                             className="object-contain max-w-full max-h-full"
                             height="auto"
-                            src={getResizedImageUrl(url, getImageSizeByBatchCount(currentImageUrls.length)) || PLACEHOLDER_IMAGE_URL}
+                            src={
+                              getResizedImageUrl(
+                                url,
+                                getImageSizeByBatchCount(currentImageUrls.length)
+                              ) || PLACEHOLDER_IMAGE_URL
+                            }
                             style={{ objectFit: "contain" }}
                             width="auto"
                             onError={() => {
-                              console.log("网格图片加载失败:", url);
+                              logger.log("网格图片加载失败:", url);
                               // 不在这里修改DOM，避免无限循环
                             }}
                           />

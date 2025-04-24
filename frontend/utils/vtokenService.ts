@@ -54,12 +54,12 @@ export const searchCharacterOrElement = async (
 
     // 设置请求头
     const headers: Record<string, string> = {
-      'x-platform': 'nieta-app/web',
+      "x-platform": "nieta-app/web",
     };
 
     // 如果有x-token则添加到请求头
     if (xToken) {
-      headers['x-token'] = xToken;
+      headers["x-token"] = xToken;
     }
 
     // 发送请求
@@ -129,8 +129,8 @@ export const searchCharacterOrElement = async (
  * @param type 类型 "character" 或 "element"
  * @returns SVG图像的data-URL
  */
-export const getPlaceholderSvg = (type: 'character' | 'element'): string => {
-  const text = type === 'character' ? '角色' : '元素';
+export const getPlaceholderSvg = (type: "character" | "element"): string => {
+  const text = type === "character" ? "角色" : "元素";
 
   return `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23dddddd"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="12" fill="%23888888" text-anchor="middle" dominant-baseline="middle"%3E${text}%3C/text%3E%3C/svg%3E`;
 };

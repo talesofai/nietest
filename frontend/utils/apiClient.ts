@@ -1,8 +1,11 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from "axios";
 
+import { TaskStatus, TaskCreateRequest } from "@/types/task";
+import { apiService } from "@/utils/api/apiService";
+
 // 创建获取API基础URL的函数
 export const getApiBaseUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 };
 
 // 设置API基本URL
@@ -19,29 +22,33 @@ export const getApiUrl = (path: string): string => {
   let processedPath = path;
 
   // 确保路径以/开头
-  if (!processedPath.startsWith('/')) {
+  if (!processedPath.startsWith("/")) {
     processedPath = `/${processedPath}`;
   }
 
   // 处理路径中的/api/前缀
   // 如果路径已经包含/api/api/，则移除一个/api/
-  if (processedPath.startsWith('/api/api/')) {
-    processedPath = processedPath.replace('/api/api/', '/api/');
+  if (processedPath.startsWith("/api/api/")) {
+    processedPath = processedPath.replace("/api/api/", "/api/");
   }
   // 如果路径已经包含/api/，则不添加/api/
-  else if (!processedPath.startsWith('/api/')) {
+  else if (!processedPath.startsWith("/api/")) {
     // 如果路径以/v1/开头，则添加/api前缀
-    if (processedPath.startsWith('/v1/')) {
+    if (processedPath.startsWith("/v1/")) {
       processedPath = `/api${processedPath}`;
     }
     // 其他情况，确保路径以/api/v1/开头
-    else if (!processedPath.startsWith('/api/v1/')) {
+    else if (!processedPath.startsWith("/api/v1/")) {
       processedPath = `/api/v1${processedPath}`;
     }
   }
 
   // 确保路径以/结尾（除非包含查询参数或片段标识符）
-  if (!processedPath.includes('?') && !processedPath.includes('#') && !processedPath.endsWith('/')) {
+  if (
+    !processedPath.includes("?") &&
+    !processedPath.includes("#") &&
+    !processedPath.endsWith("/")
+  ) {
     processedPath = `${processedPath}/`;
   }
 
@@ -89,8 +96,8 @@ const apiClient: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
   timeout: 30000, // 30秒超时
   headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
+    "Content-Type": "application/json",
+    Accept: "application/json",
   },
 });
 
@@ -99,14 +106,13 @@ apiClient.interceptors.request.use(
   (config) => {
     // 获取认证令牌
     const token = getAuthToken();
-    const xToken = getXToken();
 
     // 如果有JWT令牌，添加到请求头
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+      config.headers["Authorization"] = `Bearer ${token}`;
     }
 
-    config.headers['x-platform'] = 'nieta-app/web';
+    config.headers["x-platform"] = "nieta-app/web";
 
     return config;
   },
@@ -202,9 +208,6 @@ export interface PaginatedResponse<T> {
   page_size: number;
 }
 
-// 导入任务相关类型
-import { TaskStatus, TaskCreateRequest } from "@/types/task";
-
 // 导出任务状态枚举
 export { TaskStatus };
 
@@ -233,24 +236,24 @@ const processUrl = (url: string): string => {
   console.log(`[API请求] API基础URL: ${API_BASE_URL}/api/v1`);
 
   // 处理URL路径
-  if (processedUrl.startsWith('/api/api/v1/')) {
+  if (processedUrl.startsWith("/api/api/v1/")) {
     // 如果路径包含重复的/api/api/v1/，则移除一个/api/
-    processedUrl = processedUrl.replace('/api/api/v1/', '/api/v1/');
+    processedUrl = processedUrl.replace("/api/api/v1/", "/api/v1/");
   }
 
-  if (processedUrl.startsWith('/api/v1/')) {
+  if (processedUrl.startsWith("/api/v1/")) {
     // 如果路径已经包含/api/v1/，则移除它，因为基础URL中已经有了
     processedUrl = processedUrl.substring(8); // 移除'/api/v1/'前缀
   }
 
   // 确保URL格式正确
-  if (!processedUrl.startsWith('/') && !processedUrl.startsWith('http')) {
-    processedUrl = '/' + processedUrl;
+  if (!processedUrl.startsWith("/") && !processedUrl.startsWith("http")) {
+    processedUrl = "/" + processedUrl;
   }
 
   // 确保API路径末尾有斜杠（除非URL中包含查询参数或片段标识符）
-  if (!processedUrl.includes('?') && !processedUrl.includes('#') && !processedUrl.endsWith('/')) {
-    processedUrl = processedUrl + '/';
+  if (!processedUrl.includes("?") && !processedUrl.includes("#") && !processedUrl.endsWith("/")) {
+    processedUrl = processedUrl + "/";
   }
 
   // eslint-disable-next-line no-console
@@ -537,9 +540,6 @@ export const loginApi = async (email: string, password: string): Promise<ApiResp
 export const getCurrentUser = async (): Promise<ApiResponse<any>> => {
   return apiRequest.get("/users/me");
 };
-
-// 导入统一的API服务
-import { apiService } from "@/utils/api/apiService";
 
 // 导出API客户端和API服务
 export { apiService };

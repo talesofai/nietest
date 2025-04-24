@@ -526,7 +526,7 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
         // 添加其他可能缺少的必需字段
         ...(tag.gradientToColor ? { gradientToColor: tag.gradientToColor } : {}),
         ...(tag.useGradient !== undefined ? { useGradient: tag.useGradient } : {}),
-        ...(tag.heat_score !== undefined ? { heat_score: tag.heat_score } : {})
+        ...(tag.heat_score !== undefined ? { heat_score: tag.heat_score } : {}),
       })),
       variables: data.variables,
       settings: data.settings, // 直接使用全局设置
@@ -543,7 +543,7 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
     console.log("API响应:", apiResponse);
 
     // 检查是否有错误
-    if (apiResponse.error || apiResponse.status && apiResponse.status >= 400) {
+    if (apiResponse.error || (apiResponse.status && apiResponse.status >= 400)) {
       throw new Error(apiResponse.error || "提交失败");
     }
 

@@ -37,6 +37,7 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
     // 如果令牌为空，则清除
     if (!trimmedToken) {
       handleClearToken();
+
       return;
     }
 
@@ -122,8 +123,6 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
               清除
             </Button>
           </div>
-
-
 
           <div className="text-xs text-gray-500">
             <ul className="list-disc pl-5 mt-1 space-y-1">

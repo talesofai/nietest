@@ -9,7 +9,6 @@ import { Icon } from "@iconify/react";
 import { getTaskDetail } from "@/utils/taskService";
 import { TaskDetailView } from "@/components/history/TaskDetailView";
 import { TaskDetail } from "@/types/task";
-import { apiService } from "@/utils/api/apiService";
 
 interface TaskResponse {
   success: boolean;
@@ -19,9 +18,9 @@ interface TaskResponse {
 
 // 搜索参数组件，用于获取URL参数
 function SearchParamsComponent({
-  onParamsReady
+  onParamsReady,
 }: {
-  onParamsReady: (taskId: string | null) => void
+  onParamsReady: (taskId: string | null) => void;
 }) {
   const searchParams = useSearchParams();
   const taskId = searchParams.get("id");
@@ -89,10 +88,75 @@ export default function TaskDetailPage(): JSX.Element {
     // 更新当前taskId引用
     currentTaskIdRef.current = taskId;
 
+    // 从缓存获取任务数据
+    const getTaskFromCache = (taskId: string): TaskResponse | null => {
+      const cacheKey = `task_${taskId}`;
+      const cachedData = typeof window !== "undefined" ? sessionStorage.getItem(cacheKey) : null;
+
+      if (!cachedData) return null;
+
+      try {
+        // 使用缓存数据
+        // eslint-disable-next-line no-console
+        console.log(`使用缓存的任务详情数据: ${taskId}`);
+
+        return { success: true, data: JSON.parse(cachedData) };
+      } catch {
+        return null;
+      }
+    };
+
+    // 缓存任务数据
+    const cacheTaskData = (taskId: string, data: any): void => {
+      if (typeof window === "undefined") return;
+
+      const cacheKey = `task_${taskId}`;
+
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("缓存任务详情数据失败:", error);
+      }
+    };
+
+    // 处理任务数据
+    const processTaskData = (response: TaskResponse): void => {
+      // 处理错误响应
+      if (response?.error) {
+        handleApiError(response.error);
+
+        return;
+      }
+
+      // 处理没有数据的响应
+      if (!response?.data) {
+        handleApiError("获取任务详情失败，服务器没有返回数据");
+
+        return;
+      }
+
+      // 适配API规范返回的数据
+      const taskData = response.data;
+
+      // 处理可能的嵌套数据结构
+      const actualTaskData = extractTaskData(taskData);
+
+      // 验证任务数据
+      if (actualTaskData.id) {
+        setTask(actualTaskData as TaskDetail);
+        setError(null);
+      } else {
+        handleApiError("任务详情为空或格式不正确");
+      }
+    };
+
+    // 主要获取任务详情的函数
     const fetchTaskDetail = async (): Promise<void> => {
       if (!taskId) {
         setError("任务ID不存在");
         setLoading(false);
+
         return;
       }
 
@@ -109,69 +173,21 @@ export default function TaskDetailPage(): JSX.Element {
         // eslint-disable-next-line no-console
         console.log(`尝试获取任务详情，ID: ${taskId}`);
 
-        // 尝试从sessionStorage获取缓存数据
-        const cacheKey = `task_${taskId}`;
-        let response: TaskResponse;
+        // 尝试从缓存获取数据
+        let response = getTaskFromCache(taskId);
 
-        const cachedData = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null;
-
-        if (cachedData) {
-          try {
-            // 使用缓存数据
-            response = { success: true, data: JSON.parse(cachedData) };
-            console.log(`使用缓存的任务详情数据: ${taskId}`);
-          } catch (e) {
-            // 如果解析缓存数据失败，则从API获取
-            response = await getTaskDetail(taskId);
-          }
-        } else {
-          // 从API获取数据
+        // 如果缓存中没有数据，则从API获取
+        if (!response) {
           response = await getTaskDetail(taskId);
 
-          // 缓存数据到sessionStorage
-          if (response.success && response.data && typeof window !== 'undefined') {
-            try {
-              sessionStorage.setItem(cacheKey, JSON.stringify(response.data));
-            } catch (e) {
-              console.error('缓存任务详情数据失败:', e);
-            }
+          // 缓存成功的响应数据
+          if (response.success && response.data) {
+            cacheTaskData(taskId, response.data);
           }
         }
 
-        // eslint-disable-next-line no-console
-        console.log("获取任务详情响应:", response);
-
-        // 处理错误响应
-        if (response?.error) {
-          handleApiError(response.error);
-          return;
-        }
-
-        // 处理没有数据的响应
-        if (!response?.data) {
-          handleApiError("获取任务详情失败，服务器没有返回数据");
-          return;
-        }
-
-        // 适配API规范返回的数据
-        const taskData = response.data;
-
-        // eslint-disable-next-line no-console
-        console.log("原始任务数据:", taskData);
-
-        // 处理可能的嵌套数据结构
-        const actualTaskData = extractTaskData(taskData);
-
-        // eslint-disable-next-line no-console
-        console.log("处理后的任务数据:", actualTaskData);
-
-        // 验证任务数据
-        if (actualTaskData.id) {
-          setTask(actualTaskData as TaskDetail);
-          setError(null);
-        } else {
-          handleApiError("任务详情为空或格式不正确");
-        }
+        // 处理获取到的数据
+        processTaskData(response);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "获取任务详情失败";
 
@@ -187,8 +203,8 @@ export default function TaskDetailPage(): JSX.Element {
     };
 
     fetchTaskDetail();
-  // 只依赖taskId和handleApiError，避免因task变化导致的无限循环
-  }, [taskId, handleApiError]);
+    // 依赖taskId、handleApiError和task，确保数据变化时能正确响应
+  }, [taskId, handleApiError, task]);
 
   const handleBack = (): void => {
     router.push("/history");
@@ -197,9 +213,13 @@ export default function TaskDetailPage(): JSX.Element {
   return (
     <section className="w-full min-h-screen">
       {/* 使用Suspense包裹SearchParamsComponent */}
-      <Suspense fallback={<div className="flex justify-center items-center h-40">
-        <Spinner color="primary" size="lg" />
-      </div>}>
+      <Suspense
+        fallback={
+          <div className="flex justify-center items-center h-40">
+            <Spinner color="primary" size="lg" />
+          </div>
+        }
+      >
         <SearchParamsComponent onParamsReady={handleParamsReady} />
       </Suspense>
 
