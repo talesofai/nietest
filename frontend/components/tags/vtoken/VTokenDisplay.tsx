@@ -33,7 +33,7 @@ const TokenIcon = ({
           onError={(e) => {
             const target = e.target as HTMLImageElement;
 
-            target.src = getPlaceholderSvg(type);
+            target.src = getPlaceholderSvg(type as "character" | "element");
           }}
         />
       ) : customIcon ? (

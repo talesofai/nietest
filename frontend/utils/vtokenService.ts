@@ -32,39 +32,6 @@ export const removeXToken = (): void => {
 };
 
 /**
- * 验证token是否有效
- * @param token 要验证的token
- * @returns 是否有效的Promise
- */
-export const validateXToken = async (token: string): Promise<boolean> => {
-  try {
-    // 构建用于验证的URL
-    const apiUrl = "/api/v1/users/me";
-
-    // 设置请求头
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "x-token": token,
-      "x-platform": "nieta-app/web",
-    };
-
-    // 发送请求
-    const response = await fetch(apiUrl, { headers });
-
-    // 返回状态码是否成功
-
-    return response.ok;
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    console.error("验证token失败:", error);
-
-    return false;
-  }
-};
-
-/**
  * 搜索角色或元素
  * @param keywords 搜索关键词
  * @param pageIndex 页码（从0开始）
@@ -140,8 +107,6 @@ export const searchCharacterOrElement = async (
       status: response.status,
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("搜索请求失败:", error);
 

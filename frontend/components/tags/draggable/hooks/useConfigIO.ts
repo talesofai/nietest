@@ -61,8 +61,6 @@ export const useConfigIO = (
       alertService.success("配置已下载", "标签和变量配置已成功下载到本地文件");
     } catch (error) {
       // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       console.error("下载配置失败:", error);
       alertService.error("下载失败", "配置文件下载过程中出现错误");
     }
@@ -143,8 +141,6 @@ export const useConfigIO = (
       document.body.appendChild(input);
       input.click();
     } catch (error) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error("上传配置失败:", error);
       alertService.error("上传失败", "配置文件上传过程中出现错误");

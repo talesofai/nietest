@@ -2,10 +2,13 @@
  * API 响应接口
  */
 export interface ApiResponse<T> {
+  success: boolean;
   data?: T;
   error?: string;
   status?: number;
   metadata?: any;
+  message?: string;
+  headers?: any;
 }
 
 /**

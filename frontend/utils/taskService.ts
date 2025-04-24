@@ -1,4 +1,4 @@
-import { apiRequest } from "./apiClient";
+import { apiService } from "@/utils/api/apiService";
 
 // 分页响应接口
 export interface PaginatedResponse<T> {
@@ -21,25 +21,10 @@ export const getTaskList = async (
   filters: Record<string, string> = {}
 ) => {
   try {
-    // 构建查询参数
-    const queryParams = new URLSearchParams();
+    // 使用统一的API服务
+    const response = await apiService.task.getTaskList(page, pageSize, filters);
 
-    queryParams.append("page", page.toString());
-    queryParams.append("page_size", pageSize.toString());
-
-    // 添加其他过滤条件
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) {
-        queryParams.append(key, value);
-      }
-    });
-
-    // 发送请求（确保路径以斜杠结尾）
-    const response = await apiRequest.get(`/api/v1/tasks/?${queryParams.toString()}`);
-
-    if (!response.success) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
+    if (response.error || (response.status && response.status >= 400)) {
       // eslint-disable-next-line no-console
       console.error("获取任务列表失败:", response.error);
 
@@ -55,8 +40,6 @@ export const getTaskList = async (
       data: response.data,
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("获取任务列表出错:", error);
 
@@ -80,12 +63,10 @@ export const getTaskDetail = async (taskId: string) => {
       throw new Error("任务ID不能为空");
     }
 
-    // 发送请求（确保路径以斜杠结尾）
-    const response = await apiRequest.get(`/api/v1/tasks/${taskId}/`);
+    // 使用统一的API服务
+    const response = await apiService.task.getTaskDetail(taskId);
 
-    if (!response.success) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
+    if (response.error || (response.status && response.status >= 400)) {
       // eslint-disable-next-line no-console
       console.error("获取任务详情失败:", response.error);
 
@@ -101,8 +82,6 @@ export const getTaskDetail = async (taskId: string) => {
       data: response.data,
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("获取任务详情出错:", error);
 
@@ -126,12 +105,10 @@ export const getTaskByUuid = async (taskUuid: string) => {
       throw new Error("任务UUID不能为空");
     }
 
-    // 发送请求（确保路径以斜杠结尾）
-    const response = await apiRequest.get(`/api/v1/tasks/uuid/${taskUuid}/`);
+    // 使用统一的API服务
+    const response = await apiService.task.getTaskByUuid(taskUuid);
 
-    if (!response.success) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
+    if (response.error || (response.status && response.status >= 400)) {
       // eslint-disable-next-line no-console
       console.error("通过UUID获取任务详情失败:", response.error);
 
@@ -147,8 +124,6 @@ export const getTaskByUuid = async (taskUuid: string) => {
       data: response.data,
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("通过UUID获取任务详情出错:", error);
 
@@ -172,12 +147,10 @@ export const cancelTask = async (taskId: string) => {
       throw new Error("任务ID不能为空");
     }
 
-    // 发送请求（确保路径以斜杠结尾）
-    const response = await apiRequest.post(`/api/v1/tasks/${taskId}/cancel/`);
+    // 使用统一的API服务
+    const response = await apiService.task.cancelTask(taskId);
 
-    if (!response.success) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
+    if (response.error || (response.status && response.status >= 400)) {
       // eslint-disable-next-line no-console
       console.error("取消任务失败:", response.error);
 
@@ -193,8 +166,6 @@ export const cancelTask = async (taskId: string) => {
       data: response.data,
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("取消任务出错:", error);
 
@@ -218,12 +189,10 @@ export const deleteTask = async (taskId: string) => {
       throw new Error("任务ID不能为空");
     }
 
-    // 发送请求（确保路径以斜杠结尾）
-    const response = await apiRequest.delete(`/api/v1/tasks/${taskId}/`);
+    // 使用统一的API服务
+    const response = await apiService.task.deleteTask(taskId);
 
-    if (!response.success) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
+    if (response.error || (response.status && response.status >= 400)) {
       // eslint-disable-next-line no-console
       console.error("删除任务失败:", response.error);
 
@@ -240,8 +209,6 @@ export const deleteTask = async (taskId: string) => {
     };
   } catch (error) {
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.error("删除任务出错:", error);
 
     return {
@@ -257,6 +224,52 @@ export const deleteTask = async (taskId: string) => {
  * @param taskId 任务ID
  * @returns 任务矩阵数据
  */
+/**
+ * 处理详细的错误信息
+ * @param error 捕获的错误
+ * @param logPrefix 日志前缀
+ * @returns 格式化的错误信息
+ */
+const handleDetailedError = (error: unknown, logPrefix: string): string => {
+  // eslint-disable-next-line no-console
+  console.error(`${logPrefix}:`, error);
+
+  let errorMessage = "未知错误";
+
+  if (error instanceof Error) {
+    errorMessage = error.message;
+
+    // 特殊处理网络错误
+    if (errorMessage === "Network Error") {
+      return "网络连接错误，无法连接到服务器";
+    }
+
+    // 检查是否有更详细的错误信息
+    const errorWithDetails = error as any;
+
+    if (errorWithDetails.errorDetails) {
+      const details = errorWithDetails.errorDetails;
+
+      // eslint-disable-next-line no-console
+      console.error("详细错误信息:", details);
+
+      if (details.code === "ECONNREFUSED") {
+        return "无法连接到服务器，请检查服务器是否运行";
+      }
+      if (details.code === "ECONNABORTED") {
+        return "请求超时，请稍后重试";
+      }
+    }
+  }
+
+  return errorMessage;
+};
+
+/**
+ * 获取任务矩阵数据（六维空间坐标系统）
+ * @param taskId 任务ID
+ * @returns 任务矩阵数据
+ */
 export const getTaskMatrix = async (taskId: string) => {
   try {
     // 确保taskId有效
@@ -264,12 +277,10 @@ export const getTaskMatrix = async (taskId: string) => {
       throw new Error("任务ID不能为空");
     }
 
-    // 发送请求（确保路径以斜杠结尾）
-    const response = await apiRequest.get(`/api/v1/tasks/${taskId}/matrix/`);
+    // 使用统一的API服务
+    const response = await apiService.task.getTaskMatrix(taskId);
 
-    if (!response.success) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
+    if (response.error || (response.status && response.status >= 400)) {
       // eslint-disable-next-line no-console
       console.error("获取任务矩阵数据失败:", response.error);
 
@@ -285,14 +296,11 @@ export const getTaskMatrix = async (taskId: string) => {
       data: response.data,
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    console.error("获取任务矩阵数据出错:", error);
+    const errorMessage = handleDetailedError(error, "获取任务矩阵数据出错");
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : "未知错误",
+      error: errorMessage,
       data: null,
     };
   }

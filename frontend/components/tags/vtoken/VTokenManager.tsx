@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Input, Button, Tooltip } from "@heroui/react";
 
-import { getXToken, setXToken, removeXToken, validateXToken } from "@/utils/vtokenService";
+import { getXToken, setXToken, removeXToken } from "@/utils/vtokenService";
 import { VTokenManagerProps } from "@/types/vtoken";
 
 /**
@@ -30,7 +30,7 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
     }
   }, [onTokenChange]);
 
-  // 保存并验证令牌
+  // 保存令牌
   const handleSaveToken = async () => {
     const trimmedToken = token.trim();
 
@@ -44,20 +44,13 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
     setIsValidating(true);
 
     try {
-      const isTokenValid = await validateXToken(trimmedToken);
-
-      setIsValid(isTokenValid);
-
-      if (isTokenValid) {
-        setXToken(trimmedToken);
-        onTokenChange?.(trimmedToken);
-      } else {
-        onTokenChange?.(null);
-      }
+      // 不再验证令牌，直接保存
+      setXToken(trimmedToken);
+      setIsValid(true); // 假设令牌有效
+      onTokenChange?.(trimmedToken);
     } catch (error) {
       // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.error("验证令牌时出错:", error);
+      console.error("保存令牌时出错:", error);
       setIsValid(false);
       onTokenChange?.(null);
     } finally {
@@ -73,10 +66,10 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
     onTokenChange?.(null);
   };
 
-  // 获取验证状态
+  // 获取令牌状态
   const validationStatus = {
-    text: isValid === null ? "未验证" : isValid ? "已验证" : "无效",
-    color: isValid === null ? "default" : isValid ? "success" : "danger",
+    text: isValid === null ? "未设置" : "已设置",
+    color: isValid === null ? "default" : "success",
   };
 
   return (
@@ -118,7 +111,7 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
               size="sm"
               onPress={handleSaveToken}
             >
-              {isValidating ? "验证中..." : "保存并验证"}
+              {isValidating ? "保存中..." : "保存令牌"}
             </Button>
             <Button
               color="danger"
@@ -130,10 +123,6 @@ const VTokenManager: React.FC<VTokenManagerProps> = ({
               清除
             </Button>
           </div>
-
-          {isValid === false && (
-            <div className="text-xs text-danger">令牌验证失败，请检查令牌是否正确</div>
-          )}
 
           <div className="text-xs text-gray-500">
             <ul className="list-disc pl-5 mt-1 space-y-1">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Card,
   CardBody,
@@ -18,7 +18,8 @@ import {
 import { Icon } from "@iconify/react";
 
 import { TaskDetail } from "@/types/task";
-import { getTaskMatrix } from "@/utils/taskService";
+import { apiService } from "@/utils/api/apiService";
+import * as logger from "@/utils/logger";
 
 // 占位图片URL
 const PLACEHOLDER_IMAGE_URL = "/placeholder-image.png";
@@ -71,7 +72,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
   const [availableVariables, setAvailableVariables] = useState<string[]>([]);
   const [variableNames, setVariableNames] = useState<Record<string, string>>({});
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [fullscreenElement, setFullscreenElement] = useState<HTMLElement | null>(null);
+  // 使用useRef代替useState来存储DOM元素，避免无限循环
+  const fullscreenElementRef = useRef<HTMLDivElement | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
   const [currentImageUrl, setCurrentImageUrl] = useState<string>("");
   const [currentImageTitle, setCurrentImageTitle] = useState<string>("");
@@ -83,6 +85,16 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
   const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 使用useRef跟踪数据是否已加载，避免重复请求
+  const dataLoadedRef = useRef<boolean>(false);
+  const taskIdRef = useRef<string | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  // 使用ref来跟踪URL验证是否已完成
+  const urlValidationDoneRef = useRef<boolean>(false);
+  // 使用ref来跟踪x轴和y轴的选择，避免依赖状态变量
+  const xAxisRef = useRef<string | null>(null);
+  const yAxisRef = useRef<string | null>(null);
 
   // 表格缩放控制
   const [tableScale, setTableScale] = useState<number>(100);
@@ -189,23 +201,85 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     return 20; // 如果超过16张，使用更小的尺寸
   };
 
-  // 从后端获取矩阵数据
-  const fetchMatrixData = useCallback(async () => {
-    if (!task || !task.id) return;
+  // 使用ref来跟踪请求状态
+  const isRequestPendingRef = useRef<boolean>(false);
+
+  // 从后端获取矩阵数据 - 只在组件挂载和taskId变化时调用一次
+  const fetchMatrixData = useCallback(async (taskId: string, forceRefresh = false) => {
+    // 如果组件已卸载或没有任务ID，则不执行
+    if (!isMountedRef.current || !taskId) return;
+
+    // 如果已经有请求在进行中，则不再发起新请求
+    if (isRequestPendingRef.current) {
+      logger.log(`已有请求正在进行，跳过新请求: ${taskId}`);
+
+      return;
+    }
+
+    // 如果已经加载过该ID的数据且不是强制刷新，则不再重复请求
+    if (!forceRefresh && dataLoadedRef.current && taskIdRef.current === taskId) {
+      logger.log(`数据已加载，跳过请求: ${taskId}`);
+
+      return;
+    }
+
+    // 标记请求开始
+    isRequestPendingRef.current = true;
+    logger.log(`开始请求矩阵数据: ${taskId}, 强制刷新: ${forceRefresh}`);
 
     setIsLoading(true);
     setError(null);
 
     try {
-      // 调用后端API获取矩阵数据
-      const response = await getTaskMatrix(task.id);
+      // 更新当前任务ID引用
+      taskIdRef.current = taskId;
 
-      if (!response.success || !response.data) {
+      // 调用后端API获取矩阵数据 - 使用缓存机制
+      const cacheKey = `matrix_${taskId}`;
+      let response;
+
+      // 尝试从sessionStorage获取缓存数据
+      const cachedData = typeof window !== "undefined" ? sessionStorage.getItem(cacheKey) : null;
+
+      if (!forceRefresh && cachedData) {
+        try {
+          response = { success: true, data: JSON.parse(cachedData) };
+          if (process.env.NODE_ENV === "development") {
+            // eslint-disable-next-line no-console
+            console.log(`使用缓存的矩阵数据: ${taskId}`);
+          }
+        } catch {
+          // 如果解析缓存数据失败，则从API获取
+          response = await apiService.task.getTaskMatrix(taskId);
+        }
+      } else {
+        // 从API获取数据
+        response = await apiService.task.getTaskMatrix(taskId);
+
+        // 缓存数据到sessionStorage
+        if (response.success && response.data && typeof window !== "undefined") {
+          try {
+            sessionStorage.setItem(cacheKey, JSON.stringify(response.data));
+          } catch (error) {
+            logger.error("缓存矩阵数据失败:", error);
+          }
+        }
+      }
+
+      // 如果组件已卸载，不再继续处理
+      if (!isMountedRef.current) return;
+
+      if (response.error || !response.data) {
         throw new Error(response.error || "获取矩阵数据失败");
       }
 
+      logger.log(`成功获取矩阵数据: ${taskId}`);
+
       // 设置矩阵数据
       setMatrixData(response.data);
+
+      // 标记数据已加载
+      dataLoadedRef.current = true;
 
       // 提取变量名称和可用变量
       const variables: string[] = [];
@@ -230,63 +304,136 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         });
       }
 
-      // 存储变量名称映射
-      setVariableNames(varNames);
-      setAvailableVariables(variables);
+      // 如果组件已卸载，不再更新状态
+      if (!isMountedRef.current) return;
 
-      // 默认选择前两个变量作为X轴和Y轴
-      if (variables.length >= 2) {
-        setXAxis(variables[0]);
-        setYAxis(variables[1]);
-      } else if (variables.length === 1) {
-        setXAxis(variables[0]);
-        setYAxis("");
-      } else {
-        setXAxis("");
-        setYAxis("");
-      }
+      // 批量更新状态，减少重新渲染次数
+      const batchUpdate = () => {
+        setVariableNames(varNames);
+        setAvailableVariables(variables);
+
+        // 只在初始加载时设置默认轴，避免覆盖用户选择
+        // 注意：这里不依赖xAxis和yAxis的当前值，而是使用局部变量currentXAxis和currentYAxis
+        const currentXAxis = xAxisRef.current;
+        const currentYAxis = yAxisRef.current;
+        const shouldSetDefaultAxes = (!currentXAxis && !currentYAxis) || forceRefresh;
+
+        if (shouldSetDefaultAxes) {
+          if (variables.length >= 2) {
+            setXAxis(variables[0]);
+            setYAxis(variables[1]);
+            // 同时更新ref值
+            xAxisRef.current = variables[0];
+            yAxisRef.current = variables[1];
+          } else if (variables.length === 1) {
+            setXAxis(variables[0]);
+            setYAxis("");
+            // 同时更新ref值
+            xAxisRef.current = variables[0];
+            yAxisRef.current = "";
+          } else {
+            setXAxis("");
+            setYAxis("");
+            // 同时更新ref值
+            xAxisRef.current = "";
+            yAxisRef.current = "";
+          }
+        }
+      };
+
+      // 使用requestAnimationFrame确保状态更新在同一帧内完成
+      requestAnimationFrame(batchUpdate);
     } catch (err) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.error("Error fetching matrix data:", err);
+      // 如果组件已卸载，不再更新状态
+      if (!isMountedRef.current) return;
+
+      logger.error("Error fetching matrix data:", err);
       setError("获取矩阵数据失败，请刷新页面重试");
+      dataLoadedRef.current = false;
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+
+      // 标记请求结束
+      isRequestPendingRef.current = false;
     }
-  }, [task]);
+  }, []); // 不依赖任何状态，确保函数不会因为状态变化而重新创建
 
-  // 当任务变化时，获取矩阵数据并检查批次标签
+  // 只在组件挂载和任务ID变化时获取矩阵数据
   useEffect(() => {
-    fetchMatrixData();
+    // 组件挂载标记设为true
+    isMountedRef.current = true;
 
-    // 检查是否有batch标签
-    if (task && task.tags) {
+    // 如果有任务ID，且数据未加载或任务ID变化，则获取数据
+    if (task?.id && (!dataLoadedRef.current || taskIdRef.current !== task.id)) {
+      logger.log(`任务ID变化或数据未加载: ${taskIdRef.current} -> ${task.id}`);
+      // 重置加载状态
+      dataLoadedRef.current = false;
+      // 获取矩阵数据
+      fetchMatrixData(task.id, false);
+    }
+
+    // 清理函数：组件卸载时将标记设置为false，防止异步操作更新已卸载组件的状态
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [task?.id, fetchMatrixData]); // 依赖于task.id和fetchMatrixData
+
+  // 计算是否有batch标签，使用useMemo避免重复计算
+  const hasBatchTagValue = useMemo(() => {
+    if (task?.tags) {
       const batchTag = task.tags.find(
         (tag) => tag.type === "batch" && !tag.isVariable && parseInt(tag.value) > 1
       );
 
-      setHasBatchTag(!!batchTag);
-    } else {
-      setHasBatchTag(false);
+      return !!batchTag;
     }
-  }, [fetchMatrixData, task]);
+
+    return false;
+  }, [task?.tags]);
+
+  // 单独处理batch标签检查，避免不必要的矩阵数据请求
+  useEffect(() => {
+    // 只有当计算的值与当前状态不同时才更新状态
+    if (hasBatchTagValue !== hasBatchTag) {
+      setHasBatchTag(hasBatchTagValue);
+    }
+  }, [hasBatchTagValue, hasBatchTag]);
+
+  // 同步xAxis和yAxis的状态变化到ref中
+  useEffect(() => {
+    xAxisRef.current = xAxis;
+  }, [xAxis]);
+
+  useEffect(() => {
+    yAxisRef.current = yAxis;
+  }, [yAxis]);
+
+  // 使用ref来缓存URL查询结果
+  const urlCache = useRef<Record<string, string | null>>({});
 
   // 获取图片URL - 基于六维空间坐标
   const getImageUrl = useCallback(
     (xValue: string, yValue: string) => {
       if (!matrixData || !task) {
-        // eslint-disable-next-line no-console
-        console.log("没有矩阵数据或任务数据");
+        logger.log("没有矩阵数据或任务数据");
 
         return null;
       }
 
-      // 为调试添加唯一ID
-      const debugId = Math.random().toString(36).substring(2, 8);
+      // 使用缓存来避免重复计算
+      const cacheKey = `${xAxis}_${xValue}_${yAxis}_${yValue}`;
 
-      // eslint-disable-next-line no-console
-      console.log(`[${debugId}] 尝试获取 [${xValue}][${yValue}] 的图片URL`);
+      if (urlCache.current[cacheKey]) {
+        return urlCache.current[cacheKey];
+      }
+
+      // 为调试添加唯一ID，只在开发环境下生成
+      const debugId =
+        process.env.NODE_ENV === "development" ? Math.random().toString(36).substring(2, 8) : "";
+
+      logger.log(`[${debugId}] 尝试获取 [${xValue}][${yValue}] 的图片URL`);
 
       // 获取变量索引
       const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null; // 例如，从 'v0' 提取 0
@@ -297,8 +444,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       // 从坐标映射中查找匹配的图片URL
       if (Object.keys(matrixData.coordinates).length > 0) {
-        // eslint-disable-next-line no-console
-        console.log(`[${debugId}] 从坐标映射中查找匹配的图片`);
+        logger.log(`[${debugId}] 从坐标映射中查找匹配的图片`);
 
         // 遍历所有坐标映射
         for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
@@ -309,22 +455,19 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
             // 两个轴都有值
             if (coordParts[xVarIndex] === xValue && coordParts[yVarIndex] === yValue) {
-              // eslint-disable-next-line no-console
-              console.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
+              logger.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
               matchingUrls.push(url);
             }
           } else if (xAxis && xVarIndex !== null) {
             // 只有X轴有值
             if (coordParts[xVarIndex] === xValue) {
-              // eslint-disable-next-line no-console
-              console.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
+              logger.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
               matchingUrls.push(url);
             }
           } else if (yAxis && yVarIndex !== null) {
             // 只有Y轴有值
             if (coordParts[yVarIndex] === yValue) {
-              // eslint-disable-next-line no-console
-              console.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
+              logger.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
               matchingUrls.push(url);
             }
           }
@@ -333,8 +476,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       // 如果找到了匹配的URL，返回第一个
       if (matchingUrls.length > 0) {
-        // eslint-disable-next-line no-console
-        console.log(`[${debugId}] 找到 ${matchingUrls.length} 个匹配的图片URL`);
+        logger.log(`[${debugId}] 找到 ${matchingUrls.length} 个匹配的图片URL`);
+        // 缓存结果
+        urlCache.current[cacheKey] = matchingUrls[0];
 
         return matchingUrls[0];
       }
@@ -344,15 +488,18 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         const firstUrl = Object.values(matrixData.coordinates)[0];
 
         if (firstUrl) {
-          // eslint-disable-next-line no-console
-          console.log(`[${debugId}] 未找到匹配的图片，返回第一个图片URL:`, firstUrl);
+          logger.log(`[${debugId}] 未找到匹配的图片，返回第一个图片URL:`, firstUrl);
+          // 缓存结果
+          urlCache.current[cacheKey] = firstUrl;
 
           return firstUrl;
         }
       }
 
-      // eslint-disable-next-line no-console
-      console.log(`[${debugId}] 未找到 [${xValue}][${yValue}] 的图片URL`);
+      logger.log(`[${debugId}] 未找到 [${xValue}][${yValue}] 的图片URL`);
+
+      // 缓存空结果
+      urlCache.current[cacheKey] = null;
 
       return null;
     },
@@ -540,10 +687,14 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
   const generateTableData = useCallback((): TableRowData[] => {
     const debugId = Math.random().toString(36).substring(2, 8);
 
-    if (!task) {
-      // eslint-disable-next-line no-console
-      console.error("无法生成表格数据：任务对象不存在");
+    if (!task || !matrixData) {
+      logger.error("无法生成表格数据：任务对象或矩阵数据不存在");
 
+      return [];
+    }
+
+    // 如果没有选择任何轴，返回空数组
+    if (!xAxis && !yAxis) {
       return [];
     }
 
@@ -564,25 +715,20 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       rowValues = yAxisVar.values.map((val: any) => val.value || "");
     }
 
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] 原始列值:`, columnValues);
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] 原始行值:`, rowValues);
+    logger.log(`[${debugId}] 原始列值:`, columnValues);
+    logger.log(`[${debugId}] 原始行值:`, rowValues);
 
     // 处理列值和行值中有重名的情况
     const [processedColumnValues, columnValueMap] = processVariableValues(columnValues);
     const [processedRowValues, rowValueMap] = processVariableValues(rowValues);
 
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] 处理后的列值:`, processedColumnValues);
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] 处理后的行值:`, processedRowValues);
+    logger.log(`[${debugId}] 处理后的列值:`, processedColumnValues);
+    logger.log(`[${debugId}] 处理后的行值:`, processedRowValues);
 
     // 预先缓存图片URL
     const imageUrlCache = cacheImageUrls(rowValues, columnValues);
 
-    // eslint-disable-next-line no-console
-    console.log(`[${debugId}] 图片URL缓存:`, imageUrlCache);
+    logger.log(`[${debugId}] 图片URL缓存:`, imageUrlCache);
 
     // 生成表格数据
     return processedRowValues.map((processedRowValue) => {
@@ -603,8 +749,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           rowData[processedColValue] = cellData;
         } else {
           rowData[processedColValue] = null;
-          // eslint-disable-next-line no-console
-          console.log(
+          logger.log(
             `[${debugId}] 没有为 [${originalColValue || ""}][${originalRowValue || ""}] 找到URL`
           );
         }
@@ -612,162 +757,104 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       return rowData;
     });
-  }, [task, xAxis, yAxis, processVariableValues, cacheImageUrls, createCellData]);
+  }, [task, matrixData, xAxis, yAxis, processVariableValues, cacheImageUrls, createCellData]);
 
-  // 计算表格数据
-  const tableData = useMemo<TableRowData[]>(() => generateTableData(), [generateTableData]);
+  // 计算表格数据，使用useMemo缓存结果，只在依赖项变化时重新计算
+  const tableData = useMemo<TableRowData[]>(() => {
+    // 只在必要的条件满足时才生成表格数据
+    if (!task || !matrixData || (!xAxis && !yAxis)) {
+      return [];
+    }
 
-  // 添加调试代码，验证数据获取和渲染
+    return generateTableData();
+  }, [task, matrixData, xAxis, yAxis, generateTableData]);
+
+  // 创建一个调试ID引用，用于跟踪日志
+  const debugIdRef = useRef(`debug-${Math.random().toString(36).substring(2, 8)}`);
+
+  // 添加调试代码，验证数据获取和渲染，仅在开发环境下执行
   useEffect(() => {
-    if (tableData && tableData.length > 0) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.log("--------- 表格数据验证 ---------");
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.log("可用变量:", availableVariables);
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.log("过滤后的变量名:", variableNames);
+    // 只在开发环境下输出调试信息
+    if (process.env.NODE_ENV !== "development") return;
 
-      // 获取表格中实际显示的X和Y值
-      const xAxisVar = xAxis ? task.variables[xAxis as keyof typeof task.variables] : null;
-      const yAxisVar = yAxis ? task.variables[yAxis as keyof typeof task.variables] : null;
+    // 获取调试ID
+    const debugId = debugIdRef.current;
 
-      const columnValues = xAxisVar?.values?.map((val: any) => val.value) || [""];
-      const rowValues = yAxisVar?.values?.map((val: any) => val.value) || [""];
+    // 避免频繁执行，使用防抖
+    const timeoutId = setTimeout(() => {
+      if (tableData && tableData.length > 0) {
+        logger.log(`[${debugId}] --------- 表格数据验证 ---------`);
+        logger.log(`[${debugId}] 可用变量:`, availableVariables);
+        logger.log(`[${debugId}] 过滤后的变量名:`, variableNames);
 
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.log("X轴变量:", xAxis, "值:", columnValues);
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.log("Y轴变量:", yAxis, "值:", rowValues);
+        // 获取表格中实际显示的X和Y值
+        const xAxisVar = xAxis ? task?.variables?.[xAxis as keyof typeof task.variables] : null;
+        const yAxisVar = yAxis ? task?.variables?.[yAxis as keyof typeof task.variables] : null;
 
-      // 输出数据结构信息
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.log("数据结构分析:");
-      if (task.results?.raw) {
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
-        console.log("results.raw 键名格式:", Object.keys(task.results.raw));
-        const firstRawKey = Object.keys(task.results.raw)[0];
+        const columnValues = xAxisVar?.values?.map((val: any) => val.value) || [""];
+        const rowValues = yAxisVar?.values?.map((val: any) => val.value) || [""];
 
-        if (firstRawKey) {
-          // eslint-disable-next-line no-console
-          // eslint-disable-next-line no-console
-          console.log("results.raw 第一个条目结构:", task.results.raw[firstRawKey]);
-        }
-      }
+        logger.log(`[${debugId}] X轴变量:`, xAxis, "值:", columnValues);
+        logger.log(`[${debugId}] Y轴变量:`, yAxis, "值:", rowValues);
 
-      if (task.results?.matrix) {
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
-        console.log("results.matrix 结构:", task.results.matrix);
-      }
+        // 验证所有单元格URL - 仅在首次渲染时执行一次
+        if (!urlValidationDoneRef.current) {
+          urlValidationDoneRef.current = true;
 
-      if (task.dramatiq_tasks && task.dramatiq_tasks.length > 0) {
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
-        console.log("dramatiq_tasks 第一个条目结构:", task.dramatiq_tasks[0]);
+          let totalCells = 0;
+          let foundUrls = 0;
 
-        // 分析v0-v5字段的分布
-        const vFieldStats: Record<string, number> = {};
+          for (const rowValue of rowValues) {
+            for (const colValue of columnValues) {
+              totalCells++;
+              let url = null;
 
-        task.dramatiq_tasks.forEach((subtask) => {
-          for (let i = 0; i <= 5; i++) {
-            const field = `v${i}`;
+              if (xAxis && yAxis) {
+                url = getImageUrl(colValue, rowValue);
+              } else if (xAxis) {
+                url = getImageUrl(colValue, "");
+              } else if (yAxis) {
+                url = getImageUrl("", rowValue);
+              }
 
-            if ((subtask as any)[field] !== undefined && (subtask as any)[field] !== null) {
-              vFieldStats[field] = (vFieldStats[field] || 0) + 1;
+              if (url) {
+                foundUrls++;
+                logger.log(
+                  `[${debugId}] 单元格[${rowValue || ""}][${colValue || ""}] 找到URL:`,
+                  url
+                );
+              } else {
+                logger.log(`[${debugId}] 单元格[${rowValue || ""}][${colValue || ""}] 未找到URL`);
+              }
             }
           }
-        });
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
-        console.log("dramatiq_tasks v0-v5字段统计:", vFieldStats);
-      }
 
-      // 验证所有单元格URL
-      let totalCells = 0;
-      let foundUrls = 0;
-
-      for (const rowValue of rowValues) {
-        for (const colValue of columnValues) {
-          totalCells++;
-          let url = null;
-
-          if (xAxis && yAxis) {
-            url = getImageUrl(colValue, rowValue);
-          } else if (xAxis) {
-            url = getImageUrl(colValue, "");
-          } else if (yAxis) {
-            url = getImageUrl("", rowValue);
-          }
-
-          if (url) {
-            foundUrls++;
-            // eslint-disable-next-line no-console
-            // eslint-disable-next-line no-console
-            console.log(`单元格[${rowValue || ""}][${colValue || ""}] 找到URL:`, url);
-          } else {
-            // eslint-disable-next-line no-console
-            // eslint-disable-next-line no-console
-            console.log(`单元格[${rowValue || ""}][${colValue || ""}] 未找到URL`);
-          }
+          logger.log(`[${debugId}] 总单元格: ${totalCells}, 找到URL的: ${foundUrls}`);
         }
-      }
 
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.log(`总单元格: ${totalCells}, 找到URL的: ${foundUrls}`);
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.log("---------------------------");
-    } else {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      console.log("tableData为空，无法渲染表格");
-    }
-  }, [
-    tableData,
-    xAxis,
-    yAxis,
-    availableVariables,
-    variableNames,
-    task,
-    getImageUrl,
-    getAllMatchingImageUrls,
-    matrixData,
-  ]);
+        logger.log(`[${debugId}] ---------------------------`);
+      } else {
+        logger.log(`[${debugId}] tableData为空，无法渲染表格`);
+      }
+    }, 500); // 添加500ms延迟，避免频繁执行
+
+    // 清理函数
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [tableData, xAxis, yAxis, availableVariables, variableNames, task, getImageUrl]); // 移除不必要的依赖项
 
   // 处理全屏模式切换
   const toggleFullscreen = () => {
-    if (!fullscreenElement) return;
+    if (!fullscreenElementRef.current) return;
 
     if (!document.fullscreenElement) {
-      fullscreenElement
+      fullscreenElementRef.current
         .requestFullscreen()
         .then(() => {
           setIsFullscreen(true);
         })
         .catch((err) => {
-          // eslint-disable-next-line no-console
-          // eslint-disable-next-line no-console
           // eslint-disable-next-line no-console
           console.error(`全屏请求失败: ${err.message}`);
         });
@@ -778,8 +865,6 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           setIsFullscreen(false);
         })
         .catch((err) => {
-          // eslint-disable-next-line no-console
-          // eslint-disable-next-line no-console
           // eslint-disable-next-line no-console
           console.error(`退出全屏失败: ${err.message}`);
         });
@@ -810,9 +895,25 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded mb-4">
-          <div className="flex">
-            <Icon className="w-5 h-5 mr-2" icon="heroicons:exclamation-circle" />
-            <span>{error}</span>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <Icon className="w-5 h-5 mr-2" icon="heroicons:exclamation-circle" />
+              <span>{error}</span>
+            </div>
+            <Button
+              color="primary"
+              size="sm"
+              startContent={<Icon icon="solar:refresh-linear" width={16} />}
+              onPress={() => {
+                // 重试获取矩阵数据
+                dataLoadedRef.current = false;
+                if (task?.id) {
+                  fetchMatrixData(task.id);
+                }
+              }}
+            >
+              重试加载
+            </Button>
           </div>
         </div>
       )}
@@ -923,14 +1024,12 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                   variant="bordered"
                   onPress={() => {
                     // 强制刷新表格数据
-                    // eslint-disable-next-line no-console
-                    // eslint-disable-next-line no-console
-                    // eslint-disable-next-line no-console
-                    console.log("手动刷新表格数据");
-                    const tempX = xAxis;
+                    logger.log("手动刷新表格数据");
 
-                    setXAxis("");
-                    setTimeout(() => setXAxis(tempX), 50);
+                    // 使用强制刷新参数
+                    if (task?.id) {
+                      fetchMatrixData(task.id, true);
+                    }
                   }}
                 >
                   刷新表格
@@ -984,7 +1083,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           </CardHeader>
           <CardBody>
             <div
-              ref={(el) => setFullscreenElement(el)}
+              ref={fullscreenElementRef}
               className={`overflow-x-auto ${isFullscreen ? "fullscreen-table" : ""}`}
               style={{ maxWidth: "100%", overflowX: "scroll" }}
             >
@@ -1125,16 +1224,24 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                               }}
                                               width="auto"
                                               onError={() => {
-                                                // eslint-disable-next-line no-console
-                                                // eslint-disable-next-line no-console
-                                                console.log("图片加载失败:", url);
-                                                const imgElements = document.querySelectorAll(
-                                                  `img[src="${getResizedImageUrl(url, getImageSizeByBatchCount(cell.urls?.length || 1))}"]`
-                                                );
+                                                logger.log("图片加载失败:", url);
+                                                // 使用setTimeout避免在渲染过程中修改DOM
+                                                setTimeout(() => {
+                                                  const imgElements = document.querySelectorAll(
+                                                    `img[src="${getResizedImageUrl(url, getImageSizeByBatchCount(cell.urls?.length || 1))}"]`
+                                                  );
 
-                                                imgElements.forEach((img) => {
-                                                  img.setAttribute("src", PLACEHOLDER_IMAGE_URL);
-                                                });
+                                                  if (imgElements.length > 0) {
+                                                    imgElements.forEach((img) => {
+                                                      if (
+                                                        img instanceof HTMLImageElement &&
+                                                        img.src !== PLACEHOLDER_IMAGE_URL
+                                                      ) {
+                                                        img.src = PLACEHOLDER_IMAGE_URL;
+                                                      }
+                                                    });
+                                                  }
+                                                }, 0);
                                               }}
                                             />
                                           </div>
@@ -1174,16 +1281,24 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                           }}
                                           width="auto"
                                           onError={() => {
-                                            // eslint-disable-next-line no-console
-                                            // eslint-disable-next-line no-console
-                                            console.log("图片加载失败:", imageUrl);
-                                            const imgElements = document.querySelectorAll(
-                                              `img[src="${getResizedImageUrl(imageUrl, 180)}"]`
-                                            );
+                                            logger.log("图片加载失败:", imageUrl);
+                                            // 使用setTimeout避免在渲染过程中修改DOM
+                                            setTimeout(() => {
+                                              const imgElements = document.querySelectorAll(
+                                                `img[src="${getResizedImageUrl(imageUrl, 180)}"]`
+                                              );
 
-                                            imgElements.forEach((img) => {
-                                              img.setAttribute("src", PLACEHOLDER_IMAGE_URL);
-                                            });
+                                              if (imgElements.length > 0) {
+                                                imgElements.forEach((img) => {
+                                                  if (
+                                                    img instanceof HTMLImageElement &&
+                                                    img.src !== PLACEHOLDER_IMAGE_URL
+                                                  ) {
+                                                    img.src = PLACEHOLDER_IMAGE_URL;
+                                                  }
+                                                });
+                                              }
+                                            }, 0);
                                           }}
                                         />
                                       </div>
@@ -1285,14 +1400,12 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                       alt={currentImageTitle}
                       className="max-w-full max-h-full object-contain"
                       height="auto"
-                      src={currentImageUrl} // 使用原始URL，不添加缩放参数
+                      src={currentImageUrl || PLACEHOLDER_IMAGE_URL} // 使用原始URL，不添加缩放参数，确保有默认值
                       style={{ maxHeight: "70vh", objectFit: "contain" }}
                       width="auto"
                       onError={() => {
-                        // eslint-disable-next-line no-console
-                        // eslint-disable-next-line no-console
-                        // eslint-disable-next-line no-console
-                        console.log("大图加载失败:", currentImageUrl);
+                        logger.log("大图加载失败:", currentImageUrl);
+                        // 不在这里修改DOM，避免无限循环
                       }}
                     />
                   </div>
@@ -1327,17 +1440,17 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                             alt={`${currentImageTitle} - 批次 ${index + 1}`}
                             className="object-contain max-w-full max-h-full"
                             height="auto"
-                            src={getResizedImageUrl(
-                              url,
-                              getImageSizeByBatchCount(currentImageUrls.length)
-                            )}
+                            src={
+                              getResizedImageUrl(
+                                url,
+                                getImageSizeByBatchCount(currentImageUrls.length)
+                              ) || PLACEHOLDER_IMAGE_URL
+                            }
                             style={{ objectFit: "contain" }}
                             width="auto"
                             onError={() => {
-                              // eslint-disable-next-line no-console
-                              // eslint-disable-next-line no-console
-                              // eslint-disable-next-line no-console
-                              console.log("网格图片加载失败:", url);
+                              logger.log("网格图片加载失败:", url);
+                              // 不在这里修改DOM，避免无限循环
                             }}
                           />
                         </div>

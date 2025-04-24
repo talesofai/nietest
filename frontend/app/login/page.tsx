@@ -24,8 +24,6 @@ const LoginPage = () => {
   useEffect(() => {
     if (user) {
       // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       console.log("用户已登录，重定向到首页", user);
       router.push("/");
     }
@@ -44,8 +42,6 @@ const LoginPage = () => {
     }
 
     try {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.log(`尝试登录，用户名: ${email}`);
       const success = await login(email, password);
@@ -67,8 +63,6 @@ const LoginPage = () => {
       const errorMessage = err instanceof Error ? err.message : String(err);
 
       setLocalError(`网络错误，请稍后重试: ${errorMessage}`);
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error("登录请求失败:", err);
     }
