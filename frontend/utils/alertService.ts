@@ -46,8 +46,6 @@ class AlertService {
   ): void {
     // 在控制台记录消息
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.log(`[${type.toUpperCase()}] ${title}: ${description}`);
 
     // 如果在浏览器环境中，可以使用HeroUI的Alert组件

@@ -89,8 +89,6 @@ export const useLocalStorage = (): StorageData & {
       localStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags));
     } catch (error) {
       // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       console.error(`Error saving tags to localStorage:`, error);
     }
   }, [tags, isDataLoaded]);
@@ -102,8 +100,6 @@ export const useLocalStorage = (): StorageData & {
       localStorage.setItem(STORAGE_KEYS.VARIABLE_VALUES, JSON.stringify(variableValues));
     } catch (error) {
       // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       console.error(`Error saving variable values to localStorage:`, error);
     }
   }, [variableValues, isDataLoaded]);
@@ -114,8 +110,6 @@ export const useLocalStorage = (): StorageData & {
     try {
       localStorage.setItem(STORAGE_KEYS.GLOBAL_SETTINGS, JSON.stringify(globalSettings));
     } catch (error) {
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       // eslint-disable-next-line no-console
       console.error(`Error saving global settings to localStorage:`, error);
     }

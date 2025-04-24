@@ -1,7 +1,7 @@
 import { Tag } from "@/types/tag";
 import { VariableValue } from "@/types/variable";
 import { alertService } from "@/utils/alertService";
-import { apiRequest } from "@/utils/apiClient";
+import { apiService } from "@/utils/api/apiService";
 import { getCurrentUsername, checkUserLoggedIn } from "@/utils/user/userUtils";
 
 /**
@@ -491,27 +491,17 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
   try {
     // 记录提交数据（用于调试）
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.log("===== 提交数据开始 =====");
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.log("用户名:", data.username || "未指定");
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.log("任务名称:", data.task_name || "无标题任务");
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.log("标签数量:", data.tags?.length || 0);
 
     // 再次检查变量标签数量
     const variableTagsCount = data.tags?.filter((tag) => tag.isVariable).length || 0;
 
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.log(`变量标签数量: ${variableTagsCount}`);
 
@@ -524,33 +514,36 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
       task_name: data.task_name,
       username: data.username, // 添加用户名字段
       tags: data.tags.map((tag) => ({
+        id: tag.id, // 保留id字段
         type: tag.type,
-        is_variable: tag.isVariable,
+        isVariable: tag.isVariable, // 使用isVariable而不是is_variable
         value: tag.value,
+        color: tag.color || "#cccccc", // 添加color字段，提供默认值
         name: tag.name,
         weight: tag.weight,
-        uuid: tag.uuid, // 添加UUID字段
-        header_img: tag.header_img, // 添加header_img字段
+        uuid: tag.uuid,
+        header_img: tag.header_img,
+        // 添加其他可能缺少的必需字段
+        ...(tag.gradientToColor ? { gradientToColor: tag.gradientToColor } : {}),
+        ...(tag.useGradient !== undefined ? { useGradient: tag.useGradient } : {}),
+        ...(tag.heat_score !== undefined ? { heat_score: tag.heat_score } : {})
       })),
       variables: data.variables,
       settings: data.settings, // 直接使用全局设置
     };
 
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.log("准备提交到API的数据:", apiData);
 
-    // 使用apiRequest.post方法发送请求
-    const apiResponse = await apiRequest.post("/api/v1/tasks", apiData);
+    // 使用统一的API服务发送请求
+    const apiResponse = await apiService.task.createTask(apiData);
 
     // 检查响应
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.log("API响应:", apiResponse);
 
-    if (!apiResponse.success) {
+    // 检查是否有错误
+    if (apiResponse.error || apiResponse.status && apiResponse.status >= 400) {
       throw new Error(apiResponse.error || "提交失败");
     }
 
@@ -569,8 +562,6 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
       data: apiResponse.data,
     };
   } catch (error) {
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("提交失败:", error);
     showAlert({
@@ -680,8 +671,6 @@ export const completeSubmitProcess = async (
 
     // 提交成功后记录详细信息
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.log("提交成功:", result);
 
     // 统计标签和变量数据
@@ -705,8 +694,6 @@ export const completeSubmitProcess = async (
     return result;
   } catch (error) {
     // 错误已在submitPost中处理
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
     console.error("提交流程出错:", error);
 

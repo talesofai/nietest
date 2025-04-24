@@ -23,7 +23,7 @@ export default function StaticTestPage() {
 
     try {
       // 调用后端健康检查API
-      const response = await fetch(`${apiUrl}/health`);
+      const response = await fetch(`${apiUrl}/api/v1/health`);
       const data = await response.json();
 
       setApiResponse(JSON.stringify(data, null, 2));

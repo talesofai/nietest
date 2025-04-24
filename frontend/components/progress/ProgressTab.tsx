@@ -120,8 +120,6 @@ const ProgressTab: React.FC = () => {
     } catch (err) {
       alertService.error("取消任务失败", err instanceof Error ? err.message : "发生未知错误");
       // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       console.error("取消任务失败:", err);
     }
   };

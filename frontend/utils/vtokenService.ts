@@ -32,39 +32,6 @@ export const removeXToken = (): void => {
 };
 
 /**
- * 验证token是否有效
- * @param token 要验证的token
- * @returns 是否有效的Promise
- */
-export const validateXToken = async (token: string): Promise<boolean> => {
-  try {
-    // 构建用于验证的URL
-    const apiUrl = "/api/v1/users/me";
-
-    // 设置请求头
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "x-token": token,
-      "x-platform": "nieta-app/web",
-    };
-
-    // 发送请求
-    const response = await fetch(apiUrl, { headers });
-
-    // 返回状态码是否成功
-
-    return response.ok;
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    console.error("验证token失败:", error);
-
-    return false;
-  }
-};
-
-/**
  * 搜索角色或元素
  * @param keywords 搜索关键词
  * @param pageIndex 页码（从0开始）
@@ -87,12 +54,12 @@ export const searchCharacterOrElement = async (
 
     // 设置请求头
     const headers: Record<string, string> = {
-      "x-platform": "nieta-app/web",
+      'x-platform': 'nieta-app/web',
     };
 
     // 如果有x-token则添加到请求头
     if (xToken) {
-      headers["x-token"] = xToken;
+      headers['x-token'] = xToken;
     }
 
     // 发送请求
@@ -141,8 +108,6 @@ export const searchCharacterOrElement = async (
     };
   } catch (error) {
     // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
     console.error("搜索请求失败:", error);
 
     return {
@@ -164,8 +129,8 @@ export const searchCharacterOrElement = async (
  * @param type 类型 "character" 或 "element"
  * @returns SVG图像的data-URL
  */
-export const getPlaceholderSvg = (type: "character" | "element"): string => {
-  const text = type === "character" ? "角色" : "元素";
+export const getPlaceholderSvg = (type: 'character' | 'element'): string => {
+  const text = type === 'character' ? '角色' : '元素';
 
   return `data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"%3E%3Crect width="40" height="40" fill="%23dddddd"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="12" fill="%23888888" text-anchor="middle" dominant-baseline="middle"%3E${text}%3C/text%3E%3C/svg%3E`;
 };

@@ -65,8 +65,6 @@ export const useAlert = () => {
     } catch (error) {
       // 如果出错，回退到控制台日志
       // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
-      // eslint-disable-next-line no-console
       console.error("无法显示Alert通知:", error);
       // eslint-disable-next-line no-console
       console.log(
