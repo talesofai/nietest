@@ -13,9 +13,13 @@ jobs:
       DOCKER_IMAGE_EXIST: ${{steps.check_docker_image.outputs.DOCKER_IMAGE_EXIST}}
     steps:
       - name: Set up Docker Buildx
+        id: buildx_check
         uses: docker/setup-buildx-action@v2
         with:
-          driver: docker-container
+          install: true
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
 
       - name: Login to ACR
         uses: aliyun/acr-login@v1
@@ -47,9 +51,13 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set up Docker Buildx
+        id: buildx
         uses: docker/setup-buildx-action@v2
         with:
-          driver: docker-container
+          install: true
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
 
       - name: Login to ACR
         uses: aliyun/acr-login@v1
@@ -58,15 +66,21 @@ jobs:
           username: "${{ secrets.ALIYUN_USERNAME }}"
           password: "${{ secrets.ALIYUN_PASSWORD }}"
 
+      # 创建并使用新的构建器实例
+      - name: Create and use a new builder instance
+        run: |
+          docker buildx create --use --name mybuilder
+          docker buildx inspect --bootstrap
+
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
           context: .
+          builder: mybuilder
           push: true
           tags: |
             ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/${{ secrets.ALIYUN_IMAGE_NAME }}:latest
             ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/${{ secrets.ALIYUN_IMAGE_NAME }}:${{ github.sha }}
-          # 使用本地缓存而不是GHA缓存
-          cache-from: type=registry,ref=${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/${{ secrets.ALIYUN_IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/${{ secrets.ALIYUN_IMAGE_NAME }}:buildcache,mode=max
+          # 不使用缓存，先确保构建成功
+          no-cache: true
           platforms: linux/amd64
