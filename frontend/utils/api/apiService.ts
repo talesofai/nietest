@@ -130,18 +130,44 @@ const taskApi = {
     filters: Record<string, string> = {}
   ): Promise<ApiResponse<TaskResponse[]>> => {
     try {
+      // 确保页码和每页数量是有效的数字
+      const validPage = Math.max(1, Number(page));
+      const validPageSize = Math.max(1, Math.min(100, Number(pageSize)));
+
       // 构建查询参数
       const params = {
-        page,
-        page_size: pageSize,
+        page: validPage,
+        page_size: validPageSize,
         ...filters,
       };
+
+      // 调试信息
+      console.log("apiService.getTaskList - 请求参数:", params);
 
       // 发送请求
       const response = await authAxios.get("/tasks", { params });
 
-      return handleSuccessResponse(response);
+      // 调试响应
+      console.log("apiService.getTaskList - 原始响应:", response.data);
+
+      // 处理响应
+      const result = handleSuccessResponse(response);
+
+      // 添加分页元数据
+      if (result.success && !result.metadata) {
+        // 如果响应中没有分页元数据，则添加默认的分页元数据
+        result.metadata = {
+          page: validPage,
+          page_size: validPageSize,
+          total: Array.isArray(result.data) ? result.data.length : 0
+        };
+      }
+
+      console.log("apiService.getTaskList - 处理后的结果:", result);
+
+      return result;
     } catch (error) {
+      console.error("获取任务列表失败:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "获取任务列表失败",

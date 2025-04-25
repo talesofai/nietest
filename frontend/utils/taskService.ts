@@ -21,11 +21,20 @@ export const getTaskList = async (
   filters: Record<string, string> = {}
 ) => {
   try {
+    // 确保页码和每页数量是有效的数字
+    const validPage = Math.max(1, Number(page));
+    const validPageSize = Math.max(1, Math.min(100, Number(pageSize)));
+
+    // 调试信息
+    console.log(`taskService.getTaskList - 页码: ${validPage}, 每页数量: ${validPageSize}, 过滤条件:`, filters);
+
     // 使用统一的API服务
-    const response = await apiService.task.getTaskList(page, pageSize, filters);
+    const response = await apiService.task.getTaskList(validPage, validPageSize, filters);
+
+    // 调试响应
+    console.log("taskService.getTaskList - API响应:", response);
 
     if (response.error || (response.status && response.status >= 400)) {
-      // eslint-disable-next-line no-console
       console.error("获取任务列表失败:", response.error);
 
       return {
@@ -35,10 +44,20 @@ export const getTaskList = async (
       };
     }
 
-    return {
+    // 确保返回的数据包含分页信息
+    const result = {
       success: true,
       data: response.data,
+      metadata: response.metadata || {
+        total: Array.isArray(response.data) ? response.data.length : 0,
+        page: validPage,
+        page_size: validPageSize
+      }
     };
+
+    console.log("taskService.getTaskList - 处理后的结果:", result);
+
+    return result;
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error("获取任务列表出错:", error);

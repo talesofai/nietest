@@ -55,27 +55,51 @@ const HistoryTab: React.FC = () => {
           filters.task_name = searchTerm;
         }
 
+        // 调试信息
+        console.log(`获取任务列表，页码: ${page}, 每页数量: ${pageSize}, 过滤条件:`, filters);
+
         const listResponse = await getTaskList(page, pageSize, filters);
 
-        if (listResponse?.error) {
-          setError(listResponse.error);
+        // 调试响应
+        console.log("任务列表响应:", listResponse);
+
+        if (!listResponse.success) {
+          // 处理错误情况，使用类型断言确保TypeScript不会报错
+          const errorResponse = listResponse as { success: false; error: string; data: null };
+          setError(errorResponse.error || "获取任务列表失败");
           setTasks([]);
           setTotalTasks(0);
         } else if (listResponse?.data) {
           const responseData = listResponse.data as any;
+          console.log("响应数据结构:", responseData);
 
-          if (Array.isArray(responseData.tasks)) {
+          // 尝试多种可能的数据结构
+          if (Array.isArray(responseData)) {
+            // 直接是数组的情况
+            setTasks(responseData);
+            // 如果没有总数信息，就使用当前数组长度
+            setTotalTasks(responseData.length);
+          } else if (Array.isArray(responseData.tasks)) {
+            // 包含tasks数组的情况
             setTasks(responseData.tasks);
             setTotalTasks(responseData.total || responseData.tasks.length);
           } else if (Array.isArray(responseData.items)) {
+            // 包含items数组的情况
             setTasks(responseData.items);
             setTotalTasks(responseData.total || responseData.items.length);
+          } else if (responseData.data && Array.isArray(responseData.data)) {
+            // 嵌套在data字段中的情况
+            setTasks(responseData.data);
+            setTotalTasks(responseData.total || responseData.data.length);
           } else {
+            console.error("未知的响应数据结构:", responseData);
             setTasks([]);
             setTotalTasks(0);
           }
         } else {
+          console.error("没有接收到有效的响应数据");
           setTasks([]);
+          setTotalTasks(0);
         }
 
         initialLoadDone.current = true;
@@ -100,7 +124,10 @@ const HistoryTab: React.FC = () => {
 
   // 处理分页变化
   const handlePageChange = (newPage: number) => {
+    console.log(`设置页码: ${page} -> ${newPage}`);
     setPage(newPage);
+    // 重置初始加载标志，强制重新加载数据
+    initialLoadDone.current = false;
   };
 
   // 处理搜索
@@ -227,20 +254,31 @@ const HistoryTab: React.FC = () => {
           ))}
         </div>
 
-        {/* 分页组件 */}
-        {totalTasks > pageSize && (
-          <div className="flex justify-center mt-4">
-            <Pagination
-              showControls
-              color="primary"
-              initialPage={page}
-              page={page}
-              size="sm"
-              total={Math.ceil(totalTasks / pageSize)}
-              onChange={handlePageChange}
-            />
+        {/* 分页区域 */}
+        <div className="flex flex-col items-center mt-4 space-y-2">
+          {/* 显示分页信息 */}
+          <div className="text-sm text-gray-500 w-full text-center">
+            共 {totalTasks} 条记录，当前第 {page} 页，每页 {pageSize} 条
           </div>
-        )}
+
+          {/* 只有当总记录数大于每页数量时才显示分页控件 */}
+          {totalTasks > pageSize && (
+            <div className="w-full flex justify-center">
+              <Pagination
+                showControls
+                color="primary"
+                initialPage={page}
+                page={page}
+                size="sm"
+                total={Math.ceil(totalTasks / pageSize)}
+                onChange={(newPage) => {
+                  console.log(`分页变化: ${page} -> ${newPage}`);
+                  handlePageChange(newPage);
+                }}
+              />
+            </div>
+          )}
+        </div>
       </div>
     );
   };
