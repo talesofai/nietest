@@ -17,12 +17,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # CORS配置
-    CORS_ORIGINS: List[str] = [
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+    CORS_ORIGINS: List[str] = ["*"]
 
     # MongoDB配置
     MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
