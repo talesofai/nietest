@@ -58,5 +58,12 @@ class Settings(BaseSettings):
     # tasks默认设置
     TASKS_DEFAULT_CONCURRENCY: int = int(os.getenv("TASKS_DEFAULT_CONCURRENCY", "5"))  # 默认并发数
 
+    # 任务执行器配置
+    TASK_EXECUTOR_MIN_CONCURRENT: int = int(os.getenv("TASK_EXECUTOR_MIN_CONCURRENT", "10"))  # 初始并发数
+    TASK_EXECUTOR_MAX_CONCURRENT: int = int(os.getenv("TASK_EXECUTOR_MAX_CONCURRENT", "50"))  # 最大并发数
+    TASK_EXECUTOR_SCALE_UP_STEP: int = int(os.getenv("TASK_EXECUTOR_SCALE_UP_STEP", "5"))  # 每次扩容增加的并发数
+    TASK_EXECUTOR_SCALE_UP_INTERVAL: int = int(os.getenv("TASK_EXECUTOR_SCALE_UP_INTERVAL", "60"))  # 扩容间隔（秒）
+    TASK_EXECUTOR_SCALE_DOWN_INTERVAL: int = int(os.getenv("TASK_EXECUTOR_SCALE_DOWN_INTERVAL", "180"))  # 缩容间隔（秒）
+
 # 创建设置实例
 settings = Settings()

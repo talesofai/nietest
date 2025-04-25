@@ -29,6 +29,14 @@ class TaskCreate(TaskBase):
                             if var_name.startswith('v') and var_data.get('values'))
         if variable_count > 6:
             raise ValueError('变量数量不能超过6个')
+
+        # 检查每个变量的值数量
+        for var_name, var_data in v.items():
+            if var_name.startswith('v') and var_data.get('values'):
+                values = var_data.get('values', [])
+                if len(values) > 100:
+                    raise ValueError(f'变量 "{var_data.get("name", var_name)}" 的值不能超过100个')
+
         return v
 
 class TaskUpdate(BaseModel):

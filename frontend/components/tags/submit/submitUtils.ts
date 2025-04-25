@@ -64,10 +64,10 @@ const checkSingleVariableValues = (
     };
   }
 
-  if (variable.values.length > 10) {
+  if (variable.values.length > 100) {
     return {
       code: "TOO_MANY_VARIABLE_VALUES",
-      message: `变量 "${variable.name || tagName || `ID:${tagId}`}" 的值不能超过10个`,
+      message: `变量 "${variable.name || tagName || `ID:${tagId}`}" 的值不能超过100个`,
     };
   }
 
