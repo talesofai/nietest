@@ -37,11 +37,11 @@ async def lifespan(app_instance: FastAPI):
     # 初始化任务执行器
     from app.services.task_processor import start_task_executor
     await start_task_executor(
-        min_concurrent_tasks=5,
-        max_concurrent_tasks=50,
-        scale_up_step=5,
-        scale_up_interval=120,  # 扩容间隔为两分钟
-        scale_down_interval=300
+        min_concurrent_tasks=settings.TASK_EXECUTOR_MIN_CONCURRENT,
+        max_concurrent_tasks=settings.TASK_EXECUTOR_MAX_CONCURRENT,
+        scale_up_step=settings.TASK_EXECUTOR_SCALE_UP_STEP,
+        scale_up_interval=settings.TASK_EXECUTOR_SCALE_UP_INTERVAL,
+        scale_down_interval=settings.TASK_EXECUTOR_SCALE_DOWN_INTERVAL
     )
     logger.info("任务执行器已初始化")
 
