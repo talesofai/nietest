@@ -113,6 +113,17 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
     setFormError(null);
   }, []);
 
+  // 处理元素选择
+  const handleElementSelect = useCallback((element: SearchSelectItem) => {
+    setValue(element.name);
+    setCharacterInfo({
+      uuid: element.uuid,
+      avatar_img: element.header_img,
+      heat_score: element.heat_score,
+    });
+    setFormError(null);
+  }, []);
+
   // 名称验证
   const nameError = useMemo(() => {
     if (isVariable && name.trim() && !isVariableNameLengthValid(name.trim())) {
@@ -139,9 +150,9 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
         return;
       }
 
-      // 如果是角色类型但不是变量且没有选择角色
-      if (type === "character" && !isVariable && !characterInfo.uuid) {
-        setFormError("请选择一个角色");
+      // 如果是角色或元素类型但不是变量且没有选择角色/元素
+      if ((type === "character" || type === "element") && !isVariable && !characterInfo.uuid) {
+        setFormError(`请选择一个${type === "character" ? "角色" : "元素"}`);
 
         return;
       }
@@ -151,7 +162,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
         type,
         isVariable,
         value: value || getDefaultValueByType(type),
-        ...(type === "character" && !isVariable
+        ...((type === "character" || type === "element") && !isVariable
           ? {
               uuid: characterInfo.uuid,
               header_img: characterInfo.avatar_img,
@@ -266,6 +277,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
                 onChange={setValue}
                 onEnterPress={handleSubmit}
                 onSelectCharacter={handleCharacterSelect}
+                onSelectElement={handleElementSelect}
               />
             )}
           </div>

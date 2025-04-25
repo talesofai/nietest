@@ -46,7 +46,7 @@ export const searchCharacterOrElement = async (
   type: ApiSearchType = API_SEARCH_TYPES.OC
 ): Promise<SearchResponse> => {
   try {
-    // 构建API URL
+    // 构建API URL - 注意：这里使用的是外部API，不是本地API
     const url = `https://api.talesofai.cn/v2/travel/parent-search?keywords=${encodeURIComponent(keywords)}&page_index=${pageIndex}&page_size=${pageSize}&parent_type=${type}&sort_scheme=best`;
 
     // 获取x-token
