@@ -64,8 +64,8 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
     feishu_notify(
         event_type='task_submitted',
         task_id=task_id,
-        task_name=task_data.get("name", "未命名任务"),
-        submitter=task_data.get("created_by", "未知用户"),
+        task_name=task_data.get("task_name", "未命名任务"),
+        submitter=task_data.get("username", "未知用户"),
         details={
             "变量组合数量": len(combinations),
             "预计图片数量": task_data.get("total_images", len(combinations))
@@ -88,8 +88,8 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
         feishu_notify(
             event_type='task_failed',
             task_id=task_id,
-            task_name=task_data.get("name", "未命名任务"),
-            submitter=task_data.get("created_by", "未知用户"),
+            task_name=task_data.get("task_name", "未命名任务"),
+            submitter=task_data.get("username", "未知用户"),
             details={
                 "错误信息": error_msg,
                 "失败阶段": "任务准备阶段"
@@ -875,8 +875,8 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 feishu_notify(
                     event_type='task_failed',
                     task_id=task_id,
-                    task_name=task_data.get("name", "未命名任务"),
-                    submitter=task_data.get("created_by", "未知用户"),
+                    task_name=task_data.get("task_name", "未命名任务"),
+                    submitter=task_data.get("username", "未知用户"),
                     details={
                         "失败数": f"{failed_tasks}/{total_tasks}",
                         "总耗时": f"{total_time:.2f}秒",
@@ -899,8 +899,8 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 feishu_notify(
                     event_type='task_partial_completed',
                     task_id=task_id,
-                    task_name=task_data.get("name", "未命名任务"),
-                    submitter=task_data.get("created_by", "未知用户"),
+                    task_name=task_data.get("task_name", "未命名任务"),
+                    submitter=task_data.get("username", "未知用户"),
                     details={
                         "成功数": f"{completed_tasks}/{total_tasks}",
                         "失败数": f"{failed_tasks}/{total_tasks}",
@@ -923,8 +923,8 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 feishu_notify(
                     event_type='task_completed',
                     task_id=task_id,
-                    task_name=task_data.get("name", "未命名任务"),
-                    submitter=task_data.get("created_by", "未知用户"),
+                    task_name=task_data.get("task_name", "未命名任务"),
+                    submitter=task_data.get("username", "未知用户"),
                     details={
                         "完成数": f"{completed_tasks}/{total_tasks}",
                         "总耗时": f"{total_time:.2f}秒",
