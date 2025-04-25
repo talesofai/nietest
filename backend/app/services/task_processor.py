@@ -226,11 +226,21 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
     seed = task_data.get("seed")
     use_polish = task_data.get("use_polish", False)
 
+    # 详细记录每个prompt的信息，特别是角色和元素类型
+    logger.debug(f"任务 {task_id} 的prompts详细信息:")
     for i, prompt in enumerate(prompts):
         prompt_type = prompt.get("type")
         prompt_value = prompt.get("value", "")
         prompt_name = prompt.get("name", "")
-        logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 值={prompt_value if prompt_type=='freetext' else prompt_name}")
+
+        if prompt_type == "freetext":
+            logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 值={prompt_value}")
+        elif prompt_type in ["oc_vtoken_adaptor", "elementum"]:
+            prompt_uuid = prompt.get("uuid", "")
+            prompt_img_url = prompt.get("img_url", "")
+            logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 名称={prompt_name}, UUID={prompt_uuid}, 图片URL={prompt_img_url}")
+        else:
+            logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 值={prompt_value if prompt_type=='freetext' else prompt_name}")
 
     image_generator = create_image_generator()
     width, height = await image_generator.calculate_dimensions(ratio)
@@ -356,7 +366,18 @@ def format_prompt_for_api(prompt_data: Any, prompt_type: str) -> Dict[str, Any]:
     result["value"] = prompt_data["uuid"]  # value与uuid相同
     result["name"] = prompt_data["name"]
     result["weight"] = prompt_data.get("weight", 1)
-    result["img_url"] = prompt_data.get("header_url", "")
+
+    # 先检查header_img，再检查header_url
+    if "header_img" in prompt_data:
+        result["img_url"] = prompt_data["header_img"]
+        logger.debug(f"使用header_img作为img_url: {prompt_data['header_img']}")
+    elif "header_url" in prompt_data:
+        result["img_url"] = prompt_data["header_url"]
+        logger.debug(f"使用header_url作为img_url: {prompt_data['header_url']}")
+    else:
+        result["img_url"] = ""
+        logger.debug("未找到header_img或header_url，使用空字符串作为img_url")
+
     result["domain"] = ""
     result["parent"] = ""
     result["label"] = None
@@ -394,13 +415,17 @@ async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dic
         # 记录变量的类型
         variables_info = {}
 
+        # 创建变量类型映射，用于记录到子任务中
+        variable_types_map = {}
+        type_to_variable = {}
+
         logger.debug(f"task_data: {task_data}")
 
         # 遍历所有标签，提取标签类型
         for tag in task_data.get("tags", []):
             tag_id = tag.get("id")
             tag_type = tag.get("type")
-            is_variable = tag.get("is_variable", False)
+            is_variable = tag.get("isVariable", False)  # 修正字段名称为isVariable
 
             if tag_id and tag_type:
                 tag_id_to_type[tag_id] = tag_type
@@ -417,6 +442,10 @@ async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dic
                                 "name": var_data.get("name", ""),
                                 "values_count": len(var_data.get("values", []))
                             }
+                            # 记录变量类型映射
+                            variable_types_map[var_name] = tag_type
+                            if tag_type not in type_to_variable:
+                                type_to_variable[tag_type] = var_name
                             logger.debug(f"变量 {var_name} 的标签ID={tag_id}, 类型={tag_type}, 名称='{var_data.get('name', '')}', 值数量={len(var_data.get('values', []))}")
                             break
 
@@ -431,6 +460,12 @@ async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dic
             # 一次性处理所有参数和索引
             subtask_data = await prepare_subtask_data(task_data, combination, tag_id_to_type, i)
 
+            # 确保变量类型映射字段存在
+            if "variable_types_map" not in subtask_data:
+                subtask_data["variable_types_map"] = variable_types_map
+            if "type_to_variable" not in subtask_data:
+                subtask_data["type_to_variable"] = type_to_variable
+
             # 检查是否已存在相同的子任务
             existing_task = await get_dramatiq_task_by_variables(db, parent_task_id, subtask_data["variable_indices"])
 
@@ -438,6 +473,18 @@ async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dic
                 logger.debug(f"已存在相同的子任务: {existing_task['id']}, 跳过创建")
                 subtask_ids.append(existing_task['id'])
                 continue
+
+            # 记录子任务的prompts详细信息
+            prompts = subtask_data.get("prompts", [])
+            logger.debug(f"子任务 {subtask_data['id']} 的prompts详细信息:")
+            for i, prompt in enumerate(prompts):
+                prompt_type = prompt.get("type")
+                if prompt_type == "freetext":
+                    logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 值={prompt.get('value', '')}")
+                elif prompt_type in ["oc_vtoken_adaptor", "elementum"]:
+                    logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 名称={prompt.get('name', '')}, UUID={prompt.get('uuid', '')}, 图片URL={prompt.get('img_url', '')}")
+                else:
+                    logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 值={prompt.get('value', '')}")
 
             # 直接保存到数据库并提交任务
             await create_dramatiq_task(db, subtask_data)
@@ -493,7 +540,7 @@ async def prepare_subtask_data(
     for tag in task_data.get("tags", []):
         tag_type = tag.get("type")
         tag_id = tag.get("id")
-        is_variable = tag.get("is_variable", False)
+        is_variable = tag.get("isVariable", False)  # 修正字段名称为isVariable
 
         logger.debug(f"处理标签: type={tag_type}, id={tag_id}, is_variable={is_variable}")
 
@@ -544,6 +591,17 @@ async def prepare_subtask_data(
                 logger.warning(f"未找到变量标签 {tag_id}(类型:{tag_type}) 的值，跳过处理此标签")
                 continue
 
+            # 获取变量值的完整信息
+            var_value_info = None
+            var_values_list = variables.get(var_name, {}).get('values', [])
+            var_index = var_data.get('index', -1)
+
+            if var_index >= 0 and var_index < len(var_values_list):
+                var_value_info = var_values_list[var_index]
+                logger.debug(f"找到变量值的完整信息: {json.dumps(var_value_info, ensure_ascii=False)}")
+            else:
+                logger.warning(f"无法找到变量值的完整信息，索引 {var_index} 超出范围")
+
             # 根据标签类型处理变量值
             if tag_type == "prompt":
                 logger.debug(f"应用prompt变量: {var_value}")
@@ -553,14 +611,30 @@ async def prepare_subtask_data(
                     "value": var_value
                 })
             elif tag_type == "character":
-                logger.debug(f"应用character变量: {var_value}, uuid={var_data.get('uuid', '')}")
+                # 获取角色的UUID和图片URL
+                uuid_value = ""
+                header_img = ""
+
+                # 优先从变量值信息中获取
+                if var_value_info and isinstance(var_value_info, dict):
+                    uuid_value = var_value_info.get("uuid", "")
+                    header_img = var_value_info.get("header_img", "")
+                    logger.debug(f"从变量值信息中获取角色UUID: {uuid_value}, 图片: {header_img}")
+
+                # 如果变量值信息中没有，尝试从组合中获取
+                if not uuid_value and var_data and isinstance(var_data, dict):
+                    uuid_value = var_data.get("uuid", "")
+                    header_img = var_data.get("header_img", "")
+                    logger.debug(f"从组合中获取角色UUID: {uuid_value}, 图片: {header_img}")
+
+                logger.debug(f"应用character变量: {var_value}, uuid={uuid_value}, header_img={header_img}")
                 all_prompts.append({
                     "type": "oc_vtoken_adaptor",
-                    "uuid": var_data.get("uuid", ""),
-                    "value": var_data.get("uuid", ""),
+                    "uuid": uuid_value,
+                    "value": uuid_value,  # value与uuid相同
                     "name": var_value,
                     "weight": var_data.get("weight", 1.0),
-                    "img_url": var_data.get("header_img", ""),
+                    "img_url": header_img,
                     "domain": "",
                     "parent": "",
                     "label": None,
@@ -570,14 +644,30 @@ async def prepare_subtask_data(
                     "sub_type": None
                 })
             elif tag_type == "element":
-                logger.debug(f"应用element变量: {var_value}")
+                # 获取元素的UUID和图片URL
+                uuid_value = ""
+                header_img = ""
+
+                # 优先从变量值信息中获取
+                if var_value_info and isinstance(var_value_info, dict):
+                    uuid_value = var_value_info.get("uuid", "")
+                    header_img = var_value_info.get("header_img", "")
+                    logger.debug(f"从变量值信息中获取元素UUID: {uuid_value}, 图片: {header_img}")
+
+                # 如果变量值信息中没有，尝试从组合中获取
+                if not uuid_value and var_data and isinstance(var_data, dict):
+                    uuid_value = var_data.get("uuid", "")
+                    header_img = var_data.get("header_img", "")
+                    logger.debug(f"从组合中获取元素UUID: {uuid_value}, 图片: {header_img}")
+
+                logger.debug(f"应用element变量: {var_value}, uuid={uuid_value}, header_img={header_img}")
                 all_prompts.append({
                     "type": "elementum",
-                    "uuid": var_data.get("uuid", ""),
-                    "value": var_data.get("uuid", ""),
+                    "uuid": uuid_value,
+                    "value": uuid_value,  # value与uuid相同
                     "name": var_value,
                     "weight": var_data.get("weight", 1.0),
-                    "img_url": var_data.get("header_img", ""),
+                    "img_url": header_img,
                     "domain": "",
                     "parent": "",
                     "label": None,
@@ -627,14 +717,19 @@ async def prepare_subtask_data(
                         "value": tag_value
                     })
             elif tag_type == "character":
-                logger.debug(f"应用非变量character: {tag.get('value')}, uuid={tag.get('uuid', '')}")
+                # 获取角色的UUID和图片URL
+                uuid_value = tag.get("uuid", "")
+                header_img = tag.get("header_img", "")
+                name_value = tag.get("value", "")
+
+                logger.debug(f"应用非变量character: {name_value}, uuid={uuid_value}, header_img={header_img}")
                 all_prompts.append({
                     "type": "oc_vtoken_adaptor",
-                    "uuid": tag.get("uuid", ""),
-                    "value": tag.get("uuid", ""),
-                    "name": tag.get("value", ""),
+                    "uuid": uuid_value,
+                    "value": uuid_value,  # value与uuid相同
+                    "name": name_value,
                     "weight": tag.get("weight", 1.0),
-                    "img_url": tag.get("header_img", ""),
+                    "img_url": header_img,
                     "domain": "",
                     "parent": "",
                     "label": None,
@@ -644,14 +739,19 @@ async def prepare_subtask_data(
                     "sub_type": None
                 })
             elif tag_type == "element":
-                logger.debug(f"应用非变量element: {tag.get('value')}")
+                # 获取元素的UUID和图片URL
+                uuid_value = tag.get("uuid", "")
+                header_img = tag.get("header_img", "")
+                name_value = tag.get("value", "")
+
+                logger.debug(f"应用非变量element: {name_value}, uuid={uuid_value}, header_img={header_img}")
                 all_prompts.append({
                     "type": "elementum",
-                    "uuid": tag.get("uuid", ""),
-                    "value": tag.get("uuid", ""),
-                    "name": tag.get("value", ""),
+                    "uuid": uuid_value,
+                    "value": uuid_value,  # value与uuid相同
+                    "name": name_value,
                     "weight": tag.get("weight", 1.0),
-                    "img_url": tag.get("header_img", ""),
+                    "img_url": header_img,
                     "domain": "",
                     "parent": "",
                     "label": None,
@@ -721,6 +821,16 @@ async def prepare_subtask_data(
 
     # 记录子任务基本信息
     logger.debug(f"子任务 {combination_index+1} 数据准备完成: id={subtask_id}, prompts数量={len(all_prompts)}, ratio={ratio}, seed={seed}, use_polish={use_polish}")
+
+    # 检查prompts中是否有空的UUID或name
+    for i, prompt in enumerate(all_prompts):
+        prompt_type = prompt.get("type")
+        if prompt_type in ["oc_vtoken_adaptor", "elementum"]:
+            uuid_value = prompt.get("uuid", "")
+            name_value = prompt.get("name", "")
+            img_url = prompt.get("img_url", "")
+            if not uuid_value or not name_value:
+                logger.warning(f"子任务 {subtask_id} 的prompt #{i+1} 存在空的UUID或name: type={prompt_type}, uuid={uuid_value}, name={name_value}, img_url={img_url}")
 
     # 记录更详细的变量信息
     vars_info = []
