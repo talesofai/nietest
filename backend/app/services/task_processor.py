@@ -28,6 +28,7 @@ from app.crud.dramatiq_task import update_dramatiq_task_result, get_dramatiq_tas
 from app.crud.dramatiq_task import get_dramatiq_task, update_dramatiq_task_status
 from app.crud.task import get_task
 from app.crud import task as task_crud
+from app.utils.feishu import feishu_notify
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -59,6 +60,18 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
     # 更新任务状态为处理中
     await task_crud.update_task_status(db, task_id, TaskStatus.PROCESSING.value)
 
+    # 发送任务提交通知
+    feishu_notify(
+        event_type='task_submitted',
+        task_id=task_id,
+        task_name=task_data.get("name", "未命名任务"),
+        submitter=task_data.get("created_by", "未知用户"),
+        details={
+            "变量组合数量": len(combinations),
+            "预计图片数量": task_data.get("total_images", len(combinations))
+        }
+    )
+
     # 使用新的任务处理器创建和提交子任务
     # 将计算好的变量组合传递给create_and_submit_subtasks函数
     result = await create_and_submit_subtasks(task_id, combinations)
@@ -67,9 +80,24 @@ async def prepare_dramatiq_tasks(task_id: str) -> Dict[str, Any]:
         logger.info(f"任务 {task_id} 已成功创建子任务: {result.get('message')}")
         return result
     else:
-        logger.error(f"创建子任务失败: {result.get('error')}")
-        await task_crud.update_task_status(db, task_id, TaskStatus.FAILED.value, result.get('error'))
-        raise ValueError(f"创建子任务失败: {result.get('error')}")
+        error_msg = result.get('error')
+        logger.error(f"创建子任务失败: {error_msg}")
+        await task_crud.update_task_status(db, task_id, TaskStatus.FAILED.value, error_msg)
+
+        # 发送任务失败通知
+        feishu_notify(
+            event_type='task_failed',
+            task_id=task_id,
+            task_name=task_data.get("name", "未命名任务"),
+            submitter=task_data.get("created_by", "未知用户"),
+            details={
+                "错误信息": error_msg,
+                "失败阶段": "任务准备阶段"
+            },
+            message="任务在准备阶段失败，请检查任务配置"
+        )
+
+        raise ValueError(f"创建子任务失败: {error_msg}")
 
 async def calculate_combinations(
     task_id: str,
@@ -842,6 +870,21 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 # 更新进度信息
                 from app.crud.task import update_task_progress
                 await update_task_progress(db, task_id, failed_tasks, total_tasks)
+
+                # 发送任务失败通知
+                feishu_notify(
+                    event_type='task_failed',
+                    task_id=task_id,
+                    task_name=task_data.get("name", "未命名任务"),
+                    submitter=task_data.get("created_by", "未知用户"),
+                    details={
+                        "失败数": f"{failed_tasks}/{total_tasks}",
+                        "总耗时": f"{total_time:.2f}秒",
+                        "失败阶段": "任务执行阶段"
+                    },
+                    message="所有子任务均失败，请检查任务配置和服务状态"
+                )
+
                 return {"status": "failed", "message": "所有子任务均失败"}
             # 如果有一些子任务失败，但不是全部，则任务部分完成
             elif failed_tasks > 0:
@@ -851,6 +894,21 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 # 更新进度信息
                 from app.crud.task import update_task_progress
                 await update_task_progress(db, task_id, completed_tasks + failed_tasks, total_tasks)
+
+                # 发送任务部分成功通知
+                feishu_notify(
+                    event_type='task_partial_completed',
+                    task_id=task_id,
+                    task_name=task_data.get("name", "未命名任务"),
+                    submitter=task_data.get("created_by", "未知用户"),
+                    details={
+                        "成功数": f"{completed_tasks}/{total_tasks}",
+                        "失败数": f"{failed_tasks}/{total_tasks}",
+                        "总耗时": f"{total_time:.2f}秒"
+                    },
+                    message="任务已部分完成，但有部分子任务失败"
+                )
+
                 return {"status": "completed_with_failures", "message": "任务已完成，但有部分子任务失败"}
             # 如果所有子任务都成功，则任务成功
             else:
@@ -860,6 +918,20 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 # 更新进度信息
                 from app.crud.task import update_task_progress
                 await update_task_progress(db, task_id, completed_tasks, total_tasks)
+
+                # 发送任务成功通知
+                feishu_notify(
+                    event_type='task_completed',
+                    task_id=task_id,
+                    task_name=task_data.get("name", "未命名任务"),
+                    submitter=task_data.get("created_by", "未知用户"),
+                    details={
+                        "完成数": f"{completed_tasks}/{total_tasks}",
+                        "总耗时": f"{total_time:.2f}秒",
+                        "生成图片数": completed_tasks
+                    },
+                    message="所有任务已成功完成"
+                )
 
                 logger.debug(f"任务已成功完成: {task_id}, 总耗时: {total_time:.2f}秒")
                 return {"status": "completed", "message": "任务已成功完成"}
