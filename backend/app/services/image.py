@@ -35,6 +35,10 @@ class ImageGenerationService:
         self.api_url = "https://api.talesofai.cn/v3/make_image"
         self.task_status_url = "https://api.talesofai.cn/v1/artifact/task/{task_uuid}"
 
+        # Lumina API端点
+        self.lumina_api_url = "https://ops.api.talesofai.cn/v3/make_image"
+        self.lumina_task_status_url = "https://ops.api.talesofai.cn/v1/artifact/task/{task_uuid}"
+
         # 轮询配置
         self.max_polling_attempts = int(os.environ.get("IMAGE_MAX_POLLING_ATTEMPTS", "15"))  # 最大轮询次数，默认15次
         self.polling_interval = float(os.environ.get("IMAGE_POLLING_INTERVAL", "1.0"))  # 轮询间隔（秒），默认1秒
@@ -102,6 +106,18 @@ class ImageGenerationService:
         if seed is None:
             seed = random.randint(1, 2147483647)
 
+        # 检查是否包含lumina关键字
+        use_lumina = False
+        for prompt in prompts:
+            if isinstance(prompt, dict) and "name" in prompt and "lumina" in prompt["name"].lower():
+                use_lumina = True
+                logger.info(f"检测到prompt中包含lumina关键字，将使用Lumina API端点")
+                break
+
+        # 选择API端点
+        api_url = self.lumina_api_url if use_lumina else self.api_url
+        task_status_url = self.lumina_task_status_url if use_lumina else self.task_status_url
+
         # 构建请求载荷
         payload = {
             "storyId": "",
@@ -117,10 +133,10 @@ class ImageGenerationService:
         }
 
         # 记录请求载荷基本信息
-        logger.info(f"请求载荷结构: width={width}, height={height}, seed={seed}, advanced_translator={advanced_translator}, 提示词数量: {len(prompts)}")
+        logger.info(payload)
 
         # 发送API请求获取任务ID
-        task_response = await self._send_api_request(payload)
+        task_response = await self._send_api_request(payload, api_url)
 
         # 提取任务UUID
         task_uuid = self._extract_task_uuid(task_response)
@@ -132,9 +148,9 @@ class ImageGenerationService:
         # 轮询任务状态直到完成
         logger.info(f"开始轮询任务状态: {task_uuid}")
         try:
-            task_result = await self._poll_task_status(task_uuid)
+            task_result = await self._poll_task_status(task_uuid, task_status_url)
             if task_result:
-                logger.info(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}")
+                logger.info(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}, url: {task_result.get('artifacts', [{}])[0].get('url')}")
                 logger.debug(f"轮询任务结果: {json.dumps(task_result, ensure_ascii=False)}")
             else:
                 logger.warning(f"轮询任务状态超时: {task_uuid}, 未能获取结果")
@@ -228,17 +244,22 @@ class ImageGenerationService:
         logger.warning(f"无法从响应中提取任务UUID: {json.dumps(response, ensure_ascii=False)}")
         return None
 
-    async def _poll_task_status(self, task_uuid: str) -> Optional[Dict[str, Any]]:
+    async def _poll_task_status(self, task_uuid: str, task_status_url: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         轮询任务状态直到完成
 
         Args:
             task_uuid: 任务UUID
+            task_status_url: 任务状态URL模板，如果为None则使用默认值
 
         Returns:
             任务结果，如果超时则返回None
         """
-        status_url = self.task_status_url.format(task_uuid=task_uuid)
+        # 如果未提供task_status_url，使用默认值
+        if task_status_url is None:
+            task_status_url = self.task_status_url
+
+        status_url = task_status_url.format(task_uuid=task_uuid)
         logger.debug(f"开始轮询任务状态: {status_url}")
         start_time = time.time()
 
@@ -287,16 +308,21 @@ class ImageGenerationService:
         logger.warning(f"轮询任务状态超时: {task_uuid}, 总耗时: {total_time:.2f}秒, 尝试次数: {self.max_polling_attempts}")
         return None
 
-    async def _send_api_request(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def _send_api_request(self, payload: Dict[str, Any], api_url: Optional[str] = None) -> Dict[str, Any]:
         """
         发送API请求
 
         Args:
             payload: 请求数据
+            api_url: API端点URL，如果为None则使用默认值
 
         Returns:
             API响应
         """
+        # 如果未提供api_url，使用默认值
+        if api_url is None:
+            api_url = self.api_url
+
         # 提取任务标识信息，用于日志
         task_info = ""
         if "rawPrompt" in payload and isinstance(payload["rawPrompt"], list):
@@ -307,12 +333,13 @@ class ImageGenerationService:
 
         start_time = time.time()
         logger.info(f"开始调用图像生成API {task_info}: {json.dumps(payload, ensure_ascii=False)}")
+        logger.info(f"使用API端点: {api_url}")
 
         try:
             # 发送API请求
             async with httpx.AsyncClient(timeout=300.0) as client:  # 5分钟超时
                 response = await client.post(
-                    self.api_url,
+                    api_url,
                     json=payload,
                     headers=self.default_headers
                 )

@@ -140,7 +140,7 @@ async def read_tasks(
     #     username = current_user["email"]
 
     # 记录查询参数
-    logger.info(f"获取任务列表: username={username}, status={status}, task_name={task_name}, page={page}, page_size={page_size}")
+    logger.debug(f"获取任务列表: username={username}, status={status}, task_name={task_name}, page={page}, page_size={page_size}")
 
     # 获取任务列表
     result = await list_tasks(
@@ -152,18 +152,18 @@ async def read_tasks(
     )
 
     # 记录查询结果
-    logger.info(f"任务列表原始数据: {result}")
+    logger.debug(f"任务列表原始数据: {result}")
 
     # 检查第一个任务的数据结构
     if result.get("items") and len(result.get("items")) > 0:
         first_task = result.get("items")[0]
-        logger.info(f"第一个任务的字段: {list(first_task.keys())}")
-        logger.info(f"第一个任务的状态: {first_task.get('status')}")
+        logger.debug(f"第一个任务的字段: {list(first_task.keys())}")
+        logger.debug(f"第一个任务的状态: {first_task.get('status')}")
 
         # 尝试创建TaskResponse对象
         try:
             task_response = TaskResponse(**first_task)
-            logger.info(f"成功创建TaskResponse对象: {task_response}")
+            logger.debug(f"成功创建TaskResponse对象: {task_response}")
         except Exception as e:
             logger.error(f"创建TaskResponse对象失败: {str(e)}")
             # 记录缺失的字段

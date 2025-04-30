@@ -68,6 +68,13 @@ export const useAddTag = (
     data: {
       uuid?: string;
       header_img?: string;
+      // 添加Lumina类型的必要字段
+      ref_uuid?: string;
+      short_name?: string;
+      status?: string;
+      accessibility?: string;
+      platform?: string;
+      config?: any;
     }
   ): VariableValue[] => {
     if (tag.type === "polish") {
@@ -91,11 +98,23 @@ export const useAddTag = (
       variable_id: Date.now().toString() + "-default",
       tag_id: tag.id,
       value: getDefaultValueByType(tag.type),
-      // 如果是角色或元素类型，添加相关信息
-      ...(tag.type === "character" || tag.type === "element"
+      // 如果是角色、元素或Lumina类型，添加相关信息
+      ...(tag.type === "character" || tag.type === "element" || tag.type === "lumina"
         ? {
             uuid: data.uuid,
             header_img: data.header_img,
+            // 如果是Lumina类型，添加更多必要字段
+            ...(tag.type === "lumina"
+              ? {
+                  ref_uuid: data.ref_uuid,
+                  short_name: data.short_name,
+                  status: data.status,
+                  accessibility: data.accessibility,
+                  platform: data.platform,
+                  config: data.config,
+                  type: "elementum", // 确保类型正确
+                }
+              : {}),
           }
         : {}),
     };
@@ -113,6 +132,13 @@ export const useAddTag = (
     heat_score?: number;
     weight?: number;
     header_img?: string;
+    // 添加Lumina类型的必要字段
+    ref_uuid?: string;
+    short_name?: string;
+    status?: string;
+    accessibility?: string;
+    platform?: string;
+    config?: any;
   }) => {
     // 获取预设的随机颜色和渐变色
     const gradientConfig = previewGradientColorRef.current;
@@ -154,18 +180,29 @@ export const useAddTag = (
       gradientToColor: useGradient ? gradientConfig.to : undefined,
       value: value,
       name: data.isVariable ? data.name : undefined,
-      // 添加角色或元素特有属性
-      uuid: data.type === "character" || data.type === "element" ? data.uuid : undefined,
+      // 添加角色、元素或Lumina特有属性
+      uuid: data.type === "character" || data.type === "element" || data.type === "lumina" ? data.uuid : undefined,
       header_img:
-        data.type === "character" || data.type === "element" ? data.header_img : undefined,
+        data.type === "character" || data.type === "element" || data.type === "lumina" ? data.header_img : undefined,
       heat_score:
-        data.type === "character" || data.type === "element" ? data.heat_score : undefined,
-      // 添加权重属性，只有非变量的character/element/prompt类型才添加权重
+        data.type === "character" || data.type === "element" || data.type === "lumina" ? data.heat_score : undefined,
+      // 添加权重属性，只有非变量的character/element/lumina/prompt类型才添加权重
       weight:
-        (data.type === "character" || data.type === "element" || data.type === "prompt") &&
+        (data.type === "character" || data.type === "element" || data.type === "lumina" || data.type === "prompt") &&
         !data.isVariable
           ? data.weight
           : undefined,
+      // 如果是Lumina类型，添加更多必要字段
+      ...(data.type === "lumina"
+        ? {
+            ref_uuid: data.ref_uuid,
+            short_name: data.short_name,
+            status: data.status,
+            accessibility: data.accessibility,
+            platform: data.platform,
+            config: data.config,
+          }
+        : {}),
     };
 
     // 添加新标签
@@ -176,6 +213,13 @@ export const useAddTag = (
       const variableValues = createVariableValues(newTag, {
         uuid: data.uuid,
         header_img: data.header_img,
+        // 传递Lumina类型的必要字段
+        ref_uuid: data.ref_uuid,
+        short_name: data.short_name,
+        status: data.status,
+        accessibility: data.accessibility,
+        platform: data.platform,
+        config: data.config,
       });
 
       setVariableValues((prev) => [...prev, ...variableValues]);
