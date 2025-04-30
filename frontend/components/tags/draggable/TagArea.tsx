@@ -194,7 +194,7 @@ const TagArea: React.FC<TagAreaProps> = ({
                 gradientToColor={activeTag.gradientToColor}
                 hexColor={activeTag.color}
                 startContent={
-                  (activeTag.type === "character" || activeTag.type === "element") &&
+                  (activeTag.type === "character" || activeTag.type === "element" || activeTag.type === "lumina") &&
                   activeTag.header_img ? (
                     <div className="h-6 w-6 flex-shrink-0 bg-transparent rounded-full overflow-hidden">
                       <Image
@@ -211,7 +211,7 @@ const TagArea: React.FC<TagAreaProps> = ({
                         }}
                       />
                     </div>
-                  ) : activeTag.isVariable && activeTag.type.includes("character") ? (
+                  ) : activeTag.isVariable && (activeTag.type.includes("character") || activeTag.type === "lumina") ? (
                     <div className="h-6 w-6 flex-shrink-0 text-foreground">
                       <UserIcon size={24} />
                     </div>
@@ -227,7 +227,7 @@ const TagArea: React.FC<TagAreaProps> = ({
                     text = `${activeTag.name || ""} [变量]`;
                   } else if (activeTag.type === "prompt") {
                     text = truncateText(activeTag.value);
-                  } else if (activeTag.type === "character" || activeTag.type === "element") {
+                  } else if (activeTag.type === "character" || activeTag.type === "element" || activeTag.type === "lumina") {
                     text = truncateText(activeTag.value);
                   } else {
                     text = `${getTypeDisplayName(activeTag.type)}: ${truncateText(activeTag.value)}`;
@@ -235,7 +235,7 @@ const TagArea: React.FC<TagAreaProps> = ({
 
                   // 如果有权重，显示权重信息
                   if (
-                    (activeTag.type === "character" || activeTag.type === "element") &&
+                    (activeTag.type === "character" || activeTag.type === "element" || activeTag.type === "lumina") &&
                     activeTag.weight !== undefined
                   ) {
                     text += ` [权重: ${activeTag.weight}]`;

@@ -23,13 +23,14 @@ interface VariableValueInputProps {
 // 添加类型谓词函数
 const isCharacterType = (type: string): type is "character" => type === "character";
 const isElementType = (type: string): type is "element" => type === "element";
+const isLuminaType = (type: string): type is "lumina" => type === "lumina";
 
 // 这个类型谓词函数当前未被使用
 // const isPromptType = (type: string): type is "prompt" => type === "prompt";
 
 // 检查标签类型是否支持权重设置
 const supportWeightSetting = (type: string): boolean => {
-  return type === "prompt" || type === "character" || type === "element";
+  return type === "prompt" || type === "character" || type === "element" || type === "lumina";
 };
 
 // 辅助函数获取变量值中的图像URL
@@ -128,7 +129,45 @@ const handleElementSelect = (
 };
 
 /**
- * 渲染角色或元素类型的输入组件
+ * 处理Lumina选择事件
+ */
+const handleLuminaSelect = (
+  value: VariableValue,
+  onChange: (value: string) => void,
+  lumina: SearchSelectItem
+) => {
+  // 通知父组件更新值
+  onChange(lumina.name);
+
+  // 创建自定义事件传递Lumina信息
+  const event = new CustomEvent("lumina-selected", {
+    detail: {
+      valueId: (value as any).variable_id || (value as any).id,
+      luminaInfo: {
+        name: lumina.name,
+        uuid: lumina.uuid,
+        header_img: lumina.header_img,
+        // 添加其他必要的字段
+        ref_uuid: (lumina as any).ref_uuid || "",
+        short_name: (lumina as any).short_name || lumina.name,
+        status: (lumina as any).status || "PUBLISHED",
+        accessibility: (lumina as any).accessibility || "PUBLIC",
+        platform: (lumina as any).platform || "nieta-app",
+        config: lumina.config || {
+          header_img: lumina.header_img,
+          avatar_img: lumina.header_img,
+        },
+        type: "elementum",
+      },
+    },
+    bubbles: true,
+  });
+
+  document.dispatchEvent(event);
+};
+
+/**
+ * 渲染角色、元素或Lumina类型的输入组件
  */
 const CharacterOrElementInput = ({
   tag,
@@ -140,12 +179,12 @@ const CharacterOrElementInput = ({
 }: VariableValueInputProps) => {
   const imageUrl = getImageUrl(value);
 
-  // 如果有图像，显示角色/元素信息和权重滑块
+  // 如果有图像，显示角色/元素/Lumina信息和权重滑块
   if (imageUrl) {
     return (
       <div className="flex items-center gap-2 w-full">
         <div className="flex-grow">
-          <VTokenDisplay header_img={imageUrl} name={value.value} type={tag.type} />
+          <VTokenDisplay header_img={imageUrl} name={value.value} type={tag.type === "lumina" ? "element" : tag.type} />
         </div>
         <WeightInput weight={value.weight} onWeightChange={onWeightChange} />
       </div>
@@ -171,6 +210,11 @@ const CharacterOrElementInput = ({
           onSelectElement={
             isElementType(tag.type)
               ? (element) => handleElementSelect(value, onChange, element)
+              : undefined
+          }
+          onSelectLumina={
+            isLuminaType(tag.type)
+              ? (lumina) => handleLuminaSelect(value, onChange, lumina)
               : undefined
           }
         />
@@ -231,8 +275,8 @@ const VariableValueInput: React.FC<VariableValueInputProps> = (props) => {
     );
   }
 
-  // 如果是角色或元素类型
-  if (tag.type === "character" || tag.type === "element") {
+  // 如果是角色、元素或Lumina类型
+  if (tag.type === "character" || tag.type === "element" || tag.type === "lumina") {
     return <CharacterOrElementInput {...props} />;
   }
 
@@ -258,6 +302,11 @@ const VariableValueInput: React.FC<VariableValueInputProps> = (props) => {
       onSelectElement={
         isElementType(tag.type)
           ? (element) => handleElementSelect(value, onChange, element)
+          : undefined
+      }
+      onSelectLumina={
+        isLuminaType(tag.type)
+          ? (lumina) => handleLuminaSelect(value, onChange, lumina)
           : undefined
       }
     />

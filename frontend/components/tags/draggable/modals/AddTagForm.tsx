@@ -124,6 +124,29 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
     setFormError(null);
   }, []);
 
+  // 处理Lumina选择
+  const handleLuminaSelect = useCallback((lumina: SearchSelectItem) => {
+    setValue(lumina.name);
+    // 保存完整的Lumina信息
+    setCharacterInfo({
+      uuid: lumina.uuid,
+      avatar_img: lumina.header_img,
+      header_img: lumina.header_img,
+      heat_score: lumina.heat_score,
+      // 保存其他必要的字段
+      ref_uuid: (lumina as any).ref_uuid || "",
+      short_name: (lumina as any).short_name || lumina.name,
+      status: (lumina as any).status || "PUBLISHED",
+      accessibility: (lumina as any).accessibility || "PUBLIC",
+      platform: (lumina as any).platform || "nieta-app",
+      config: lumina.config || {
+        header_img: lumina.header_img,
+        avatar_img: lumina.header_img,
+      },
+    });
+    setFormError(null);
+  }, []);
+
   // 名称验证
   const nameError = useMemo(() => {
     if (isVariable && name.trim() && !isVariableNameLengthValid(name.trim())) {
@@ -150,9 +173,13 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
         return;
       }
 
-      // 如果是角色或元素类型但不是变量且没有选择角色/元素
-      if ((type === "character" || type === "element") && !isVariable && !characterInfo.uuid) {
-        setFormError(`请选择一个${type === "character" ? "角色" : "元素"}`);
+      // 如果是角色、元素或Lumina类型但不是变量且没有选择角色/元素/Lumina
+      if ((type === "character" || type === "element" || type === "lumina") && !isVariable && !characterInfo.uuid) {
+        let typeText = "元素";
+        if (type === "character") typeText = "角色";
+        else if (type === "lumina") typeText = "Lumina";
+
+        setFormError(`请选择一个${typeText}`);
 
         return;
       }
@@ -162,14 +189,18 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
         type,
         isVariable,
         value: value || getDefaultValueByType(type),
-        ...((type === "character" || type === "element") && !isVariable
+        // 如果是角色、元素或Lumina类型，添加相关属性
+        ...((type === "character" || type === "element" || type === "lumina") && !isVariable
           ? {
               uuid: characterInfo.uuid,
-              header_img: characterInfo.avatar_img,
+              header_img: characterInfo.header_img || characterInfo.avatar_img,
               heat_score: characterInfo.heat_score,
+              color: "#cccccc", // 默认颜色
+              useGradient: false, // 默认不使用渐变
             }
           : {}),
-        ...((type === "character" || type === "element" || type === "prompt") &&
+        // 如果是角色、元素、Lumina或提示词类型，添加权重
+        ...((type === "character" || type === "element" || type === "lumina" || type === "prompt") &&
         !isVariable &&
         weight !== undefined
           ? { weight }
@@ -278,6 +309,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
                 onEnterPress={handleSubmit}
                 onSelectCharacter={handleCharacterSelect}
                 onSelectElement={handleElementSelect}
+                onSelectLumina={handleLuminaSelect}
               />
             )}
           </div>

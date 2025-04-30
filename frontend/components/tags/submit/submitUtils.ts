@@ -352,14 +352,54 @@ const createVariableSlots = (
 
     if (tagValues.length > 0) {
       // 创建完整的变量值对象，保留所有原始属性
-      const values = tagValues.map((value) => ({
-        id: value.variable_id,
-        value: value.value,
-        // 保留权重和其他可能存在的属性
-        ...(value.weight !== undefined ? { weight: value.weight } : {}),
-        ...(value.uuid ? { uuid: value.uuid } : {}),
-        ...(value.header_img ? { header_img: value.header_img } : {}),
-      }));
+      const values = tagValues.map((value) => {
+        // 如果标签类型是lumina，在变量值中也将其转换为element
+        const tagType = tag.type === "lumina" ? "element" : tag.type;
+
+        // 如果是lumina类型，将其转换为element类型，但只保留指定的字段
+        if (tag.type === "lumina") {
+          // 检查必要字段是否存在
+          if (!value.uuid || !value.value || !value.header_img) {
+            console.error("Lumina变量值缺少必要字段:", value);
+            // 使用默认值创建一个完整的Lumina变量值
+            return {
+              id: value.variable_id || Date.now().toString(),
+              value: "lumina1",
+              type: "element",
+              color: "#cccccc",
+              useGradient: false,
+              uuid: "b5edccfe-46a2-4a14-a8ff-f4d430343805",
+              header_img: "https://oss.talesofai.cn/picture_s/1y7f53e6itfn_0.jpeg",
+              heat_score: 50,
+              weight: 1,
+            };
+          }
+
+          // 只保留指定的字段
+          return {
+            id: value.variable_id,
+            value: value.value || "lumina1",
+            type: tagType,
+            color: value.color || "#cccccc",
+            useGradient: value.useGradient || false,
+            uuid: value.uuid || "b5edccfe-46a2-4a14-a8ff-f4d430343805",
+            header_img: value.header_img || "https://oss.talesofai.cn/picture_s/1y7f53e6itfn_0.jpeg",
+            heat_score: value.heat_score || 50,
+            weight: value.weight || 1,
+          };
+        }
+
+        // 其他类型的变量值处理
+        return {
+          id: value.variable_id,
+          value: value.value,
+          type: tagType, // 添加类型字段，确保在后端处理时使用正确的类型
+          // 保留权重和其他可能存在的属性
+          ...(value.weight !== undefined ? { weight: value.weight } : {}),
+          ...(value.uuid ? { uuid: value.uuid } : {}),
+          ...(value.header_img ? { header_img: value.header_img } : {}),
+        };
+      });
 
       variables[slotKey] = {
         tag_id: tag.id,
@@ -513,21 +553,62 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
     const apiData = {
       task_name: data.task_name,
       username: data.username, // 添加用户名字段
-      tags: data.tags.map((tag) => ({
-        id: tag.id, // 保留id字段
-        type: tag.type,
-        isVariable: tag.isVariable, // 使用isVariable而不是is_variable
-        value: tag.value,
-        color: tag.color || "#cccccc", // 添加color字段，提供默认值
-        name: tag.name,
-        weight: tag.weight,
-        uuid: tag.uuid,
-        header_img: tag.header_img,
-        // 添加其他可能缺少的必需字段
-        ...(tag.gradientToColor ? { gradientToColor: tag.gradientToColor } : {}),
-        ...(tag.useGradient !== undefined ? { useGradient: tag.useGradient } : {}),
-        ...(tag.heat_score !== undefined ? { heat_score: tag.heat_score } : {}),
-      })),
+      tags: data.tags.map((tag) => {
+        // 如果是lumina类型，将其转换为element类型并确保包含所有必要信息
+        const tagType = tag.type === "lumina" ? "element" : tag.type;
+
+        // 如果是lumina类型，将其转换为element类型，但只保留指定的字段
+        if (tag.type === "lumina") {
+          // 检查必要字段是否存在
+          if (!tag.value) {
+            console.error("Lumina标签缺少必要字段:", tag);
+            // 使用默认值创建一个完整的Lumina标签
+            return {
+              id: tag.id || Date.now().toString(),
+              type: "element", // 使用element类型
+              isVariable: tag.isVariable || false,
+              value: "lumina1",
+              color: "#cccccc",
+              useGradient: false,
+              uuid: "b5edccfe-46a2-4a14-a8ff-f4d430343805",
+              header_img: "https://oss.talesofai.cn/picture_s/1y7f53e6itfn_0.jpeg",
+              heat_score: 50,
+              weight: 1,
+            };
+          }
+
+          // 只保留指定的字段
+          return {
+            id: tag.id,
+            type: tagType, // 使用转换后的类型
+            isVariable: tag.isVariable,
+            value: tag.value || "lumina1",
+            color: tag.color || "#cccccc",
+            useGradient: tag.useGradient || false,
+            uuid: tag.uuid || "b5edccfe-46a2-4a14-a8ff-f4d430343805",
+            header_img: tag.header_img || "https://oss.talesofai.cn/picture_s/1y7f53e6itfn_0.jpeg",
+            heat_score: tag.heat_score || 50,
+            weight: tag.weight || 1,
+          };
+        }
+
+        // 其他类型的标签处理
+        return {
+          id: tag.id, // 保留id字段
+          type: tagType, // 使用转换后的类型
+          isVariable: tag.isVariable, // 使用isVariable而不是is_variable
+          value: tag.value,
+          color: tag.color || "#cccccc", // 添加color字段，提供默认值
+          name: tag.name,
+          weight: tag.weight,
+          uuid: tag.uuid,
+          header_img: tag.header_img,
+          // 添加其他可能缺少的必需字段
+          ...(tag.gradientToColor ? { gradientToColor: tag.gradientToColor } : {}),
+          ...(tag.useGradient !== undefined ? { useGradient: tag.useGradient } : {}),
+          ...(tag.heat_score !== undefined ? { heat_score: tag.heat_score } : {}),
+        };
+      }),
       variables: data.variables,
       settings: data.settings, // 直接使用全局设置
     };

@@ -32,8 +32,8 @@ export const useVariableValues = (
       variable_id: Date.now().toString(),
       tag_id: tagId,
       value: getDefaultValueByType(tag.type),
-      // 如果是角色或元素类型，添加相关信息
-      ...(tag.type === "character" || tag.type === "element"
+      // 如果是角色、元素或Lumina类型，添加相关信息
+      ...(tag.type === "character" || tag.type === "element" || tag.type === "lumina"
         ? {
             uuid: tag.uuid,
             header_img: tag.header_img,

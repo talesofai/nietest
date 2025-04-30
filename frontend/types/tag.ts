@@ -5,7 +5,7 @@
 /**
  * 标签类型
  */
-export type TagType = "prompt" | "ratio" | "batch" | "seed" | "polish" | "character" | "element";
+export type TagType = "prompt" | "ratio" | "batch" | "seed" | "polish" | "character" | "element" | "lumina";
 
 /**
  * 标签数据接口
@@ -23,4 +23,12 @@ export interface Tag {
   name?: string; // 变量名称，只有变量标签需要
   header_img?: string; // 角色或元素封面图
   heat_score?: number; // 热度分数
+
+  // Lumina类型的必要字段
+  ref_uuid?: string; // 引用UUID
+  short_name?: string; // 短名称
+  status?: string; // 状态
+  accessibility?: string; // 访问权限
+  platform?: string; // 平台
+  config?: any; // 配置信息
 }

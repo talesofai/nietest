@@ -34,6 +34,7 @@ export const RESERVED_VARIABLE_NAMES: Record<Exclude<TagType, "batch" | "charact
   polish: "润色测试",
   prompt: "", // prompt 类型不使用预设名，但包含在类型中避免索引错误
   element: "元素测试", // 添加元素类型的预设变量名
+  lumina: "Lumina测试", // 添加Lumina类型的预设变量名
 };
 
 /**
@@ -48,6 +49,7 @@ export const TAG_TYPE_OPTIONS = [
   { key: "polish", label: "润色" },
   { key: "character", label: "角色" },
   { key: "element", label: "元素" },
+  { key: "lumina", label: "Lumina" },
 ] as const;
 
 // 标签类型到显示名称的映射缓存，提高性能
@@ -75,6 +77,8 @@ export const getDefaultValueByType = (type: TagType): string => {
     case "character":
       return "";
     case "element":
+      return "";
+    case "lumina":
       return "";
     default:
       return "";
@@ -133,8 +137,8 @@ export const truncateText = (
  * @returns 类型是否唯一
  */
 export const isTypeUnique = (type: TagType, tags: Tag[]): boolean => {
-  // prompt、character和element类型可以有多个
-  if (type === "prompt" || type === "character" || type === "element") return true;
+  // prompt、character、element和lumina类型可以有多个
+  if (type === "prompt" || type === "character" || type === "element" || type === "lumina") return true;
 
   // 其他类型每种只能有一个
 
@@ -249,6 +253,7 @@ export const getTagDisplayText = (tag: Tag): string => {
       return promptText;
     case "character":
     case "element":
+    case "lumina":
       let text = tag.value;
 
       if (tag.weight !== undefined && tag.weight !== 1) {

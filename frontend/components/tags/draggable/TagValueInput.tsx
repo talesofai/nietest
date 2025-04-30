@@ -9,6 +9,7 @@ import {
   CharacterSearchModal,
   ElementSearchModal,
 } from "@/components/tags/vtoken/VTokenSearchModal";
+import LuminaSearchModal from "@/components/tags/vtoken/LuminaSearchModal";
 import VTokenDisplay from "@/components/tags/vtoken/VTokenDisplay";
 import { SearchSelectItem } from "@/types/search";
 
@@ -22,6 +23,7 @@ interface TagValueInputProps {
   autoFocus?: boolean;
   onSelectCharacter?: (character: SearchSelectItem) => void;
   onSelectElement?: (element: SearchSelectItem) => void;
+  onSelectLumina?: (lumina: SearchSelectItem) => void;
   className?: string;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -41,6 +43,7 @@ export const TagValueInput = ({
   autoFocus,
   onSelectCharacter,
   onSelectElement,
+  onSelectLumina,
   className,
   onFocus,
   onBlur,
@@ -62,6 +65,13 @@ export const TagValueInput = ({
     isOpen: isElementSearchOpen,
     onOpen: onElementSearchOpen,
     onClose: onElementSearchClose,
+  } = useDisclosure();
+
+  // Lumina搜索模态框控制
+  const {
+    isOpen: isLuminaSearchOpen,
+    onOpen: onLuminaSearchOpen,
+    onClose: onLuminaSearchClose,
   } = useDisclosure();
 
   // 处理键盘事件，支持回车键提交
@@ -97,6 +107,34 @@ export const TagValueInput = ({
     }
 
     onElementSearchClose();
+  };
+
+  // 处理Lumina选择
+  const handleLuminaSelect = (lumina: SearchSelectItem) => {
+    if (onChange) {
+      onChange(lumina.name);
+    }
+
+    if (onSelectLumina) {
+      // 传递完整的Lumina信息
+      const fullLumina = {
+        ...lumina,
+        // 确保config字段存在
+        config: lumina.config || {
+          header_img: lumina.header_img,
+          avatar_img: lumina.header_img,
+        },
+        // 确保必要的字段存在
+        ref_uuid: (lumina as any).ref_uuid || "",
+        short_name: (lumina as any).short_name || lumina.name,
+        status: (lumina as any).status || "PUBLISHED",
+        accessibility: (lumina as any).accessibility || "PUBLIC",
+        platform: (lumina as any).platform || "nieta-app",
+      };
+      onSelectLumina(fullLumina);
+    }
+
+    onLuminaSearchClose();
   };
 
   // 自动聚焦
@@ -175,6 +213,30 @@ export const TagValueInput = ({
             isOpen={isElementSearchOpen}
             onClose={onElementSearchClose}
             onSelect={handleElementSelect}
+          />
+        </div>
+      );
+
+    case "lumina":
+      return (
+        <div className={wrapperClassName}>
+          {value ? (
+            <VTokenDisplay
+              header_img={header_img}
+              name={value}
+              type="element"
+              onClose={onLuminaSearchOpen}
+            />
+          ) : (
+            <Button className="w-full" color="primary" size="sm" onPress={onLuminaSearchOpen}>
+              Lumina选择
+            </Button>
+          )}
+
+          <LuminaSearchModal
+            isOpen={isLuminaSearchOpen}
+            onClose={onLuminaSearchClose}
+            onSelect={handleLuminaSelect}
           />
         </div>
       );
