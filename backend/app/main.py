@@ -37,13 +37,20 @@ async def lifespan(app_instance: FastAPI):
     # 初始化任务执行器
     from app.services.task_processor import start_task_executor
     await start_task_executor(
+        # 标准任务执行器配置
         min_concurrent_tasks=settings.TASK_EXECUTOR_MIN_CONCURRENT,
         max_concurrent_tasks=settings.TASK_EXECUTOR_MAX_CONCURRENT,
         scale_up_step=settings.TASK_EXECUTOR_SCALE_UP_STEP,
         scale_up_interval=settings.TASK_EXECUTOR_SCALE_UP_INTERVAL,
-        scale_down_interval=settings.TASK_EXECUTOR_SCALE_DOWN_INTERVAL
+        scale_down_interval=settings.TASK_EXECUTOR_SCALE_DOWN_INTERVAL,
+        # Lumina任务执行器配置
+        lumina_min_concurrent_tasks=settings.LUMINA_EXECUTOR_MIN_CONCURRENT,
+        lumina_max_concurrent_tasks=settings.LUMINA_EXECUTOR_MAX_CONCURRENT,
+        lumina_scale_up_step=settings.LUMINA_EXECUTOR_SCALE_UP_STEP,
+        lumina_scale_up_interval=settings.LUMINA_EXECUTOR_SCALE_UP_INTERVAL,
+        lumina_scale_down_interval=settings.LUMINA_EXECUTOR_SCALE_DOWN_INTERVAL
     )
-    logger.info("任务执行器已初始化")
+    logger.info("标准和Lumina任务执行器已初始化")
 
     yield
 

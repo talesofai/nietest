@@ -22,7 +22,7 @@ from app.db.mongodb import get_database
 from app.models.subtask import SubTaskStatus
 from app.models.task import TaskStatus
 from app.services.image import create_image_generator
-from app.services.task_executor import get_task_executor, submit_task, get_task_result
+from app.services.task_executor import get_task_executor, get_lumina_task_executor, submit_task, get_task_result
 from app.core.config import settings
 from app.crud.dramatiq_task import update_dramatiq_task_result, get_dramatiq_task
 from app.crud.dramatiq_task import get_dramatiq_task, update_dramatiq_task_status
@@ -225,6 +225,14 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
     ratio = task_data.get("ratio", "1:1")
     seed = task_data.get("seed")
     use_polish = task_data.get("use_polish", False)
+
+    # 检查是否是Lumina任务
+    is_lumina_task = False
+    for prompt in prompts:
+        if prompt.get("name", "").lower().find("lumina") >= 0:
+            is_lumina_task = True
+            logger.info(f"检测到Lumina任务: {task_id}")
+            break
 
     # 详细记录每个prompt的信息，特别是角色和元素类型
     logger.debug(f"任务 {task_id} 的prompts详细信息:")
@@ -488,7 +496,18 @@ async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dic
 
             # 直接保存到数据库并提交任务
             await create_dramatiq_task(db, subtask_data)
-            await submit_task(process_image_task(subtask_data["id"]), subtask_data["id"])
+
+            # 检查是否是Lumina任务
+            is_lumina_task = False
+            for prompt in subtask_data.get("prompts", []):
+                if prompt.get("name", "").lower().find("lumina") >= 0:
+                    is_lumina_task = True
+                    logger.info(f"检测到Lumina子任务: {subtask_data['id']}")
+                    break
+
+            # 根据任务类型选择不同的执行器
+            from app.services.task_executor import submit_task, get_lumina_task_executor
+            await submit_task(process_image_task(subtask_data["id"]), subtask_data["id"], is_lumina=is_lumina_task)
 
             subtask_ids.append(subtask_data["id"])
             logger.debug(f"创建并提交子任务: {subtask_data['id']}, 父任务: {parent_task_id}")
@@ -1097,23 +1116,53 @@ async def cleanup_expired_task_data() -> Dict[str, Any]:
     }
 
 # 启动任务执行器和自动扩容
-async def start_task_executor(min_concurrent_tasks: int = 5, max_concurrent_tasks: int = 50, scale_up_step: int = 5, scale_up_interval: int = 60, scale_down_interval: int = 300):
+async def start_task_executor(
+    min_concurrent_tasks: int = 5,
+    max_concurrent_tasks: int = 50,
+    scale_up_step: int = 5,
+    scale_up_interval: int = 60,
+    scale_down_interval: int = 300,
+    lumina_min_concurrent_tasks: int = 2,
+    lumina_max_concurrent_tasks: int = 20,
+    lumina_scale_up_step: int = 2,
+    lumina_scale_up_interval: int = 120,
+    lumina_scale_down_interval: int = 180
+):
     """
     启动任务执行器和自动扩容
 
     Args:
-        min_concurrent_tasks: 最小并发任务数
-        max_concurrent_tasks: 最大并发任务数
+        min_concurrent_tasks: 标准执行器最小并发任务数
+        max_concurrent_tasks: 标准执行器最大并发任务数
+        scale_up_step: 标准执行器每次扩容增加的并发数
+        scale_up_interval: 标准执行器扩容间隔（秒）
+        scale_down_interval: 标准执行器缩容间隔（秒）
+        lumina_min_concurrent_tasks: Lumina执行器最小并发任务数
+        lumina_max_concurrent_tasks: Lumina执行器最大并发任务数
+        lumina_scale_up_step: Lumina执行器每次扩容增加的并发数
+        lumina_scale_up_interval: Lumina执行器扩容间隔（秒）
+        lumina_scale_down_interval: Lumina执行器缩容间隔（秒）
     """
     from app.services.task_executor import start_auto_scaling
 
-    # 启动自动扩容
+    # 启动标准任务执行器的自动扩容
     await start_auto_scaling(
         min_concurrent_tasks=min_concurrent_tasks,
         max_concurrent_tasks=max_concurrent_tasks,
-        scale_up_step=scale_up_step,  # 每次增加5个并发任务
-        scale_up_interval=scale_up_interval,  # 每分钟最多扩容一次
-        scale_down_interval=scale_down_interval  # 每5分钟最多缩容一次
+        scale_up_step=scale_up_step,
+        scale_up_interval=scale_up_interval,
+        scale_down_interval=scale_down_interval,
+        is_lumina=False
     )
+    logger.debug(f"标准任务执行器已启动，初始并发任务数: {min_concurrent_tasks}, 最大并发任务数: {max_concurrent_tasks}")
 
-    logger.debug(f"任务执行器已启动，初始并发任务数: {min_concurrent_tasks}, 最大并发任务数: {max_concurrent_tasks}")
+    # 启动Lumina任务执行器的自动扩容
+    await start_auto_scaling(
+        min_concurrent_tasks=lumina_min_concurrent_tasks,
+        max_concurrent_tasks=lumina_max_concurrent_tasks,
+        scale_up_step=lumina_scale_up_step,
+        scale_up_interval=lumina_scale_up_interval,
+        scale_down_interval=lumina_scale_down_interval,
+        is_lumina=True
+    )
+    logger.debug(f"Lumina任务执行器已启动，初始并发任务数: {lumina_min_concurrent_tasks}, 最大并发任务数: {lumina_max_concurrent_tasks}")

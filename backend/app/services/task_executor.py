@@ -256,6 +256,7 @@ class TaskExecutor:
 
 # 全局任务执行器实例
 _task_executor = None
+_lumina_task_executor = None
 
 def get_task_executor() -> TaskExecutor:
     """
@@ -270,21 +271,40 @@ def get_task_executor() -> TaskExecutor:
         _task_executor = TaskExecutor(max_concurrent_tasks=5)
     return _task_executor
 
-async def submit_task(coro: Coroutine, task_id: Optional[str] = None) -> str:
+def get_lumina_task_executor() -> TaskExecutor:
+    """
+    获取Lumina任务执行器实例
+
+    Returns:
+        Lumina任务执行器实例
+    """
+    global _lumina_task_executor
+    if _lumina_task_executor is None:
+        # Lumina任务默认最大并发任务数为2
+        _lumina_task_executor = TaskExecutor(max_concurrent_tasks=2)
+    return _lumina_task_executor
+
+async def submit_task(coro: Coroutine, task_id: Optional[str] = None, is_lumina: bool = False) -> str:
     """
     提交任务的便捷函数
 
     Args:
         coro: 要执行的协程
         task_id: 任务ID，如果不提供则自动生成
+        is_lumina: 是否是Lumina任务，如果是则使用Lumina任务执行器
 
     Returns:
         任务ID
     """
-    executor = get_task_executor()
+    # 根据任务类型选择不同的执行器
+    if is_lumina:
+        logger.info(f"Lumina任务 {task_id} 将使用Lumina任务执行器")
+        executor = get_lumina_task_executor()
+    else:
+        executor = get_task_executor()
     return await executor.submit_task(coro, task_id)
 
-async def get_task_result(task_id: str, wait: bool = False, timeout: Optional[float] = None) -> Dict[str, Any]:
+async def get_task_result(task_id: str, wait: bool = False, timeout: Optional[float] = None, is_lumina: bool = False) -> Dict[str, Any]:
     """
     获取任务结果的便捷函数
 
@@ -292,45 +312,96 @@ async def get_task_result(task_id: str, wait: bool = False, timeout: Optional[fl
         task_id: 任务ID
         wait: 是否等待任务完成
         timeout: 等待超时时间（秒）
+        is_lumina: 是否是Lumina任务
 
     Returns:
         任务结果
     """
-    executor = get_task_executor()
-    return await executor.get_task_result(task_id, wait, timeout)
+    # 先尝试从指定的执行器中获取结果
+    if is_lumina:
+        executor = get_lumina_task_executor()
+        result = await executor.get_task_result(task_id, wait, timeout)
+        if result.get("status") != "not_found":
+            return result
 
-async def cancel_task(task_id: str) -> Dict[str, Any]:
+    # 如果没有找到或者不确定是哪个执行器，尝试两个执行器
+    executor = get_task_executor()
+    result = await executor.get_task_result(task_id, wait, timeout)
+
+    # 如果在标准执行器中找不到，尝试Lumina执行器
+    if result.get("status") == "not_found" and not is_lumina:
+        lumina_executor = get_lumina_task_executor()
+        lumina_result = await lumina_executor.get_task_result(task_id, wait, timeout)
+        if lumina_result.get("status") != "not_found":
+            return lumina_result
+
+    return result
+
+async def cancel_task(task_id: str, is_lumina: bool = False) -> Dict[str, Any]:
     """
     取消任务的便捷函数
 
     Args:
         task_id: 任务ID
+        is_lumina: 是否是Lumina任务
 
     Returns:
         取消结果
     """
-    executor = get_task_executor()
-    return await executor.cancel_task(task_id)
+    # 先尝试从指定的执行器中取消任务
+    if is_lumina:
+        executor = get_lumina_task_executor()
+        result = await executor.cancel_task(task_id)
+        if result.get("status") != "not_found":
+            return result
 
-async def set_max_concurrent_tasks(max_concurrent_tasks: int):
+    # 如果没有找到或者不确定是哪个执行器，尝试两个执行器
+    executor = get_task_executor()
+    result = await executor.cancel_task(task_id)
+
+    # 如果在标准执行器中找不到，尝试Lumina执行器
+    if result.get("status") == "not_found" and not is_lumina:
+        lumina_executor = get_lumina_task_executor()
+        lumina_result = await lumina_executor.cancel_task(task_id)
+        if lumina_result.get("status") != "not_found":
+            return lumina_result
+
+    return result
+
+async def set_max_concurrent_tasks(max_concurrent_tasks: int, is_lumina: bool = False):
     """
     设置最大并发任务数的便捷函数
 
     Args:
         max_concurrent_tasks: 新的最大并发任务数
+        is_lumina: 是否是Lumina任务执行器
     """
-    executor = get_task_executor()
+    if is_lumina:
+        executor = get_lumina_task_executor()
+    else:
+        executor = get_task_executor()
     executor.set_max_concurrent_tasks(max_concurrent_tasks)
 
-async def get_executor_stats() -> Dict[str, Any]:
+async def get_executor_stats(is_lumina: bool = False) -> Dict[str, Any]:
     """
     获取任务执行器统计信息的便捷函数
+
+    Args:
+        is_lumina: 是否是Lumina任务执行器
 
     Returns:
         统计信息
     """
-    executor = get_task_executor()
-    return executor.get_stats()
+    if is_lumina:
+        executor = get_lumina_task_executor()
+        lumina_stats = executor.get_stats()
+        lumina_stats["executor_type"] = "lumina"
+        return lumina_stats
+    else:
+        executor = get_task_executor()
+        standard_stats = executor.get_stats()
+        standard_stats["executor_type"] = "standard"
+        return standard_stats
 
 # 自动扩容管理器
 class AutoScalingManager:
@@ -363,14 +434,21 @@ class AutoScalingManager:
         self._is_running = False
         self._monitor_task = None
 
-    async def start(self):
-        """启动自动扩容管理器"""
+    async def start(self, is_lumina: bool = False):
+        """
+        启动自动扩容管理器
+
+        Args:
+            is_lumina: 是否是Lumina任务执行器
+        """
         if self._is_running:
             return
 
         self._is_running = True
-        self._monitor_task = asyncio.create_task(self._monitor_load())
-        logger.info(f"自动扩容管理器已启动，最小并发任务数: {self.min_concurrent_tasks}, 最大并发任务数: {self.max_concurrent_tasks}")
+        self._monitor_task = asyncio.create_task(self._monitor_load(is_lumina))
+
+        executor_name = "Lumina" if is_lumina else "标准"
+        logger.info(f"{executor_name}自动扩容管理器已启动，最小并发任务数: {self.min_concurrent_tasks}, 最大并发任务数: {self.max_concurrent_tasks}")
 
     async def stop(self):
         """停止自动扩容管理器"""
@@ -387,13 +465,25 @@ class AutoScalingManager:
 
         logger.info("自动扩容管理器已停止")
 
-    async def _monitor_load(self):
-        """监控负载并自动调整并发任务数"""
-        executor = get_task_executor()
+    async def _monitor_load(self, is_lumina: bool = False):
+        """
+        监控负载并自动调整并发任务数
+
+        Args:
+            is_lumina: 是否是Lumina任务执行器
+        """
+        # 根据任务类型选择不同的执行器
+        if is_lumina:
+            executor = get_lumina_task_executor()
+            executor_name = "Lumina"
+        else:
+            executor = get_task_executor()
+            executor_name = "标准"
 
         # 确保初始并发任务数不低于最小值
         if executor.max_concurrent_tasks < self.min_concurrent_tasks:
             executor.set_max_concurrent_tasks(self.min_concurrent_tasks)
+            logger.info(f"{executor_name}执行器初始并发任务数设置为 {self.min_concurrent_tasks}")
 
         while self._is_running:
             try:
@@ -433,6 +523,7 @@ class AutoScalingManager:
 
 # 全局自动扩容管理器实例
 _auto_scaling_manager = None
+_lumina_auto_scaling_manager = None
 
 def get_auto_scaling_manager() -> AutoScalingManager:
     """
@@ -446,12 +537,31 @@ def get_auto_scaling_manager() -> AutoScalingManager:
         _auto_scaling_manager = AutoScalingManager()
     return _auto_scaling_manager
 
+def get_lumina_auto_scaling_manager() -> AutoScalingManager:
+    """
+    获取Lumina自动扩容管理器实例
+
+    Returns:
+        Lumina自动扩容管理器实例
+    """
+    global _lumina_auto_scaling_manager
+    if _lumina_auto_scaling_manager is None:
+        _lumina_auto_scaling_manager = AutoScalingManager(
+            min_concurrent_tasks=2,  # Lumina初始并发数
+            max_concurrent_tasks=20,  # Lumina最大并发数
+            scale_up_step=2,  # Lumina每次扩容增加的并发数
+            scale_up_interval=120,  # Lumina扩容间隔（秒）
+            scale_down_interval=180  # Lumina缩容间隔（秒）
+        )
+    return _lumina_auto_scaling_manager
+
 async def start_auto_scaling(
     min_concurrent_tasks: int = 5,
     max_concurrent_tasks: int = 50,
     scale_up_step: int = 5,
     scale_up_interval: int = 60,
-    scale_down_interval: int = 300
+    scale_down_interval: int = 300,
+    is_lumina: bool = False
 ):
     """
     启动自动扩容的便捷函数
@@ -463,18 +573,42 @@ async def start_auto_scaling(
         scale_up_interval: 扩容间隔（秒）
         scale_down_interval: 缩容间隔（秒）
     """
-    global _auto_scaling_manager
-    if _auto_scaling_manager is None:
-        _auto_scaling_manager = AutoScalingManager(
-            min_concurrent_tasks=min_concurrent_tasks,
-            max_concurrent_tasks=max_concurrent_tasks,
-            scale_up_step=scale_up_step,
-            scale_up_interval=scale_up_interval,
-            scale_down_interval=scale_down_interval
-        )
-    await _auto_scaling_manager.start()
+    if is_lumina:
+        global _lumina_auto_scaling_manager
+        if _lumina_auto_scaling_manager is None:
+            _lumina_auto_scaling_manager = AutoScalingManager(
+                min_concurrent_tasks=min_concurrent_tasks,
+                max_concurrent_tasks=max_concurrent_tasks,
+                scale_up_step=scale_up_step,
+                scale_up_interval=scale_up_interval,
+                scale_down_interval=scale_down_interval
+            )
+        await _lumina_auto_scaling_manager.start(is_lumina=True)
+    else:
+        global _auto_scaling_manager
+        if _auto_scaling_manager is None:
+            _auto_scaling_manager = AutoScalingManager(
+                min_concurrent_tasks=min_concurrent_tasks,
+                max_concurrent_tasks=max_concurrent_tasks,
+                scale_up_step=scale_up_step,
+                scale_up_interval=scale_up_interval,
+                scale_down_interval=scale_down_interval
+            )
+        await _auto_scaling_manager.start()
+        logger.info(f"标准自动扩容管理器已启动")
 
-async def stop_auto_scaling():
-    """停止自动扩容的便捷函数"""
-    if _auto_scaling_manager is not None:
-        await _auto_scaling_manager.stop()
+async def stop_auto_scaling(is_lumina: bool = False):
+    """
+    停止自动扩容的便捷函数
+
+    Args:
+        is_lumina: 是否是Lumina任务执行器
+    """
+    if is_lumina:
+        if _lumina_auto_scaling_manager is not None:
+            await _lumina_auto_scaling_manager.stop()
+            logger.info(f"Lumina自动扩容管理器已停止")
+    else:
+        if _auto_scaling_manager is not None:
+            await _auto_scaling_manager.stop()
+            logger.info(f"标准自动扩容管理器已停止")
