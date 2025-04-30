@@ -13,14 +13,16 @@ logger = logging.getLogger(__name__)
 class TaskExecutor:
     """任务执行器，管理异步任务的执行"""
 
-    def __init__(self, max_concurrent_tasks: int = 5):
+    def __init__(self, max_concurrent_tasks: int = 5, name: str = "标准"):
         """
         初始化任务执行器
 
         Args:
             max_concurrent_tasks: 最大并发任务数
+            name: 执行器名称，用于日志记录
         """
         self.max_concurrent_tasks = max_concurrent_tasks
+        self.name = name
         self.semaphore = asyncio.Semaphore(max_concurrent_tasks)
         self.running_tasks: Dict[str, asyncio.Task] = {}
         self.task_results: Dict[str, Any] = {}
@@ -34,7 +36,7 @@ class TaskExecutor:
 
         self._is_running = True
         self._monitor_task = asyncio.create_task(self._monitor_tasks())
-        logger.info(f"任务执行器已启动，最大并发任务数: {self.max_concurrent_tasks}")
+        logger.info(f"[{self.name}] 任务执行器已启动，最大并发任务数: {self.max_concurrent_tasks}")
 
     async def stop(self):
         """停止任务执行器"""
@@ -83,7 +85,7 @@ class TaskExecutor:
         wrapped_task = asyncio.create_task(self._execute_task(coro, task_id))
         self.running_tasks[task_id] = wrapped_task
 
-        logger.info(f"任务 {task_id} 已提交，当前运行任务数: {len(self.running_tasks)}")
+        logger.debug(f"[{self.name}] 任务 {task_id} 已提交，当前运行任务数: {len(self.running_tasks)}")
         return task_id
 
     async def _execute_task(self, coro: Coroutine, task_id: str) -> Any:
@@ -98,14 +100,14 @@ class TaskExecutor:
             任务执行结果
         """
         start_time = time.time()
-        logger.info(f"任务 {task_id} 等待执行，当前信号量: {self.semaphore._value}")
+        logger.debug(f"[{self.name}] 任务 {task_id} 等待执行，当前信号量: {self.semaphore._value}")
 
         try:
             async with self.semaphore:
-                logger.info(f"任务 {task_id} 开始执行")
+                logger.info(f"[{self.name}] 任务 {task_id} 开始执行")
                 result = await coro
                 elapsed_time = time.time() - start_time
-                logger.debug(f"任务 {task_id} 执行完成，耗时: {elapsed_time:.2f}秒")
+                logger.debug(f"[{self.name}] 任务 {task_id} 执行完成，耗时: {elapsed_time:.2f}秒")
                 self.task_results[task_id] = {
                     "status": "completed",
                     "result": result,
@@ -203,7 +205,7 @@ class TaskExecutor:
                 running_count = len(self.running_tasks)
                 completed_count = len(self.task_results)
                 if running_count > 0:  # 只在有运行中任务时记录
-                    logger.debug(f"任务监控: 运行中任务数={running_count}, 已完成任务数={completed_count}, 信号量={self.semaphore._value}")
+                    logger.debug(f"[{self.name}] 任务监控: 运行中任务数={running_count}, 已完成任务数={completed_count}, 信号量={self.semaphore._value}")
 
                 # 清理过期的任务结果（可选）
                 # 这里可以添加清理逻辑，例如删除完成超过一定时间的任务结果
@@ -237,7 +239,7 @@ class TaskExecutor:
                     self.semaphore.release()
 
         self.semaphore = new_semaphore
-        logger.info(f"最大并发任务数已更新为: {max_concurrent_tasks}")
+        logger.info(f"[{self.name}] 最大并发任务数已更新为: {max_concurrent_tasks}")
 
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -268,7 +270,7 @@ def get_task_executor() -> TaskExecutor:
     global _task_executor
     if _task_executor is None:
         # 默认最大并发任务数为5
-        _task_executor = TaskExecutor(max_concurrent_tasks=5)
+        _task_executor = TaskExecutor(max_concurrent_tasks=5, name="标准")
     return _task_executor
 
 def get_lumina_task_executor() -> TaskExecutor:
@@ -281,7 +283,7 @@ def get_lumina_task_executor() -> TaskExecutor:
     global _lumina_task_executor
     if _lumina_task_executor is None:
         # Lumina任务默认最大并发任务数为2
-        _lumina_task_executor = TaskExecutor(max_concurrent_tasks=2)
+        _lumina_task_executor = TaskExecutor(max_concurrent_tasks=2, name="Lumina")
     return _lumina_task_executor
 
 async def submit_task(coro: Coroutine, task_id: Optional[str] = None, is_lumina: bool = False) -> str:
@@ -302,7 +304,12 @@ async def submit_task(coro: Coroutine, task_id: Optional[str] = None, is_lumina:
         executor = get_lumina_task_executor()
     else:
         executor = get_task_executor()
-    return await executor.submit_task(coro, task_id)
+
+    # 调用执行器的submit_task方法
+    task_id = await executor.submit_task(coro, task_id)
+
+    # 返回task_id
+    return task_id
 
 async def get_task_result(task_id: str, wait: bool = False, timeout: Optional[float] = None, is_lumina: bool = False) -> Dict[str, Any]:
     """

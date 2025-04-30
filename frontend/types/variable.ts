@@ -21,6 +21,9 @@ export interface VariableValue {
   platform?: string; // 平台
   config?: any; // 配置信息
   type?: string; // 类型，用于标记elementum
+  color?: string; // 颜色
+  useGradient?: boolean; // 是否使用渐变
+  heat_score?: number; // 热度分数
 }
 
 /**

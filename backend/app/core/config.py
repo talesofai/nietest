@@ -72,5 +72,13 @@ class Settings(BaseSettings):
     LUMINA_EXECUTOR_SCALE_UP_INTERVAL: int = int(os.getenv("LUMINA_EXECUTOR_SCALE_UP_INTERVAL", "120"))  # Lumina扩容间隔（秒）
     LUMINA_EXECUTOR_SCALE_DOWN_INTERVAL: int = int(os.getenv("LUMINA_EXECUTOR_SCALE_DOWN_INTERVAL", "180"))  # Lumina缩容间隔（秒）
 
+    # 图像生成配置
+    IMAGE_MAX_POLLING_ATTEMPTS: int = int(os.getenv("IMAGE_MAX_POLLING_ATTEMPTS", "30"))  # 最大轮询次数
+    IMAGE_POLLING_INTERVAL: float = float(os.getenv("IMAGE_POLLING_INTERVAL", "2.0"))  # 轮询间隔（秒）
+
+    # Lumina图像生成配置
+    LUMINA_MAX_POLLING_ATTEMPTS: int = int(os.getenv("LUMINA_MAX_POLLING_ATTEMPTS", "60"))  # Lumina最大轮询次数
+    LUMINA_POLLING_INTERVAL: float = float(os.getenv("LUMINA_POLLING_INTERVAL", "5.0"))  # Lumina轮询间隔（秒）
+
 # 创建设置实例
 settings = Settings()
