@@ -69,8 +69,29 @@ const createAuthAxios = (): AxiosInstance => {
       return response;
     },
     (error) => {
-      // 如果是401错误（未授权），可以重定向到登录页面
+      // 如果是401错误（未授权）
       if (error.response && error.response.status === 401) {
+        console.log("检测到401未授权错误，准备清除凭证并重定向");
+
+        // 清除所有可能的token存储
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("auth_token");
+          sessionStorage.removeItem("access_token");
+
+          // 记录用户被登出
+          console.log("用户凭证已清除，即将重定向到登录页");
+
+          // 避免循环重定向：确保当前页面不是登录页
+          const currentPath = window.location.pathname;
+          if (!currentPath.includes('login') && !currentPath.includes('auth')) {
+            // 延迟重定向，给用户一些反馈时间
+            setTimeout(() => {
+              // 将用户重定向到登录页
+              window.location.href = "/login?expired=1";
+            }, 100);
+          }
+        }
       }
 
       return Promise.reject(error);

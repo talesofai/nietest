@@ -1,0 +1,41 @@
+{
+  "name": "backend2",
+  "version": "1.0.0",
+  "description": "Backend API with Drizzle ORM, MongoDB and Agenda",
+  "main": "dist/app/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app/main.js",
+    "dev": "ts-node-dev --respawn --transpile-only app/main.ts",
+    "migrate": "ts-node scripts/migrate.ts",
+    "generate": "drizzle-kit generate:mongodb",
+    "studio": "drizzle-kit studio",
+    "test": "jest",
+    "worker": "ts-node app/workers/agenda-worker.ts"
+  },
+  "dependencies": {
+    "agenda": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "drizzle-orm": "^0.28.6",
+    "express": "^4.18.2",
+    "express-async-errors": "^3.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^5.7.0",
+    "mongoose": "^7.5.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/agenda": "^4.1.0",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.5",
+    "drizzle-kit": "^0.19.13",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}

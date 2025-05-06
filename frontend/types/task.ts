@@ -84,7 +84,7 @@ export interface TaskMatrix {
   task_name: string;
   created_at: string;
   variables: Variables;
-  coordinates: Record<string, string>; // 坐标字符串 -> URL映射，例如 "0,0,0" -> "https://example.com/image.jpg"
+  coordinates_by_indices: Record<string, string>; // 基于索引的坐标映射，键是逗号分隔的索引字符串（例如 '0,1,,,'），值是图片URL
 }
 
 /**

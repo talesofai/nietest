@@ -348,7 +348,7 @@ async def get_task_matrix(
     task_id: str = Path(..., description="任务ID")
 ):
     """
-    获取任务矩阵数据（六维空间坐标系统）
+    获取任务矩阵数据（基于索引的六维空间坐标系统）
 
     Args:
         task_id: 任务ID
@@ -360,9 +360,9 @@ async def get_task_matrix(
         HTTPException: 任务不存在
     """
     db = await get_database()
-    task = await get_task(db, task_id)
+    task_doc = await get_task(db, task_id)
 
-    if not task:
+    if not task_doc:
         raise HTTPException(
             status_code=404,
             detail="任务不存在"
@@ -374,64 +374,49 @@ async def get_task_matrix(
 
     # 转换ObjectId为字符串
     dramatiq_tasks = convert_objectid(dramatiq_tasks)
-    task = convert_objectid(task)
+    task_doc_converted = convert_objectid(task_doc)
 
-    # 构建坐标到URL的映射
-    coordinates_map = {}
+    # 新的坐标映射：键是基于索引的字符串，例如 "0,1,,,,"
+    # 值是图片 URL
+    coordinates_by_indices = {}
 
     # 获取变量定义
-    variables = task.get("variables", {})
+    task_variables = task_doc_converted.get("variables", {})
 
     # 处理所有完成的子任务
     for subtask in dramatiq_tasks:
         if subtask.get("status") == "completed" and subtask.get("result") and subtask["result"].get("url"):
-            # 收集坐标值
-            coord_values = []
+            # subtask_variable_indices 是一个列表，包含了该子任务所使用的
+            # 每个变量 (v0, v1, ...) 在其 respective `values` 数组中的索引
+            subtask_variable_indices = subtask.get("variable_indices", [])
 
-            # 获取变量索引数组
-            variable_indices = subtask.get("variable_indices", [])
+            # 构建索引键 (确保总是6个部分，用空字符串代表None或未使用)
+            current_indices_key_parts = [""] * 6  # 初始化为6个空字符串，对应 v0 到 v5
 
-            # 遍历变量索引数组
-            for i, var_index in enumerate(variable_indices):
-                var_key = f"v{i}"
-                # 如果存在该维度的坐标，获取实际值
-                if var_index is not None:
-                    # 获取变量的实际值
-                    var_value = ""
-                    if var_key in variables and "values" in variables[var_key]:
-                        values = variables[var_key]["values"]
-                        if 0 <= var_index < len(values):
-                            # 使用实际值，例如 "3:5", "true", "阿米娅"
-                            var_value = values[var_index].get("value", str(var_index))
+            for i, val_idx in enumerate(subtask_variable_indices):
+                if i < 6: # 确保只处理 v0 到 v5
+                    if val_idx is not None: # 仅当索引存在时才转换为字符串
+                        current_indices_key_parts[i] = str(val_idx)
 
-                    # 如果没有找到实际值，使用索引
-                    if not var_value:
-                        var_value = str(var_index)
+            indexed_key = ",".join(current_indices_key_parts)
+            coordinates_by_indices[indexed_key] = subtask["result"]["url"]
+            logger.debug(f"Task {task_id} matrix: generated key '{indexed_key}' for url '{subtask['result']['url']}'")
 
-                    coord_values.append(var_value)
-                else:
-                    # 如果不存在，添加空占位符
-                    coord_values.append("")
-
-            # 确保有六个元素
-            while len(coord_values) < 6:
-                coord_values.append("")
-
-            # 创建坐标字符串，例如 "3:5,true,阿米娅" 或 "3:5,false,,,,"
-            coord_key = ",".join(coord_values)
-
-            # 存储URL
-            coordinates_map[coord_key] = subtask["result"]["url"]
+    logger.info(f"Task {task_id} matrix data successfully prepared with {len(coordinates_by_indices)} coordinates.")
+    if not coordinates_by_indices and dramatiq_tasks:
+         logger.warning(f"Task {task_id} has {len(dramatiq_tasks)} subtasks but generated 0 coordinates for matrix. Check subtask structure and variable_indices.")
 
     # 返回矩阵数据
+    response_data = {
+        "task_id": task_id,
+        "task_name": task_doc_converted.get("task_name", ""),
+        "created_at": task_doc_converted.get("created_at"),
+        "variables": task_variables,
+        "coordinates_by_indices": coordinates_by_indices
+    }
+
     return APIResponse[TaskMatrixResponse](
         code=200,
         message="success",
-        data={
-            "task_id": task_id,
-            "task_name": task.get("task_name", ""),
-            "created_at": task.get("created_at"),
-            "variables": task.get("variables", {}),
-            "coordinates": coordinates_map
-        }
+        data=response_data
     )
