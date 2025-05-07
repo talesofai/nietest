@@ -102,7 +102,10 @@ class TaskMatrixResponse(BaseModel):
     task_name: str
     created_at: datetime
     variables: Dict[str, Any] = {}  # 变量信息
-    coordinates: Dict[str, str] = {}  # 坐标字符串 -> URL映射，例如 "0,0,0" -> "https://example.com/image.jpg"
+    coordinates_by_indices: Dict[str, str] = Field(
+        default_factory=dict,
+        description="基于索引的坐标映射，键是逗号分隔的索引字符串（例如 '0,1,,,'），值是图片URL"
+    )
 
     class Config:
         from_attributes = True

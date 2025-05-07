@@ -29,6 +29,18 @@ const LoginPage = () => {
     }
   }, [user, router]);
 
+  // 检查URL中是否有登录过期参数
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const expired = urlParams.get("expired");
+
+      if (expired === "1") {
+        setLocalError("您的登录已过期，请重新登录");
+      }
+    }
+  }, []);
+
   // 处理登录请求
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

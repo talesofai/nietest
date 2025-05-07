@@ -1,4 +1,4 @@
-import { Tag } from "@/types/tag";
+import { Tag, TagType } from "@/types/tag";
 import { VariableValue } from "@/types/variable";
 import { alertService } from "@/utils/alertService";
 import { apiService } from "@/utils/api/apiService";
@@ -365,7 +365,7 @@ const createVariableSlots = (
             return {
               id: value.variable_id || Date.now().toString(),
               value: "lumina1",
-              type: "element",
+              type: "element" as const,
               color: "#cccccc",
               useGradient: false,
               uuid: "b5edccfe-46a2-4a14-a8ff-f4d430343805",
@@ -379,12 +379,12 @@ const createVariableSlots = (
           return {
             id: value.variable_id,
             value: value.value || "lumina1",
-            type: tagType,
-            color: value.color || "#cccccc",
-            useGradient: value.useGradient || false,
+            type: tagType as TagType,
+            color: "#cccccc",
+            useGradient: false,
             uuid: value.uuid || "b5edccfe-46a2-4a14-a8ff-f4d430343805",
             header_img: value.header_img || "https://oss.talesofai.cn/picture_s/1y7f53e6itfn_0.jpeg",
-            heat_score: value.heat_score || 50,
+            heat_score: 50,
             weight: value.weight || 1,
           };
         }
@@ -393,7 +393,7 @@ const createVariableSlots = (
         return {
           id: value.variable_id,
           value: value.value,
-          type: tagType, // 添加类型字段，确保在后端处理时使用正确的类型
+          type: tagType as TagType, // 添加类型字段，确保在后端处理时使用正确的类型
           // 保留权重和其他可能存在的属性
           ...(value.weight !== undefined ? { weight: value.weight } : {}),
           ...(value.uuid ? { uuid: value.uuid } : {}),
@@ -563,9 +563,10 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
           if (!tag.value) {
             console.error("Lumina标签缺少必要字段:", tag);
             // 使用默认值创建一个完整的Lumina标签
-            return {
+            // 使用预设的Lumina选项中的第一个
+            const defaultLumina = {
               id: tag.id || Date.now().toString(),
-              type: "element", // 使用element类型
+              type: "element" as TagType, // 使用element类型
               isVariable: tag.isVariable || false,
               value: "lumina1",
               color: "#cccccc",
@@ -575,12 +576,17 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
               heat_score: 50,
               weight: 1,
             };
+
+            // 输出调试信息
+            console.log("使用默认Lumina标签:", defaultLumina);
+
+            return defaultLumina;
           }
 
           // 只保留指定的字段
           return {
             id: tag.id,
-            type: tagType, // 使用转换后的类型
+            type: tagType as TagType, // 使用转换后的类型
             isVariable: tag.isVariable,
             value: tag.value || "lumina1",
             color: tag.color || "#cccccc",
@@ -595,7 +601,7 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
         // 其他类型的标签处理
         return {
           id: tag.id, // 保留id字段
-          type: tagType, // 使用转换后的类型
+          type: tagType as TagType, // 使用转换后的类型
           isVariable: tag.isVariable, // 使用isVariable而不是is_variable
           value: tag.value,
           color: tag.color || "#cccccc", // 添加color字段，提供默认值

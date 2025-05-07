@@ -340,6 +340,9 @@ def format_prompt_for_api(prompt_data: Any, prompt_type: str) -> Dict[str, Any]:
         }
         logger.debug(f"提示词格式化结果: {json.dumps(result)}")
         return result
+    
+    if not (prompt_type == "character" or prompt_type == "element"):
+        raise ValueError(f"prompt_type必须是'prompt', 'character'或'element', 当前类型: {prompt_type}")
 
     # 如果是角色或元素类型
     # 首先检查是否有必要的字段

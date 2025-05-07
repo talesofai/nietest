@@ -49,21 +49,35 @@ interface TableCellData {
   xValue: string;
   yValue: string;
   coordinates: Record<string, number>;
+  hasValidImage: boolean;
 }
 
 interface TableRowData {
   key: string;
   rowTitle: string;
-  [columnKey: string]: TableCellData | string | null;
+  [columnKey: string]: TableCellData | string;
 }
 
 // 矩阵数据接口
+interface MatrixDataVariableValue {
+  id: string;
+  value: string;
+  type?: string;
+}
+
+interface MatrixDataVariable {
+  name: string;
+  values: MatrixDataVariableValue[];
+  values_count: number;
+  tag_id?: string;
+}
+
 interface MatrixData {
   task_id: string;
   task_name: string;
   created_at: string;
-  variables: Record<string, any>;
-  coordinates: Record<string, string>; // 坐标字符串 -> URL映射
+  variables?: Record<string, MatrixDataVariable>;
+  coordinates_by_indices?: Record<string, string>; // 键："0,1,,," -> URL映射
 }
 
 export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
@@ -131,45 +145,41 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     }
 
     // 查找图片在坐标映射中的数据
-    const coordKey = Object.entries(matrixData.coordinates).find(
+    if (!matrixData.coordinates_by_indices) {
+      return "无坐标信息";
+    }
+
+    const indexedCoordKey = Object.entries(matrixData.coordinates_by_indices).find(
       ([_, url]) => url === imageUrl
     )?.[0];
 
-    if (!coordKey) {
+    if (!indexedCoordKey) {
       return "无坐标信息";
     }
 
     // 将坐标字符串分解为数组，例如 "0,1,,2,," => ["0", "1", "", "2", "", ""]
-    const coordParts = coordKey.split(",");
+    const coordIndices = indexedCoordKey.split(",");
 
     // 构建坐标信息
-    const coordInfo = coordParts
-      .map((value, index) => {
-        if (value === "") return null; // 跳过空坐标
+    const coordInfo = coordIndices
+      .map((indexStr, dimension) => {
+        if (indexStr === "") return null; // 跳过空坐标
 
-        const varKey = `v${index}`;
+        const varKey = `v${dimension}`;
         const varName = variableNames[varKey] || varKey;
 
-        // 尝试获取该维度的实际值而不仅是索引
-        const varInfo = matrixData.variables[varKey];
-        let displayValue: string | number = value;
+        // 尝试获取该维度的实际值
+        const varDefinition = matrixData.variables && matrixData.variables[varKey];
+        let displayValue = indexStr; // 默认显示索引
 
         if (
-          varInfo &&
-          typeof varInfo === "object" &&
-          "values" in varInfo &&
-          Array.isArray(varInfo.values)
+          varDefinition &&
+          varDefinition.values &&
+          Array.isArray(varDefinition.values)
         ) {
-          const idx = parseInt(value);
-
-          if (
-            !isNaN(idx) &&
-            idx >= 0 &&
-            idx < varInfo.values.length &&
-            varInfo.values[idx] &&
-            "value" in varInfo.values[idx]
-          ) {
-            displayValue = `${varInfo.values[idx].value}(${idx})`;
+          const idx = parseInt(indexStr);
+          if (!isNaN(idx) && idx >= 0 && idx < varDefinition.values.length) {
+            displayValue = `${varDefinition.values[idx].value} (索引 ${indexStr})`;
           }
         }
 
@@ -275,8 +285,19 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       logger.log(`成功获取矩阵数据: ${taskId}`);
 
-      // 设置矩阵数据
-      setMatrixData(response.data);
+      // 设置矩阵数据，确保处理数据缺失的情况
+      const processedData: MatrixData = {
+        task_id: response.data.task_id || taskId,
+        task_name: response.data.task_name || "",
+        created_at: response.data.created_at || new Date().toISOString(),
+        variables: response.data.variables || {},
+        coordinates_by_indices: response.data.coordinates_by_indices || {}
+      };
+
+      // 记录处理后的数据
+      logger.log(`处理后的矩阵数据:`, processedData);
+
+      setMatrixData(processedData);
 
       // 标记数据已加载
       dataLoadedRef.current = true;
@@ -285,8 +306,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       const variables: string[] = [];
       const varNames: Record<string, string> = {};
 
-      if (response.data.variables) {
-        Object.entries(response.data.variables).forEach(([key, value]) => {
+      if (processedData.variables) {
+        Object.entries(processedData.variables).forEach(([key, value]) => {
           // 只添加name不为空的变量
           if (
             key.startsWith("v") &&
@@ -342,13 +363,21 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       };
 
       // 使用requestAnimationFrame确保状态更新在同一帧内完成
-      requestAnimationFrame(batchUpdate);
+      window.requestAnimationFrame(() => batchUpdate());
     } catch (err) {
       // 如果组件已卸载，不再更新状态
       if (!isMountedRef.current) return;
 
-      logger.error("Error fetching matrix data:", err);
-      setError("获取矩阵数据失败，请刷新页面重试");
+      // 检查是否是401错误（用户未授权）
+      if (err && typeof err === 'object' && 'code' in err && err.code === 401) {
+        logger.error("获取矩阵数据失败: 用户未授权");
+        setError("登录已过期，请重新登录后再试");
+        // 认证错误会由API拦截器统一处理重定向，这里只显示错误信息
+      } else {
+        logger.error("获取矩阵数据失败:", err);
+        setError("获取矩阵数据失败，请刷新页面重试");
+      }
+
       dataLoadedRef.current = false;
     } finally {
       if (isMountedRef.current) {
@@ -418,14 +447,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     (xValue: string, yValue: string) => {
       if (!matrixData || !task) {
         logger.log("没有矩阵数据或任务数据");
-
         return null;
       }
 
       // 使用缓存来避免重复计算
       const cacheKey = `${xAxis}_${xValue}_${yAxis}_${yValue}`;
 
-      if (urlCache.current[cacheKey]) {
+      if (cacheKey in urlCache.current) {
         return urlCache.current[cacheKey];
       }
 
@@ -435,43 +463,54 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       logger.log(`[${debugId}] 尝试获取 [${xValue}][${yValue}] 的图片URL`);
 
-      // 获取变量索引
-      const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null; // 例如，从 'v0' 提取 0
-      const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null; // 例如，从 'v1' 提取 1
+      // 获取变量维度（0-5）
+      const xVarDimension = xAxis ? parseInt(xAxis.substring(1)) : -1; // 从 'v0' 提取 0
+      const yVarDimension = yAxis ? parseInt(yAxis.substring(1)) : -1; // 从 'v1' 提取 1
+
+      // 查找 xValue 和 yValue 对应的索引
+      let xValIndex: number | null = null;
+      if (xAxis && matrixData.variables && matrixData.variables[xAxis] && matrixData.variables[xAxis].values) {
+        const idx = matrixData.variables[xAxis].values.findIndex(v => v.value === xValue);
+        if (idx !== -1) xValIndex = idx;
+      }
+
+      let yValIndex: number | null = null;
+      if (yAxis && matrixData.variables && matrixData.variables[yAxis] && matrixData.variables[yAxis].values) {
+        const idx = matrixData.variables[yAxis].values.findIndex(v => v.value === yValue);
+        if (idx !== -1) yValIndex = idx;
+      }
 
       // 存储匹配的图片URL
       const matchingUrls: string[] = [];
 
       // 从坐标映射中查找匹配的图片URL
-      if (Object.keys(matrixData.coordinates).length > 0) {
-        logger.log(`[${debugId}] 从坐标映射中查找匹配的图片`);
+      if (matrixData.coordinates_by_indices && Object.keys(matrixData.coordinates_by_indices).length > 0) {
+        logger.log(`[${debugId}] 从索引坐标映射中查找匹配的图片`);
 
         // 遍历所有坐标映射
-        for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
+        for (const [indexedKey, url] of Object.entries(matrixData.coordinates_by_indices)) {
           // 将坐标字符串分解为数组
-          const coordParts = coordKey.split(",");
+          const keyIndexParts = indexedKey.split(",");
 
           // 根据选择的轴决定查找策略
-          if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
-            // 两个轴都有值
-            if (coordParts[xVarIndex] === xValue && coordParts[yVarIndex] === yValue) {
-              logger.log(`[${debugId}] 找到匹配的图片URL(双轴):`, url);
-              matchingUrls.push(url);
-            }
-          } else if (xAxis && xVarIndex !== null) {
-            // 只有X轴有值
-            if (coordParts[xVarIndex] === xValue) {
-              logger.log(`[${debugId}] 找到匹配的图片URL(仅X轴):`, url);
-              matchingUrls.push(url);
-            }
-          } else if (yAxis && yVarIndex !== null) {
-            // 只有Y轴有值
-            if (coordParts[yVarIndex] === yValue) {
-              logger.log(`[${debugId}] 找到匹配的图片URL(仅Y轴):`, url);
-              matchingUrls.push(url);
-            }
+          let xMatches = !xAxis; // 如果没有选择X轴，则默认匹配
+          if (xAxis && xVarDimension !== -1 && xValIndex !== null) {
+            xMatches = (keyIndexParts[xVarDimension] === String(xValIndex));
+          }
+
+          let yMatches = !yAxis; // 如果没有选择Y轴，则默认匹配
+          if (yAxis && yVarDimension !== -1 && yValIndex !== null) {
+            yMatches = (keyIndexParts[yVarDimension] === String(yValIndex));
+          }
+
+          // 如果两个轴都匹配，则添加URL
+          if (xMatches && yMatches) {
+            logger.log(`[${debugId}] 找到匹配的图片URL:`, url);
+            matchingUrls.push(url);
           }
         }
+      } else {
+        logger.log(`[${debugId}] 坐标映射为空或不存在`);
       }
 
       // 如果找到了匹配的URL，返回第一个
@@ -479,28 +518,13 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         logger.log(`[${debugId}] 找到 ${matchingUrls.length} 个匹配的图片URL`);
         // 缓存结果
         urlCache.current[cacheKey] = matchingUrls[0];
-
         return matchingUrls[0];
       }
 
-      // 如果所有方法都失败，尝试返回第一个图片URL
-      if (Object.keys(matrixData.coordinates).length > 0) {
-        const firstUrl = Object.values(matrixData.coordinates)[0];
-
-        if (firstUrl) {
-          logger.log(`[${debugId}] 未找到匹配的图片，返回第一个图片URL:`, firstUrl);
-          // 缓存结果
-          urlCache.current[cacheKey] = firstUrl;
-
-          return firstUrl;
-        }
-      }
-
+      // 如果没有找到匹配的URL，返回null
       logger.log(`[${debugId}] 未找到 [${xValue}][${yValue}] 的图片URL`);
-
       // 缓存空结果
       urlCache.current[cacheKey] = null;
-
       return null;
     },
     [matrixData, task, xAxis, yAxis]
@@ -513,35 +537,46 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         return [];
       }
 
-      // 获取变量索引
-      const xVarIndex = xAxis ? parseInt(xAxis.substring(1)) : null;
-      const yVarIndex = yAxis ? parseInt(yAxis.substring(1)) : null;
+      // 获取变量维度
+      const xVarDimension = xAxis ? parseInt(xAxis.substring(1)) : -1;
+      const yVarDimension = yAxis ? parseInt(yAxis.substring(1)) : -1;
+
+      // 查找 xValue 和 yValue 对应的索引
+      let xValIndex: number | null = null;
+      if (xAxis && matrixData.variables && matrixData.variables[xAxis] && matrixData.variables[xAxis].values) {
+        const idx = matrixData.variables[xAxis].values.findIndex(v => v.value === xValue);
+        if (idx !== -1) xValIndex = idx;
+      }
+
+      let yValIndex: number | null = null;
+      if (yAxis && matrixData.variables && matrixData.variables[yAxis] && matrixData.variables[yAxis].values) {
+        const idx = matrixData.variables[yAxis].values.findIndex(v => v.value === yValue);
+        if (idx !== -1) yValIndex = idx;
+      }
 
       // 存储匹配的图片URL
       const matchingUrls: string[] = [];
 
       // 从坐标映射中查找匹配的图片URL
-      if (Object.keys(matrixData.coordinates).length > 0) {
+      if (matrixData.coordinates_by_indices && Object.keys(matrixData.coordinates_by_indices).length > 0) {
         // 遍历所有坐标映射
-        for (const [coordKey, url] of Object.entries(matrixData.coordinates)) {
-          const coordParts = coordKey.split(",");
+        for (const [indexedKey, url] of Object.entries(matrixData.coordinates_by_indices)) {
+          const keyIndexParts = indexedKey.split(",");
 
           // 根据选择的轴决定查找策略
-          if (xAxis && yAxis && xVarIndex !== null && yVarIndex !== null) {
-            // 两个轴都有值
-            if (coordParts[xVarIndex] === xValue && coordParts[yVarIndex] === yValue) {
-              matchingUrls.push(url);
-            }
-          } else if (xAxis && xVarIndex !== null) {
-            // 只有X轴有值
-            if (coordParts[xVarIndex] === xValue) {
-              matchingUrls.push(url);
-            }
-          } else if (yAxis && yVarIndex !== null) {
-            // 只有Y轴有值
-            if (coordParts[yVarIndex] === yValue) {
-              matchingUrls.push(url);
-            }
+          let xMatches = !xAxis; // 如果没有选择X轴，则默认匹配
+          if (xAxis && xVarDimension !== -1 && xValIndex !== null) {
+            xMatches = (keyIndexParts[xVarDimension] === String(xValIndex));
+          }
+
+          let yMatches = !yAxis; // 如果没有选择Y轴，则默认匹配
+          if (yAxis && yVarDimension !== -1 && yValIndex !== null) {
+            yMatches = (keyIndexParts[yVarDimension] === String(yValIndex));
+          }
+
+          // 如果两个轴都匹配，则添加URL
+          if (xMatches && yMatches) {
+            matchingUrls.push(url);
           }
         }
       }
@@ -627,7 +662,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       originalColValue: string,
       originalRowValue: string,
       imageUrlCache: Record<string, string | null>
-    ): TableCellData | null => {
+    ): TableCellData => {
       // 从缓存中获取URL
       let imageUrl: string | null = null;
       let cacheKey = "";
@@ -666,19 +701,16 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         matchingUrls = getAllMatchingImageUrls("", originalRowValue);
       }
 
-      // 如果找到URL，创建单元格对象
-      if (imageUrl || matchingUrls.length > 0) {
-        return {
-          url: imageUrl || matchingUrls[0], // 使用第一个URL作为主图片
-          urls: matchingUrls.length > 0 ? matchingUrls : imageUrl ? [imageUrl] : [], // 存储所有匹配的URL
-          xValue: originalColValue || "",
-          yValue: originalRowValue || "",
-          coordinates: {},
-        };
-      }
-
-      // 没有找到URL
-      return null;
+      // 构建单元格对象，即使没有找到图片URL也返回对象，但带有特殊标记
+      return {
+        url: imageUrl || (matchingUrls.length > 0 ? matchingUrls[0] : ""),
+        urls: matchingUrls.length > 0 ? matchingUrls : imageUrl ? [imageUrl] : [],
+        xValue: originalColValue || "",
+        yValue: originalRowValue || "",
+        coordinates: {},
+        // 添加标记，表示这个单元格是否有有效的数据
+        hasValidImage: !!(imageUrl || matchingUrls.length > 0),
+      };
     },
     [xAxis, yAxis, getImageUrl, getAllMatchingImageUrls]
   );
@@ -745,10 +777,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         // 创建单元格数据
         const cellData = createCellData(originalColValue, originalRowValue, imageUrlCache);
 
-        if (cellData) {
-          rowData[processedColValue] = cellData;
-        } else {
-          rowData[processedColValue] = null;
+        // 更新：始终添加cellData，通过hasValidImage属性判断数据有效性
+        rowData[processedColValue] = cellData;
+        if (!cellData.hasValidImage) {
           logger.log(
             `[${debugId}] 没有为 [${originalColValue || ""}][${originalRowValue || ""}] 找到URL`
           );
@@ -1158,8 +1189,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                       {Object.keys(row)
                         .filter((key) => key !== "key" && key !== "rowTitle")
                         .map((colKey, colIndex) => {
-                          const cell = row[colKey] as TableCellData | null;
-                          const imageUrl = cell?.url;
+                          const cell = row[colKey] as TableCellData;
+                          const imageUrl = cell.hasValidImage ? cell.url : "";
                           const cellTitle = `${row.rowTitle}-${colKey}`;
 
                           return (
@@ -1177,7 +1208,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                 padding: 0,
                               }}
                             >
-                              {imageUrl ? (
+                              {cell.hasValidImage ? (
                                 <div className="w-full h-full">
                                   {/* 如果有多张图片且是批次任务，显示网格 */}
                                   {cell.urls && cell.urls.length > 1 && hasBatchTag ? (
@@ -1225,23 +1256,24 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                               width="auto"
                                               onError={() => {
                                                 logger.log("图片加载失败:", url);
-                                                // 使用setTimeout避免在渲染过程中修改DOM
-                                                setTimeout(() => {
-                                                  const imgElements = document.querySelectorAll(
-                                                    `img[src="${getResizedImageUrl(url, getImageSizeByBatchCount(cell.urls?.length || 1))}"]`
-                                                  );
+                                                const imgSrc = getResizedImageUrl(
+                                                  url,
+                                                  getImageSizeByBatchCount(cell.urls?.length || 1)
+                                                );
 
-                                                  if (imgElements.length > 0) {
-                                                    imgElements.forEach((img) => {
-                                                      if (
-                                                        img instanceof HTMLImageElement &&
-                                                        img.src !== PLACEHOLDER_IMAGE_URL
-                                                      ) {
-                                                        img.src = PLACEHOLDER_IMAGE_URL;
-                                                      }
-                                                    });
+                                                if (imgSrc) {
+                                                  const errorElement = document.querySelector(`img[src="${imgSrc}"]`) as HTMLImageElement | null;
+
+                                                  if (errorElement && errorElement.parentElement) {
+                                                    // 创建提示元素
+                                                    const errorText = document.createElement('div');
+                                                    errorText.className = "absolute inset-0 flex items-center justify-center bg-default-50 text-xs text-default-500";
+                                                    errorText.innerHTML = `<span>图片加载失败</span>`;
+                                                    errorElement.parentElement.appendChild(errorText);
+                                                    // 隐藏加载失败的图片
+                                                    errorElement.style.display = 'none';
                                                   }
-                                                }, 0);
+                                                }
                                               }}
                                             />
                                           </div>
@@ -1282,23 +1314,21 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                           width="auto"
                                           onError={() => {
                                             logger.log("图片加载失败:", imageUrl);
-                                            // 使用setTimeout避免在渲染过程中修改DOM
-                                            setTimeout(() => {
-                                              const imgElements = document.querySelectorAll(
-                                                `img[src="${getResizedImageUrl(imageUrl, 180)}"]`
-                                              );
+                                            const imgSrc = getResizedImageUrl(imageUrl, 180);
 
-                                              if (imgElements.length > 0) {
-                                                imgElements.forEach((img) => {
-                                                  if (
-                                                    img instanceof HTMLImageElement &&
-                                                    img.src !== PLACEHOLDER_IMAGE_URL
-                                                  ) {
-                                                    img.src = PLACEHOLDER_IMAGE_URL;
-                                                  }
-                                                });
+                                            if (imgSrc) {
+                                              const errorElement = document.querySelector(`img[src="${imgSrc}"]`) as HTMLImageElement | null;
+
+                                              if (errorElement && errorElement.parentElement) {
+                                                // 创建提示元素
+                                                const errorText = document.createElement('div');
+                                                errorText.className = "absolute inset-0 flex items-center justify-center bg-default-50 text-xs text-default-500";
+                                                errorText.innerHTML = `<span>图片加载失败</span>`;
+                                                errorElement.parentElement.appendChild(errorText);
+                                                // 隐藏加载失败的图片
+                                                errorElement.style.display = 'none';
                                               }
-                                            }, 0);
+                                            }
                                           }}
                                         />
                                       </div>
@@ -1309,16 +1339,21 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                 <div className="w-full h-full">
                                   <div className="w-full h-full flex items-center justify-center bg-default-50 overflow-hidden">
                                     <div className="text-center p-4">
-                                      <p className="text-default-400 text-sm">未找到图片</p>
-                                      {xAxis && (
-                                        <p className="text-default-300 text-xs mt-2">{`${xAxis}:${(cell as TableCellData)?.xValue || colKey.replace(/#\d+$/, "")}`}</p>
-                                      )}
-                                      {yAxis && (
-                                        <p className="text-default-300 text-xs mt-1">{`${yAxis}:${(cell as TableCellData)?.yValue || row.rowTitle.replace(/#\d+$/, "")}`}</p>
-                                      )}
+                                      <div className="flex flex-col items-center">
+                                        <Icon icon="solar:missing-circular-linear" className="w-8 h-8 text-default-300 mb-2" />
+                                        <p className="text-default-500 text-sm font-medium">未找到图片</p>
+                                        <div className="mt-2 text-default-400 text-xs space-y-1">
+                                          {xAxis && (
+                                            <p>{`${xAxis}:${(cell as TableCellData)?.xValue || colKey.replace(/#\d+$/, "")}`}</p>
+                                          )}
+                                          {yAxis && (
+                                            <p>{`${yAxis}:${(cell as TableCellData)?.yValue || row.rowTitle.replace(/#\d+$/, "")}`}</p>
+                                          )}
+                                          <p className="text-default-300 mt-1">无匹配数据</p>
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
-                                  <span className="text-xs text-default-400 mt-1">无数据</span>
                                 </div>
                               )}
                             </td>
@@ -1405,7 +1440,30 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                       width="auto"
                       onError={() => {
                         logger.log("大图加载失败:", currentImageUrl);
-                        // 不在这里修改DOM，避免无限循环
+                        // 查找图片元素并替换为错误提示
+                        if (currentImageUrl) {
+                          const errorElement = document.querySelector(`img[src="${currentImageUrl || PLACEHOLDER_IMAGE_URL}"]`) as HTMLImageElement | null;
+
+                          if (errorElement && errorElement.parentElement) {
+                            // 创建错误提示元素
+                            const errorContainer = document.createElement('div');
+                            errorContainer.className = "flex flex-col items-center justify-center";
+                            errorContainer.innerHTML = `
+                              <div class="mb-4">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#999999" stroke-width="1.5"/>
+                                  <path d="M12 8V13" stroke="#999999" stroke-width="1.5" stroke-linecap="round"/>
+                                  <circle cx="12" cy="16" r="1" fill="#999999"/>
+                                </svg>
+                              </div>
+                              <div class="text-default-500 text-sm font-medium">图片加载失败</div>
+                            `;
+
+                            // 替换图片元素
+                            errorElement.style.display = 'none';
+                            errorElement.parentElement.appendChild(errorContainer);
+                          }
+                        }
                       }}
                     />
                   </div>
@@ -1450,7 +1508,26 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                             width="auto"
                             onError={() => {
                               logger.log("网格图片加载失败:", url);
-                              // 不在这里修改DOM，避免无限循环
+                              // 查找图片元素并替换为错误提示
+                              const imgSrc = getResizedImageUrl(
+                                url,
+                                getImageSizeByBatchCount(currentImageUrls.length)
+                              ) || PLACEHOLDER_IMAGE_URL;
+
+                              if (imgSrc) {
+                                const errorElement = document.querySelector(`img[src="${imgSrc}"]`) as HTMLImageElement | null;
+
+                                if (errorElement && errorElement.parentElement) {
+                                  // 创建错误提示元素
+                                  const errorText = document.createElement('div');
+                                  errorText.className = "absolute inset-0 flex items-center justify-center bg-default-50 text-xs text-default-500";
+                                  errorText.innerHTML = `<span>图片加载失败</span>`;
+
+                                  // 替换图片元素
+                                  errorElement.style.display = 'none';
+                                  errorElement.parentElement.appendChild(errorText);
+                                }
+                              }
                             }}
                           />
                         </div>

@@ -40,8 +40,12 @@ class ImageGenerationService:
         self.lumina_task_status_url = "https://ops.api.talesofai.cn/v1/artifact/task/{task_uuid}"
 
         # 轮询配置
-        self.max_polling_attempts = int(os.environ.get("IMAGE_MAX_POLLING_ATTEMPTS", "15"))  # 最大轮询次数，默认15次
-        self.polling_interval = float(os.environ.get("IMAGE_POLLING_INTERVAL", "1.0"))  # 轮询间隔（秒），默认1秒
+        self.max_polling_attempts = settings.IMAGE_MAX_POLLING_ATTEMPTS  # 最大轮询次数
+        self.polling_interval = settings.IMAGE_POLLING_INTERVAL  # 轮询间隔（秒）
+
+        # Lumina轮询配置
+        self.lumina_max_polling_attempts = settings.LUMINA_MAX_POLLING_ATTEMPTS  # Lumina最大轮询次数
+        self.lumina_polling_interval = settings.LUMINA_POLLING_INTERVAL  # Lumina轮询间隔（秒）
 
         # 默认请求头
         self.default_headers = {
@@ -259,14 +263,25 @@ class ImageGenerationService:
         if task_status_url is None:
             task_status_url = self.task_status_url
 
+        # 根据任务URL判断是否是Lumina任务
+        is_lumina_task = "ops.api.talesofai.cn" in task_status_url
+
+        # 根据任务类型选择轮询配置
+        max_attempts = self.lumina_max_polling_attempts if is_lumina_task else self.max_polling_attempts
+        polling_interval = self.lumina_polling_interval if is_lumina_task else self.polling_interval
+
+        # 记录任务类型和轮询配置
+        task_type = "Lumina" if is_lumina_task else "标准"
+        logger.info(f"开始轮询{task_type}任务状态: {task_uuid}, 最大轮询次数: {max_attempts}, 轮询间隔: {polling_interval}秒")
+
         status_url = task_status_url.format(task_uuid=task_uuid)
         logger.debug(f"开始轮询任务状态: {status_url}")
         start_time = time.time()
 
-        for attempt in range(self.max_polling_attempts):
+        for attempt in range(max_attempts):
             try:
                 elapsed_time = time.time() - start_time
-                logger.debug(f"轮询任务状态 (第{attempt+1}/{self.max_polling_attempts}次), 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_uuid}")
+                logger.debug(f"轮询任务状态 (第{attempt+1}/{max_attempts}次), 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_uuid}")
 
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.get(
@@ -293,7 +308,7 @@ class ImageGenerationService:
                         return result
 
                     # 如果任务仍在进行中，等待一段时间后再次轮询
-                    await asyncio.sleep(self.polling_interval)
+                    await asyncio.sleep(polling_interval)
 
             except Exception as e:
                 logger.error(f"轮询任务状态时出错 (第{attempt+1}次): {str(e)}, 任务ID: {task_uuid}")
@@ -301,11 +316,11 @@ class ImageGenerationService:
                 import traceback
                 logger.error(f"轮询异常堆栈 (第{attempt+1}次):\n{traceback.format_exc()}")
                 # 出错后等待一段时间再重试
-                await asyncio.sleep(self.polling_interval)
+                await asyncio.sleep(polling_interval)
 
         # 超过最大轮询次数仍未完成
         total_time = time.time() - start_time
-        logger.warning(f"轮询任务状态超时: {task_uuid}, 总耗时: {total_time:.2f}秒, 尝试次数: {self.max_polling_attempts}")
+        logger.warning(f"轮询{task_type}任务状态超时: {task_uuid}, 总耗时: {total_time:.2f}秒, 尝试次数: {max_attempts}")
         return None
 
     async def _send_api_request(self, payload: Dict[str, Any], api_url: Optional[str] = None) -> Dict[str, Any]:
