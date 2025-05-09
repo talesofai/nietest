@@ -104,7 +104,7 @@ class TaskExecutor:
 
         try:
             async with self.semaphore:
-                logger.info(f"[{self.name}] 任务 {task_id} 开始执行")
+                logger.debug(f"[{self.name}] 任务 {task_id} 开始执行")
                 result = await coro
                 elapsed_time = time.time() - start_time
                 logger.debug(f"[{self.name}] 任务 {task_id} 执行完成，耗时: {elapsed_time:.2f}秒")
@@ -300,7 +300,7 @@ async def submit_task(coro: Coroutine, task_id: Optional[str] = None, is_lumina:
     """
     # 根据任务类型选择不同的执行器
     if is_lumina:
-        logger.info(f"Lumina任务 {task_id} 将使用Lumina任务执行器")
+        logger.debug(f"Lumina任务 {task_id} 将使用Lumina任务执行器")
         executor = get_lumina_task_executor()
     else:
         executor = get_task_executor()

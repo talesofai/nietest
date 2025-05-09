@@ -115,7 +115,7 @@ class ImageGenerationService:
         for prompt in prompts:
             if isinstance(prompt, dict) and "name" in prompt and "lumina" in prompt["name"].lower():
                 use_lumina = True
-                logger.info(f"检测到prompt中包含lumina关键字，将使用Lumina API端点")
+                logger.debug(f"检测到prompt中包含lumina关键字，将使用Lumina API端点")
                 break
 
         # 选择API端点
@@ -137,7 +137,7 @@ class ImageGenerationService:
         }
 
         # 记录请求载荷基本信息
-        logger.info(payload)
+        logger.debug(payload)
 
         # 发送API请求获取任务ID
         task_response = await self._send_api_request(payload, api_url)
@@ -147,17 +147,17 @@ class ImageGenerationService:
         if not task_uuid:
             raise Exception("无法获取任务UUID")
 
-        logger.info(f"获取到图像任务UUID: {task_uuid}")
+        logger.debug(f"获取到图像任务UUID: {task_uuid}")
 
         # 轮询任务状态直到完成
-        logger.info(f"开始轮询任务状态: {task_uuid}")
+        logger.debug(f"开始轮询任务状态: {task_uuid}")
         try:
             task_result = await self._poll_task_status(task_uuid, task_status_url)
             if task_result:
                 # 安全地获取URL，避免索引错误
                 artifacts = task_result.get('artifacts', [])
                 url = artifacts[0].get('url') if artifacts else None
-                logger.info(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}, url: {url}")
+                logger.debug(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}, url: {url}")
                 logger.debug(f"轮询任务结果: {json.dumps(task_result, ensure_ascii=False)}")
             else:
                 logger.warning(f"轮询任务状态超时: {task_uuid}, 未能获取结果")
@@ -275,7 +275,7 @@ class ImageGenerationService:
 
         # 记录任务类型和轮询配置
         task_type = "Lumina" if is_lumina_task else "标准"
-        logger.info(f"开始轮询{task_type}任务状态: {task_uuid}, 最大轮询次数: {max_attempts}, 轮询间隔: {polling_interval}秒")
+        logger.debug(f"开始轮询{task_type}任务状态: {task_uuid}, 最大轮询次数: {max_attempts}, 轮询间隔: {polling_interval}秒")
 
         status_url = task_status_url.format(task_uuid=task_uuid)
         logger.debug(f"开始轮询任务状态: {status_url}")
@@ -320,7 +320,7 @@ class ImageGenerationService:
                             result["task_status"] = "FAILURE"  # 将未预期的状态视为FAILURE
 
                         total_time = time.time() - start_time
-                        logger.info(f"任务完成，状态: {task_status}, 总耗时: {total_time:.2f}秒, 任务ID: {task_uuid}")
+                        logger.debug(f"任务完成，状态: {task_status}, 总耗时: {total_time:.2f}秒, 任务ID: {task_uuid}")
                         return result
 
             except Exception as e:
@@ -360,8 +360,8 @@ class ImageGenerationService:
                     break
 
         start_time = time.time()
-        logger.info(f"开始调用图像生成API {task_info}: {json.dumps(payload, ensure_ascii=False)}")
-        logger.info(f"使用API端点: {api_url}")
+        logger.debug(f"开始调用图像生成API {task_info}: {json.dumps(payload, ensure_ascii=False)}")
+        logger.debug(f"使用API端点: {api_url}")
 
         try:
             # 发送API请求
@@ -378,7 +378,7 @@ class ImageGenerationService:
                 # 解析响应数据
                 result = response.json()
                 elapsed_time = time.time() - start_time
-                logger.info(f"图像生成API请求成功 {task_info}, 耗时: {elapsed_time:.2f}秒")
+                logger.debug(f"图像生成API请求成功 {task_info}, 耗时: {elapsed_time:.2f}秒")
                 logger.debug(f"图像生成API响应: {json.dumps(result, ensure_ascii=False)}")
 
                 return result

@@ -237,7 +237,7 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
     for prompt in prompts:
         if prompt.get("name", "").lower().find("lumina") >= 0:
             is_lumina_task = True
-            logger.info(f"检测到Lumina任务: {task_id}")
+            logger.debug(f"检测到Lumina任务: {task_id}")
             break
 
     # 详细记录每个prompt的信息，特别是角色和元素类型
@@ -656,7 +656,7 @@ async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dic
             for prompt in subtask_data.get("prompts", []):
                 if prompt.get("name", "").lower().find("lumina") >= 0:
                     is_lumina_task = True
-                    logger.info(f"检测到Lumina子任务: {subtask_data['id']}")
+                    logger.debug(f"检测到Lumina子任务: {subtask_data['id']}")
                     break
 
             # 根据任务类型选择不同的执行器

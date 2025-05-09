@@ -135,7 +135,7 @@ class MakeImageService:
         if not task_uuid:
             raise Exception("无法获取任务UUID")
 
-        logger.info(f"获取到图像任务UUID: {task_uuid}")
+        logger.debug(f"获取到图像任务UUID: {task_uuid}")
 
         # 轮询任务状态直到完成
         task_result = await self._poll_task_status(task_uuid, task_status_url)
@@ -144,7 +144,7 @@ class MakeImageService:
             logger.warning(f"轮询任务状态超时: {task_uuid}")
             raise Exception("生成图像超时")
 
-        logger.info(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('status')}")
+        logger.debug(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('status')}")
 
         # 提取图像URL
         image_url = self._extract_image_url(task_result)
@@ -285,7 +285,7 @@ class MakeImageService:
                     # 如果任务完成或失败，返回结果
                     if status in ["completed", "success", "failed", "error", "timeout"]:
                         total_time = time.time() - start_time
-                        logger.info(f"任务完成，状态: {status}, 总耗时: {total_time:.2f}秒, 任务ID: {task_uuid}")
+                        logger.debug(f"任务完成，状态: {status}, 总耗时: {total_time:.2f}秒, 任务ID: {task_uuid}")
                         return result
 
                     # 如果任务仍在进行中，等待一段时间后再次轮询
@@ -313,7 +313,7 @@ class MakeImageService:
             API响应
         """
         start_time = time.time()
-        logger.info(f"开始调用图像生成API: {api_url}")
+        logger.debug(f"开始调用图像生成API: {api_url}")
 
         try:
             # 发送API请求
@@ -330,7 +330,7 @@ class MakeImageService:
                 # 解析响应数据
                 result = response.json()
                 elapsed_time = time.time() - start_time
-                logger.info(f"图像生成API请求成功, 耗时: {elapsed_time:.2f}秒")
+                logger.debug(f"图像生成API请求成功, 耗时: {elapsed_time:.2f}秒")
                 logger.debug(f"图像生成API响应: {json.dumps(result, ensure_ascii=False)}")
 
                 return result
