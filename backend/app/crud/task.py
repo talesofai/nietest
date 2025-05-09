@@ -5,6 +5,7 @@ import logging
 
 from app.db.redis import get_redis_cache
 from app.core.config import settings
+from app.utils.timezone import get_beijing_now
 
 from app.models.task import TaskStatus
 
@@ -58,8 +59,8 @@ async def create_task(db: Any, task_data: Dict[str, Any]) -> Dict[str, Any]:
         "variables": processed_variables,
         "settings": task_data.get("settings"),
         "status": TaskStatus.PENDING.value,
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
+        "created_at": get_beijing_now(),
+        "updated_at": get_beijing_now(),
         "total_images": total_images,  # 设置计算出的图片总数
         "processed_images": 0,  # 初始化已处理图片数
         "progress": 0,  # 初始化进度
@@ -260,7 +261,7 @@ async def update_task(db: Any, task_id: str, update_data: Dict[str, Any]) -> Opt
         更新后的任务，如果不存在则返回None
     """
     # 添加更新时间
-    update_data["updated_at"] = datetime.now(timezone.utc)
+    update_data["updated_at"] = get_beijing_now()
 
     # 更新任务
     result = await db.tasks.update_one(
@@ -297,7 +298,7 @@ async def update_task_status(db: Any, task_id: str, status: str, error: Optional
     # 准备更新数据
     update_data = {
         "status": status,
-        "updated_at": datetime.now(timezone.utc)
+        "updated_at": get_beijing_now()
     }
 
     if error:
@@ -333,7 +334,7 @@ async def update_subtasks_completion(db: Any, task_id: str, all_completed: bool)
         {
             "$set": {
                 "all_subtasks_completed": all_completed,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": get_beijing_now()
             }
         }
     )
@@ -358,16 +359,16 @@ async def update_task_total_images(db: Any, task_id: str, total_images: int) -> 
         {
             "$set": {
                 "total_images": total_images,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": get_beijing_now()
             }
         }
     )
 
     return result.modified_count > 0
 
-async def update_task_progress(db: Any, task_id: str, processed_images: int, total_images: int) -> bool:
+async def update_task_progress_with_counts(db: Any, task_id: str, processed_images: int, total_images: int) -> bool:
     """
-    更新任务的进度信息
+    更新任务的进度信息，使用指定的已处理图片数和总图片数
 
     Args:
         db: 数据库连接
@@ -390,7 +391,7 @@ async def update_task_progress(db: Any, task_id: str, processed_images: int, tot
             "$set": {
                 "processed_images": processed_images,
                 "progress": progress,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": get_beijing_now()
             }
         }
     )
@@ -438,7 +439,7 @@ async def increment_processed_images(db: Any, task_id: str) -> bool:
             "$set": {
                 "processed_images": new_processed,
                 "progress": progress,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": get_beijing_now()
             }
         }
     )
@@ -494,7 +495,7 @@ async def update_task_progress(db: Any, task_id: str) -> bool:
     update_data = {
         "processed_images": processed_images,
         "progress": progress,
-        "updated_at": datetime.now(timezone.utc)
+        "updated_at": get_beijing_now()
     }
 
     # 如果所有子任务都已处理完成，更新任务状态

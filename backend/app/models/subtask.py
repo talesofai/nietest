@@ -3,6 +3,8 @@ from enum import Enum
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
+from app.utils.timezone import get_beijing_now
+
 class SubTaskStatus(str, Enum):
     """子任务状态枚举"""
     PENDING = "pending"       # 等待中
@@ -29,13 +31,13 @@ class SubTask(BaseModel):
     ratio: str = "1:1"                                                      # 比例
     seed: Optional[int] = None                                              # 种子
     use_polish: bool = False                                                # 是否使用润色
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # 创建时间
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # 更新时间
+    created_at: datetime = Field(default_factory=get_beijing_now)  # 创建时间
+    updated_at: datetime = Field(default_factory=get_beijing_now)  # 更新时间
 
     def mark_as_processing(self):
         """将任务标记为处理中"""
         self.status = SubTaskStatus.PROCESSING
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = get_beijing_now()
 
     def mark_as_completed(self, result: Dict[str, Any]):
         """将任务标记为已完成
@@ -45,7 +47,7 @@ class SubTask(BaseModel):
         """
         self.status = SubTaskStatus.COMPLETED
         self.result = result
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = get_beijing_now()
 
     def mark_as_failed(self, error: str):
         """将任务标记为失败
@@ -56,12 +58,12 @@ class SubTask(BaseModel):
         self.status = SubTaskStatus.FAILED
         self.error = error
         self.retry_count += 1
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = get_beijing_now()
 
     def mark_as_cancelled(self):
         """将任务标记为已取消"""
         self.status = SubTaskStatus.CANCELLED
-        self.updated_at = datetime.now(timezone.utc)
+        self.updated_at = get_beijing_now()
 
     def is_cancelled(self) -> bool:
         """检查任务是否已取消

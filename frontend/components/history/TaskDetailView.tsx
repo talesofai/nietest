@@ -19,6 +19,7 @@ import { Icon } from "@iconify/react";
 
 import { TaskDetail } from "@/types/task";
 import { apiService } from "@/utils/api/apiService";
+import { formatBeijingTime } from "@/utils/dateUtils";
 import * as logger from "@/utils/logger";
 
 // 占位图片URL
@@ -203,12 +204,12 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
   // 根据批次图片数量确定图片尺寸
   const getImageSizeByBatchCount = (imageCount: number): number => {
-    if (imageCount <= 1) return 180; // 调整为更合适的尺寸
-    if (imageCount <= 4) return 90; // 调整为更合适的尺寸
-    if (imageCount <= 9) return 60; // 调整为更合适的尺寸
-    if (imageCount <= 16) return 45; // 调整为更合适的尺寸
+    if (imageCount <= 1) return 720; // 调整为更合适的尺寸
+    if (imageCount <= 4) return 360; // 调整为更合适的尺寸
+    if (imageCount <= 9) return 240; // 调整为更合适的尺寸
+    if (imageCount <= 16) return 180; // 调整为更合适的尺寸
 
-    return 20; // 如果超过16张，使用更小的尺寸
+    return 120; // 如果超过16张，使用更小的尺寸
   };
 
   // 使用ref来跟踪请求状态
@@ -950,9 +951,16 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       )}
 
       <div className="mb-4">
-        <h2 className="text-xl font-semibold mb-2">{task.task_name || `任务 ID: ${task.id}`}</h2>
+        <h2
+          className="text-xl font-semibold mb-2"
+          title={task.task_name || `任务 ID: ${task.id}`}
+        >
+          {(task.task_name && task.task_name.length > 8)
+            ? `${task.task_name.substring(0, 8)}...`
+            : (task.task_name || `任务 ID: ${task.id.substring(0, 8)}`)}
+        </h2>
         <p className="text-sm text-default-500">
-          创建时间: {new Date(task.created_at).toLocaleString()}
+          创建时间: {formatBeijingTime(task.created_at)}
         </p>
       </div>
 
@@ -1167,7 +1175,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                               boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                             }}
                           >
-                            {colKey}
+                            <span title={colKey}>
+                              {colKey.length > 8 ? `${colKey.substring(0, 8)}...` : colKey}
+                            </span>
                           </th>
                         ))}
                   </tr>
@@ -1184,7 +1194,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                           boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                         }}
                       >
-                        {row.rowTitle}
+                        <span title={row.rowTitle}>
+                          {row.rowTitle.length > 8 ? `${row.rowTitle.substring(0, 8)}...` : row.rowTitle}
+                        </span>
                       </td>
                       {Object.keys(row)
                         .filter((key) => key !== "key" && key !== "rowTitle")
@@ -1305,7 +1317,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                           className="max-w-full max-h-full"
                                           height="auto"
                                           radius="none"
-                                          src={getResizedImageUrl(imageUrl, 180)}
+                                          src={getResizedImageUrl(imageUrl, getImageSizeByBatchCount(1))}
                                           style={{
                                             objectFit: "none",
                                             width: "auto",
@@ -1314,7 +1326,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                           width="auto"
                                           onError={() => {
                                             logger.log("图片加载失败:", imageUrl);
-                                            const imgSrc = getResizedImageUrl(imageUrl, 180);
+                                            const imgSrc = getResizedImageUrl(imageUrl, getImageSizeByBatchCount(1));
 
                                             if (imgSrc) {
                                               const errorElement = document.querySelector(`img[src="${imgSrc}"]`) as HTMLImageElement | null;
@@ -1344,10 +1356,20 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                                         <p className="text-default-500 text-sm font-medium">未找到图片</p>
                                         <div className="mt-2 text-default-400 text-xs space-y-1">
                                           {xAxis && (
-                                            <p>{`${xAxis}:${(cell as TableCellData)?.xValue || colKey.replace(/#\d+$/, "")}`}</p>
+                                            <p title={`${xAxis}:${(cell as TableCellData)?.xValue || colKey.replace(/#\d+$/, "")}`}>
+                                              {(() => {
+                                                const text = `${xAxis}:${(cell as TableCellData)?.xValue || colKey.replace(/#\d+$/, "")}`;
+                                                return text.length > 8 ? `${text.substring(0, 8)}...` : text;
+                                              })()}
+                                            </p>
                                           )}
                                           {yAxis && (
-                                            <p>{`${yAxis}:${(cell as TableCellData)?.yValue || row.rowTitle.replace(/#\d+$/, "")}`}</p>
+                                            <p title={`${yAxis}:${(cell as TableCellData)?.yValue || row.rowTitle.replace(/#\d+$/, "")}`}>
+                                              {(() => {
+                                                const text = `${yAxis}:${(cell as TableCellData)?.yValue || row.rowTitle.replace(/#\d+$/, "")}`;
+                                                return text.length > 8 ? `${text.substring(0, 8)}...` : text;
+                                              })()}
+                                            </p>
                                           )}
                                           <p className="text-default-300 mt-1">无匹配数据</p>
                                         </div>

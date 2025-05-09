@@ -21,6 +21,7 @@ import {
   useLocalStorage,
   useSubmitTask,
   useTagEdit,
+  useTaskReuse,
   useVariableValues,
 } from "./draggable";
 
@@ -52,6 +53,14 @@ const DroppableTagsV2: React.FC = () => {
 
   // 使用事件监听 Hook
   useEventListeners(setVariableValues);
+
+  // 使用任务复用 Hook
+  const {
+    hasReusedTask,
+    reusedTaskInfo,
+    applyReusedSettings,
+    ignoreReusedSettings,
+  } = useTaskReuse(setTags, setVariableValues, setGlobalSettings);
 
   // 使用标签编辑 Hook
   const {
@@ -132,11 +141,38 @@ const DroppableTagsV2: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-3xl mx-auto">
-      {/* 全局设置按钮 */}
-      <div className="flex justify-end">
-        <Button color="primary" variant="solid" onPress={onSettingsOpen}>
-          ⚙️ 全局设置
-        </Button>
+      {/* 全局设置按钮和任务复用提示 */}
+      <div className="flex justify-between items-center">
+        <div className="flex-1">
+          {hasReusedTask && (
+            <div className="flex items-center gap-2">
+              <div className="bg-success-100 text-success-700 px-3 py-1 rounded-md text-sm">
+                检测到复用的任务设置: {reusedTaskInfo?.taskName}
+              </div>
+              <Button
+                color="success"
+                size="sm"
+                variant="solid"
+                onPress={applyReusedSettings}
+              >
+                应用
+              </Button>
+              <Button
+                color="default"
+                size="sm"
+                variant="light"
+                onPress={ignoreReusedSettings}
+              >
+                忽略
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="flex-shrink-0">
+          <Button color="primary" variant="solid" onPress={onSettingsOpen}>
+            ⚙️ 全局设置
+          </Button>
+        </div>
       </div>
 
       {/* 标签区域 */}

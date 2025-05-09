@@ -3,13 +3,21 @@ import * as React from "react";
 import { IconSvgProps } from "@/types";
 
 export const Logo: React.FC<IconSvgProps> = ({ size = 36, width, height, ...props }) => (
-  <svg fill="none" height={size || height} viewBox="0 0 32 32" width={size || width} {...props}>
-    <path
-      clipRule="evenodd"
-      d="M17.6482 10.1305L15.8785 7.02583L7.02979 22.5499H10.5278L17.6482 10.1305ZM19.8798 14.0457L18.11 17.1983L19.394 19.4511H16.8453L15.1056 22.5499H24.7272L19.8798 14.0457Z"
-      fill="currentColor"
-      fillRule="evenodd"
-    />
+  <svg width={size || width} height={size || height} viewBox="0 0 32 32" fill="none" {...props}>
+    {/* 实验室烧杯图标 */}
+    <path d="M10 4C10 2.89543 10.8954 2 12 2H20C21.1046 2 22 2.89543 22 4V10.5C22 10.5 22 11 22.5 11.5L28 20C29.5 22.5 28 26 24.5 26H7.5C4 26 2.5 22.5 4 20L9.5 11.5C10 11 10 10.5 10 10.5V4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+
+    {/* 液体 */}
+    <path d="M10 14H22L19 20H13L10 14Z" fill="currentColor" fillOpacity="0.2" />
+
+    {/* 气泡 */}
+    <circle cx="14" cy="17" r="1" fill="currentColor" />
+    <circle cx="18" cy="19" r="1" fill="currentColor" />
+    <circle cx="16" cy="16" r="0.8" fill="currentColor" />
+
+    {/* 刻度线 */}
+    <line x1="13" y1="6" x2="15" y2="6" stroke="currentColor" strokeWidth="1.5" />
+    <line x1="13" y1="9" x2="15" y2="9" stroke="currentColor" strokeWidth="1.5" />
   </svg>
 );
 

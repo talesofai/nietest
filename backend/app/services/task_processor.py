@@ -17,6 +17,7 @@ import uuid
 import copy
 from datetime import datetime, timezone
 import random
+from app.utils.timezone import get_beijing_now
 
 from app.db.mongodb import get_database
 from app.models.subtask import SubTaskStatus
@@ -216,10 +217,11 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
 
     # 获取当前重试次数
     retry_count = task_data.get("retry_count", 0)
-    max_retries = 10  # 最大重试次数
+    max_timeout_retries = 5  # 超时错误最大重试次数
+    max_other_retries = 2    # 其他错误最大重试次数
 
     variable_indices = task_data.get("variable_indices", [])
-    logger.debug(f"任务 {task_id} 的变量索引数组: {variable_indices}, 当前重试次数: {retry_count}/{max_retries}")
+    logger.debug(f"任务 {task_id} 的变量索引数组: {variable_indices}, 当前重试次数: {retry_count}, 超时最大重试: {max_timeout_retries}, 其他错误最大重试: {max_other_retries}")
 
     # 更新任务状态为处理中
     await update_dramatiq_task_status(db, task_id, SubTaskStatus.PROCESSING.value)
@@ -284,6 +286,17 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
             elapsed_time = current_time - start_time
             logger.debug(f"提取图像URL前耗时: {elapsed_time:.2f} 秒, 任务ID: {task_id}")
 
+            # 检查任务状态是否为ILLEGAL_IMAGE、FAILURE或TIMEOUT
+            if isinstance(result, dict):
+                task_status = result.get("task_status")
+                if task_status == "ILLEGAL_IMAGE":
+                    raise ValueError("图像生成API返回ILLEGAL_IMAGE状态，内容不合规")
+                elif task_status == "FAILURE":
+                    raise ValueError("图像生成API返回FAILURE状态，生成失败")
+                elif task_status == "TIMEOUT":
+                    # 触发超时错误的重试逻辑
+                    raise asyncio.TimeoutError("图像生成API返回TIMEOUT状态，任务超时")
+
             # 提取图像URL
             image_url = await image_generator.extract_image_url(result)
 
@@ -297,7 +310,7 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
                 "width": width,
                 "height": height,
                 "seed": seed,
-                "created_at": datetime.now(timezone.utc).isoformat()
+                "created_at": get_beijing_now().isoformat()
             }
 
             # 记录当前耗时
@@ -320,11 +333,11 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
             error_msg = f"图像生成超时，已耗时: {elapsed_time:.2f}秒"
             logger.error(f"任务 {task_id} {error_msg}")
 
-            # 检查是否达到最大重试次数
-            if retry_count >= max_retries - 1:  # -1是因为当前这次也算一次
+            # 检查是否达到超时错误最大重试次数
+            if retry_count >= max_timeout_retries - 1:  # -1是因为当前这次也算一次
                 # 已达到最大重试次数，标记为失败
-                logger.warning(f"任务 {task_id} 已达到最大重试次数 ({max_retries})，标记为最终失败")
-                await update_dramatiq_task_error(db, task_id, SubTaskStatus.FAILED.value, f"已重试 {max_retries} 次后仍然超时: {error_msg}")
+                logger.warning(f"任务 {task_id} 已达到超时最大重试次数 ({max_timeout_retries})，标记为最终失败")
+                await update_dramatiq_task_error(db, task_id, SubTaskStatus.FAILED.value, f"已重试 {max_timeout_retries} 次后仍然超时: {error_msg}")
 
                 # 更新父任务进度，确保失败的任务也被计入进度
                 parent_task_id = task_data.get("parent_task_id")
@@ -369,11 +382,34 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
         error_details = traceback.format_exc()
         logger.error(f"任务 {task_id} 异常堆栈:\n{error_details}")
 
-        # 检查是否达到最大重试次数
-        if retry_count >= max_retries - 1:  # -1是因为当前这次也算一次
+        # 检查是否是451错误（法律原因不可用）或ILLEGAL_IMAGE状态
+        if "451 Unavailable For Legal Reasons" in str(e) or "451 Unavailable For Legal Reasons" in error_details or "ILLEGAL_IMAGE" in str(e) or "ILLEGAL_IMAGE" in error_details or "图像生成API返回ILLEGAL_IMAGE状态" in str(e):
+            # 451错误或ILLEGAL_IMAGE状态不进行重试，直接标记为失败
+            if "ILLEGAL_IMAGE" in str(e) or "ILLEGAL_IMAGE" in error_details:
+                logger.warning(f"任务 {task_id} 返回ILLEGAL_IMAGE状态，不进行重试，直接标记为失败")
+                await update_dramatiq_task_error(db, task_id, SubTaskStatus.FAILED.value, f"返回ILLEGAL_IMAGE状态，不进行重试: {error_msg}\n\n{error_details}")
+            else:
+                logger.warning(f"任务 {task_id} 返回451错误（法律原因不可用），不进行重试，直接标记为失败")
+                await update_dramatiq_task_error(db, task_id, SubTaskStatus.FAILED.value, f"返回451错误（法律原因不可用），不进行重试: {error_msg}\n\n{error_details}")
+
+            # 更新父任务进度
+            parent_task_id = task_data.get("parent_task_id")
+            if parent_task_id:
+                await task_crud.update_task_progress(db, parent_task_id)
+                logger.info(f"已更新父任务 {parent_task_id} 的进度")
+
+            # 返回一个特殊的结果，表示任务已失败但不需要重试
+            return {
+                "status": "failed",
+                "error": f"图像生成失败: {error_msg}",
+                "reason": "451_or_illegal_image",
+                "message": "内容不合规，不进行重试"
+            }
+        # 检查是否达到其他错误最大重试次数
+        elif retry_count >= max_other_retries - 1:  # -1是因为当前这次也算一次
             # 已达到最大重试次数，标记为失败
-            logger.warning(f"任务 {task_id} 已达到最大重试次数 ({max_retries})，标记为最终失败")
-            await update_dramatiq_task_error(db, task_id, SubTaskStatus.FAILED.value, f"已重试 {max_retries} 次后失败: {error_msg}\n\n{error_details}")
+            logger.warning(f"任务 {task_id} 已达到其他错误最大重试次数 ({max_other_retries})，标记为最终失败")
+            await update_dramatiq_task_error(db, task_id, SubTaskStatus.FAILED.value, f"已重试 {max_other_retries} 次后失败: {error_msg}\n\n{error_details}")
 
             # 更新父任务进度，确保失败的任务也被计入进度
             parent_task_id = task_data.get("parent_task_id")
@@ -383,12 +419,16 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
 
             raise ValueError(f"图像生成失败: {error_msg}")
         else:
-            # 未达到最大重试次数，增加重试计数并立即重新提交任务
-            logger.info(f"任务 {task_id} 失败，将立即进行第 {retry_count + 1} 次重试")
+            # 未达到最大重试次数，增加重试计数并等待3秒后重新提交任务
+            logger.info(f"任务 {task_id} 失败，将在3秒后进行第 {retry_count + 1} 次重试")
             await update_dramatiq_task_error(db, task_id, SubTaskStatus.PROCESSING.value, f"第 {retry_count} 次尝试失败，准备重试: {error_msg}")
 
-            # 立即重新提交任务，不等待时间
+            # 等待3秒后重新提交任务
             from app.services.task_executor import submit_task
+
+            # 等待3秒
+            await asyncio.sleep(3)
+            logger.info(f"等待3秒后开始重试任务 {task_id}")
 
             # 检查是否是Lumina任务
             is_lumina_task = False
@@ -399,7 +439,7 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
 
             # 重新提交任务
             await submit_task(process_image_task(task_id), task_id, is_lumina=is_lumina_task)
-            logger.info(f"已立即重新提交任务 {task_id} 进行第 {retry_count + 1} 次重试")
+            logger.info(f"已重新提交任务 {task_id} 进行第 {retry_count + 1} 次重试")
 
             # 返回一个特殊的结果，表示任务已重新提交
             return {
@@ -1111,8 +1151,8 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 # 更新任务状态
                 await update_task_status(db, task_id, TaskStatus.FAILED.value)
                 # 更新进度信息
-                from app.crud.task import update_task_progress
-                await update_task_progress(db, task_id, failed_tasks, total_tasks)
+                from app.crud.task import update_task_progress_with_counts
+                await update_task_progress_with_counts(db, task_id, failed_tasks, total_tasks)
 
                 # 发送任务失败通知
                 feishu_notify(
@@ -1135,8 +1175,8 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 # 更新任务状态
                 await update_task_status(db, task_id, TaskStatus.COMPLETED.value)
                 # 更新进度信息
-                from app.crud.task import update_task_progress
-                await update_task_progress(db, task_id, completed_tasks + failed_tasks, total_tasks)
+                from app.crud.task import update_task_progress_with_counts
+                await update_task_progress_with_counts(db, task_id, completed_tasks + failed_tasks, total_tasks)
 
                 # 发送任务部分成功通知
                 feishu_notify(
@@ -1159,8 +1199,8 @@ async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
                 # 更新任务状态
                 await update_task_status(db, task_id, TaskStatus.COMPLETED.value)
                 # 更新进度信息
-                from app.crud.task import update_task_progress
-                await update_task_progress(db, task_id, completed_tasks, total_tasks)
+                from app.crud.task import update_task_progress_with_counts
+                await update_task_progress_with_counts(db, task_id, completed_tasks, total_tasks)
 
                 # 发送任务成功通知
                 feishu_notify(
