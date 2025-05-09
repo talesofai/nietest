@@ -26,6 +26,7 @@ def configure_logging(log_level: str = "INFO"):
     logging.getLogger("uvicorn").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("dramatiq").setLevel(logging.INFO)
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # 将 httpx 的日志级别设置为 WARNING
 
     # 创建文件处理器
     try:
