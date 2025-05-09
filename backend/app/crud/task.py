@@ -451,6 +451,82 @@ async def increment_processed_images(db: Any, task_id: str) -> bool:
 
     return result.modified_count > 0
 
+async def update_task_progress(db: Any, task_id: str) -> bool:
+    """
+    更新任务进度，自动计算已处理图片数和总图片数
+
+    Args:
+        db: 数据库连接
+        task_id: 任务ID
+
+    Returns:
+        更新是否成功
+    """
+    # 获取当前任务信息
+    task = await get_task(db, task_id)
+    if not task:
+        logger.warning(f"找不到任务 {task_id}")
+        return False
+
+    # 在这里导入，避免循环导入
+    from app.models.subtask import SubTaskStatus
+    from app.crud.dramatiq_task import get_dramatiq_tasks_by_parent_id
+
+    # 获取子任务
+    all_dramatiq_tasks = await get_dramatiq_tasks_by_parent_id(db, task_id)
+
+    # 计算进度
+    total_tasks = len(all_dramatiq_tasks)
+    completed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.COMPLETED.value)
+    failed_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.FAILED.value)
+    cancelled_tasks = sum(1 for dt in all_dramatiq_tasks if dt.get("status") == SubTaskStatus.CANCELLED.value)
+
+    # 记录子任务状态
+    logger.debug(f"任务 {task_id} 的子任务状态: 总数={total_tasks}, 已完成={completed_tasks}, 失败={failed_tasks}, 已取消={cancelled_tasks}")
+
+    # 计算已处理图片数和进度
+    processed_images = completed_tasks + failed_tasks + cancelled_tasks
+    progress = 0
+    if total_tasks > 0:
+        progress = int((processed_images / total_tasks) * 100)
+
+    # 更新任务
+    update_data = {
+        "processed_images": processed_images,
+        "progress": progress,
+        "updated_at": datetime.now(timezone.utc)
+    }
+
+    # 如果所有子任务都已处理完成，更新任务状态
+    if processed_images == total_tasks and total_tasks > 0:
+        # 如果所有子任务都失败，则任务失败
+        if failed_tasks == total_tasks:
+            update_data["status"] = TaskStatus.FAILED.value
+            logger.warning(f"任务 {task_id} 的所有子任务都失败，将任务标记为失败")
+        # 如果所有子任务都被取消，则任务取消
+        elif cancelled_tasks == total_tasks:
+            update_data["status"] = TaskStatus.CANCELLED.value
+            logger.warning(f"任务 {task_id} 的所有子任务都被取消，将任务标记为取消")
+        # 如果有一些子任务成功，则任务完成
+        elif completed_tasks > 0:
+            update_data["status"] = TaskStatus.COMPLETED.value
+            update_data["all_subtasks_completed"] = True
+            logger.info(f"任务 {task_id} 的子任务已全部处理完成，将任务标记为完成")
+
+    # 更新任务
+    result = await db.tasks.update_one(
+        {"id": task_id},  # 直接使用id字段查询
+        {"$set": update_data}
+    )
+
+    # 如果启用了缓存，清除缓存
+    if settings.CACHE_ENABLED and result.modified_count > 0:
+        redis_cache = get_redis_cache()
+        # 清除任务缓存
+        await redis_cache.clear_task_cache(task_id)
+
+    return result.modified_count > 0
+
 async def cancel_task(db: Any, task_id: str) -> bool:
     """
     取消任务

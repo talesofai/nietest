@@ -10,11 +10,9 @@ import logging
 import random
 import httpx
 import json
-import os
 import time
 import asyncio
 import math
-from datetime import datetime
 
 from backend2.core.config import settings
 
@@ -26,10 +24,10 @@ class MakeImageService:
 
     def __init__(self):
         """初始化图像生成服务"""
-        # 使用环境变量中的MAKE_API_TOKEN
-        self.api_token = os.environ.get("MAKE_API_TOKEN", "")
+        # 使用settings中的TEST_MAKE_API_TOKEN
+        self.api_token = settings.TEST_MAKE_API_TOKEN
         if not self.api_token:
-            raise ValueError("环境变量中未设置MAKE_API_TOKEN")
+            raise ValueError("settings中未设置TEST_MAKE_API_TOKEN")
 
         # API端点
         self.api_url = "https://api.make.com/v1/generate"
@@ -44,8 +42,8 @@ class MakeImageService:
         self.ops_task_status_url = "https://ops.api.make.com/v1/tasks/{task_uuid}"
 
         # 轮询配置
-        self.max_polling_attempts = 30  # 最大轮询次数
-        self.polling_interval = 2.0    # 轮询间隔（秒）
+        self.max_polling_attempts = settings.TEST_IMAGE_MAX_POLLING_ATTEMPTS  # 最大轮询次数
+        self.polling_interval = settings.TEST_IMAGE_POLLING_INTERVAL    # 轮询间隔（秒）
 
         # 默认请求头
         self.default_headers = {

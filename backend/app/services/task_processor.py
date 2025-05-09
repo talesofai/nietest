@@ -25,7 +25,7 @@ from app.services.image import create_image_generator
 from app.services.task_executor import get_task_executor, get_lumina_task_executor, submit_task, get_task_result
 from app.core.config import settings
 from app.crud.dramatiq_task import update_dramatiq_task_result, get_dramatiq_task
-from app.crud.dramatiq_task import get_dramatiq_task, update_dramatiq_task_status
+from app.crud.dramatiq_task import get_dramatiq_task, update_dramatiq_task_status, update_dramatiq_task_error
 from app.crud.task import get_task
 from app.crud import task as task_crud
 from app.utils.feishu import feishu_notify
@@ -214,8 +214,12 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
         logger.error(f"找不到任务 {task_id}")
         raise ValueError(f"找不到任务 {task_id}")
 
+    # 获取当前重试次数
+    retry_count = task_data.get("retry_count", 0)
+    max_retries = 10  # 最大重试次数
+
     variable_indices = task_data.get("variable_indices", [])
-    logger.debug(f"任务 {task_id} 的变量索引数组: {variable_indices}")
+    logger.debug(f"任务 {task_id} 的变量索引数组: {variable_indices}, 当前重试次数: {retry_count}/{max_retries}")
 
     # 更新任务状态为处理中
     await update_dramatiq_task_status(db, task_id, SubTaskStatus.PROCESSING.value)
@@ -250,51 +254,158 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
         else:
             logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 值={prompt_value if prompt_type=='freetext' else prompt_name}")
 
-    image_generator = create_image_generator()
-    width, height = await image_generator.calculate_dimensions(ratio)
-    current_time = time.time()
-    elapsed_time = current_time - start_time
+    try:
+        image_generator = create_image_generator()
+        width, height = await image_generator.calculate_dimensions(ratio)
+        current_time = time.time()
+        elapsed_time = current_time - start_time
 
-    logger.debug(f"开始生成图像: {task_id}, 宽度={width}, 高度={height}, 种子={seed}, 使用文本润色={use_polish}。\n完整提示词内容: {json.dumps(prompts, ensure_ascii=False)}")
+        logger.debug(f"开始生成图像: {task_id}, 宽度={width}, 高度={height}, 种子={seed}, 使用文本润色={use_polish}。\n完整提示词内容: {json.dumps(prompts, ensure_ascii=False)}")
 
-    # 发送图像生成请求
-    result = await image_generator.generate_image(
-        prompts=prompts,
-        width=width,
-        height=height,
-        seed=seed,
-        advanced_translator=use_polish
-    )
-    # 记录当前耗时
-    current_time = time.time()
-    elapsed_time = current_time - start_time
-    logger.debug(f"提取图像URL前耗时: {elapsed_time:.2f} 秒, 任务ID: {task_id}")
+        # 设置超时时间
+        timeout = 300  # 5分钟超时
 
-    # 提取图像URL
-    image_url = await image_generator.extract_image_url(result)
+        # 使用asyncio.wait_for设置超时
+        try:
+            # 发送图像生成请求
+            result = await asyncio.wait_for(
+                image_generator.generate_image(
+                    prompts=prompts,
+                    width=width,
+                    height=height,
+                    seed=seed,
+                    advanced_translator=use_polish
+                ),
+                timeout=timeout
+            )
 
-    # 创建结果项
-    result_item = {
-        "url": image_url,
-        "width": width,
-        "height": height,
-        "seed": seed,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
+            # 记录当前耗时
+            current_time = time.time()
+            elapsed_time = current_time - start_time
+            logger.debug(f"提取图像URL前耗时: {elapsed_time:.2f} 秒, 任务ID: {task_id}")
 
-    # 记录当前耗时
-    current_time = time.time()
-    elapsed_time = current_time - start_time
-    await update_dramatiq_task_result(db, task_id, SubTaskStatus.COMPLETED.value, result_item)
+            # 提取图像URL
+            image_url = await image_generator.extract_image_url(result)
 
-    # 记录总耗时
-    total_time = time.time() - start_time
-    logger.debug(f"任务处理完成，总耗时: {total_time:.2f} 秒, 任务ID: {task_id}")
+            # 检查图像URL是否有效
+            if not image_url:
+                raise ValueError("无法获取有效的图像URL")
 
-    return {
-        "status": "completed",
-        "result": result_item
-    }
+            # 创建结果项
+            result_item = {
+                "url": image_url,
+                "width": width,
+                "height": height,
+                "seed": seed,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+
+            # 记录当前耗时
+            current_time = time.time()
+            elapsed_time = current_time - start_time
+            await update_dramatiq_task_result(db, task_id, SubTaskStatus.COMPLETED.value, result_item)
+
+            # 记录总耗时
+            total_time = time.time() - start_time
+            logger.debug(f"任务处理完成，总耗时: {total_time:.2f} 秒, 任务ID: {task_id}")
+
+            return {
+                "status": "completed",
+                "result": result_item
+            }
+
+        except asyncio.TimeoutError:
+            # 处理超时情况
+            elapsed_time = time.time() - start_time
+            error_msg = f"图像生成超时，已耗时: {elapsed_time:.2f}秒"
+            logger.error(f"任务 {task_id} {error_msg}")
+
+            # 检查是否达到最大重试次数
+            if retry_count >= max_retries - 1:  # -1是因为当前这次也算一次
+                # 已达到最大重试次数，标记为失败
+                logger.warning(f"任务 {task_id} 已达到最大重试次数 ({max_retries})，标记为最终失败")
+                await update_dramatiq_task_error(db, task_id, SubTaskStatus.FAILED.value, f"已重试 {max_retries} 次后仍然超时: {error_msg}")
+
+                # 更新父任务进度，确保失败的任务也被计入进度
+                parent_task_id = task_data.get("parent_task_id")
+                if parent_task_id:
+                    await task_crud.update_task_progress(db, parent_task_id)
+                    logger.info(f"已更新父任务 {parent_task_id} 的进度")
+
+                raise ValueError(f"图像生成失败: {error_msg}")
+            else:
+                # 未达到最大重试次数，增加重试计数并立即重新提交任务
+                logger.info(f"任务 {task_id} 超时，将立即进行第 {retry_count + 1} 次重试")
+                await update_dramatiq_task_error(db, task_id, SubTaskStatus.PROCESSING.value, f"第 {retry_count} 次尝试超时，准备重试: {error_msg}")
+
+                # 立即重新提交任务，不等待时间
+                from app.services.task_executor import submit_task
+
+                # 检查是否是Lumina任务
+                is_lumina_task = False
+                for prompt in prompts:
+                    if prompt.get("name", "").lower().find("lumina") >= 0:
+                        is_lumina_task = True
+                        break
+
+                # 重新提交任务
+                await submit_task(process_image_task(task_id), task_id, is_lumina=is_lumina_task)
+                logger.info(f"已立即重新提交任务 {task_id} 进行第 {retry_count + 1} 次重试")
+
+                # 返回一个特殊的结果，表示任务已重新提交
+                return {
+                    "status": "retrying",
+                    "message": f"任务已重新提交进行第 {retry_count + 1} 次重试"
+                }
+
+    except Exception as e:
+        # 处理其他异常
+        elapsed_time = time.time() - start_time
+        error_msg = f"图像生成失败: {str(e)}"
+        logger.error(f"任务 {task_id} {error_msg}, 已耗时: {elapsed_time:.2f}秒")
+
+        # 获取详细的异常信息
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"任务 {task_id} 异常堆栈:\n{error_details}")
+
+        # 检查是否达到最大重试次数
+        if retry_count >= max_retries - 1:  # -1是因为当前这次也算一次
+            # 已达到最大重试次数，标记为失败
+            logger.warning(f"任务 {task_id} 已达到最大重试次数 ({max_retries})，标记为最终失败")
+            await update_dramatiq_task_error(db, task_id, SubTaskStatus.FAILED.value, f"已重试 {max_retries} 次后失败: {error_msg}\n\n{error_details}")
+
+            # 更新父任务进度，确保失败的任务也被计入进度
+            parent_task_id = task_data.get("parent_task_id")
+            if parent_task_id:
+                await task_crud.update_task_progress(db, parent_task_id)
+                logger.info(f"已更新父任务 {parent_task_id} 的进度")
+
+            raise ValueError(f"图像生成失败: {error_msg}")
+        else:
+            # 未达到最大重试次数，增加重试计数并立即重新提交任务
+            logger.info(f"任务 {task_id} 失败，将立即进行第 {retry_count + 1} 次重试")
+            await update_dramatiq_task_error(db, task_id, SubTaskStatus.PROCESSING.value, f"第 {retry_count} 次尝试失败，准备重试: {error_msg}")
+
+            # 立即重新提交任务，不等待时间
+            from app.services.task_executor import submit_task
+
+            # 检查是否是Lumina任务
+            is_lumina_task = False
+            for prompt in prompts:
+                if prompt.get("name", "").lower().find("lumina") >= 0:
+                    is_lumina_task = True
+                    break
+
+            # 重新提交任务
+            await submit_task(process_image_task(task_id), task_id, is_lumina=is_lumina_task)
+            logger.info(f"已立即重新提交任务 {task_id} 进行第 {retry_count + 1} 次重试")
+
+            # 返回一个特殊的结果，表示任务已重新提交
+            return {
+                "status": "retrying",
+                "message": f"任务已重新提交进行第 {retry_count + 1} 次重试"
+            }
 
 def format_prompt_for_api(prompt_data: Any, prompt_type: str) -> Dict[str, Any]:
     """
@@ -340,7 +451,7 @@ def format_prompt_for_api(prompt_data: Any, prompt_type: str) -> Dict[str, Any]:
         }
         logger.debug(f"提示词格式化结果: {json.dumps(result)}")
         return result
-    
+
     if not (prompt_type == "character" or prompt_type == "element"):
         raise ValueError(f"prompt_type必须是'prompt', 'character'或'element', 当前类型: {prompt_type}")
 
