@@ -7,8 +7,10 @@ import { motion } from "framer-motion";
 import { Icon } from "@iconify/react";
 
 import { getTaskDetail } from "@/utils/taskService";
+import { reuseTaskSettings } from "@/utils/taskReuseService";
 import { TaskDetailView } from "@/components/history/TaskDetailView";
 import { TaskDetail } from "@/types/task";
+import { alertService } from "@/utils/alertService";
 
 interface TaskResponse {
   success: boolean;
@@ -210,6 +212,41 @@ export default function TaskDetailPage(): JSX.Element {
     router.push("/history");
   };
 
+  // 处理复用任务设置
+  const handleReuseTask = async (): Promise<void> => {
+    if (!taskId || !task) {
+      alertService.error({
+        title: "复用失败",
+        description: "无法获取任务信息",
+      });
+      return;
+    }
+
+    try {
+      const result = await reuseTaskSettings(taskId);
+
+      if (result.success) {
+        alertService.success({
+          title: "复用成功",
+          description: `已复用任务"${task.task_name || `任务 ${task.id.substring(0, 8)}`}"的设置，请前往参数页面查看`,
+        });
+
+        // 导航到参数页面
+        router.push("/parameters");
+      } else {
+        alertService.error({
+          title: "复用失败",
+          description: result.message || "无法复用任务设置",
+        });
+      }
+    } catch (error) {
+      alertService.error({
+        title: "复用失败",
+        description: error instanceof Error ? error.message : "发生未知错误",
+      });
+    }
+  };
+
   return (
     <section className="w-full min-h-screen">
       {/* 使用Suspense包裹SearchParamsComponent */}
@@ -228,17 +265,27 @@ export default function TaskDetailPage(): JSX.Element {
           <h1 className="text-2xl font-bold">任务详情</h1>
           <div className="flex gap-2">
             {taskId && (
-              <Button
-                as="a"
-                color="secondary"
-                href={`/history/task-detail?id=${taskId}`}
-                rel="noopener noreferrer"
-                startContent={<Icon icon="solar:square-top-right-linear" width={16} />}
-                target="_blank"
-                variant="bordered"
-              >
-                新标签页打开
-              </Button>
+              <>
+                <Button
+                  color="default"
+                  startContent={<Icon icon="solar:restart-linear" width={16} />}
+                  variant="flat"
+                  onPress={handleReuseTask}
+                >
+                  复用设置
+                </Button>
+                <Button
+                  as="a"
+                  color="secondary"
+                  href={`/history/task-detail?id=${taskId}`}
+                  rel="noopener noreferrer"
+                  startContent={<Icon icon="solar:square-top-right-linear" width={16} />}
+                  target="_blank"
+                  variant="bordered"
+                >
+                  新标签页打开
+                </Button>
+              </>
             )}
             <Button
               color="primary"

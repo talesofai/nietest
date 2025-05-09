@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from bson import ObjectId
 
 from app.models.subtask import SubTaskStatus
+from app.utils.timezone import get_beijing_now
 
 import uuid
 
@@ -42,8 +43,8 @@ async def create_subtask(db: Any, task_data: Dict[str, Any]) -> Dict[str, Any]:
         "ratio": task_data.get("ratio", "1:1"),
         "seed": task_data.get("seed"),
         "use_polish": task_data.get("use_polish", False),
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc)
+        "created_at": get_beijing_now(),
+        "updated_at": get_beijing_now()
     }
 
     # 插入任务
@@ -138,7 +139,7 @@ async def update_subtask(db: Any, task_id: str, update_data: Dict[str, Any]) -> 
         更新后的子任务，如果不存在则返回None
     """
     # 添加更新时间
-    update_data["updated_at"] = datetime.now(timezone.utc)
+    update_data["updated_at"] = get_beijing_now()
 
     # 更新任务
     result = await db.dramatiq_tasks.update_one(
@@ -171,7 +172,7 @@ async def update_subtask_status(db: Any, task_id: str, status: str) -> bool:
         {
             "$set": {
                 "status": status,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": get_beijing_now()
             }
         }
     )
@@ -203,7 +204,7 @@ async def update_subtask_result(db: Any, task_id: str, status: str, result: Dict
             "$set": {
                 "status": status,
                 "result": result,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": get_beijing_now()
             }
         }
     )
@@ -244,7 +245,7 @@ async def update_subtask_error(db: Any, task_id: str, status: str, error: str) -
             "$set": {
                 "status": status,
                 "error": error,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": get_beijing_now()
             },
             "$inc": {
                 "retry_count": 1

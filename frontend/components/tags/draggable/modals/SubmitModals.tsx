@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
 import { Input } from "@heroui/input";
+import { formatBeijingTime, getCurrentBeijingTime } from "@/utils/dateUtils";
 
 interface SubmitModalsProps {
   // 登录提示模态框
@@ -192,7 +193,7 @@ const SubmitModals: React.FC<SubmitModalsProps> = ({
                   onPress={() => {
                     // 如果没有输入任务名称，使用默认名称
                     const finalTaskName =
-                      taskName.trim() || `无标题任务_${new Date().toLocaleString()}`;
+                      taskName.trim() || `无标题任务_${formatBeijingTime(getCurrentBeijingTime())}`;
 
                     onModalClose();
                     // 直接提交任务

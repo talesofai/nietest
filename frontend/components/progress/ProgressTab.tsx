@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 
 import { TaskStatus, TaskDetail } from "@/types/task";
 import { getTaskList, cancelTask } from "@/utils/taskService";
+import { formatBeijingTime } from "@/utils/dateUtils";
 import { alertService } from "@/utils/alertService";
 
 const ProgressTab: React.FC = () => {
@@ -198,7 +199,7 @@ const ProgressTab: React.FC = () => {
 
                   <div className="flex justify-between items-center">
                     <div className="text-sm text-default-500">
-                      创建时间: {new Date(task.created_at).toLocaleString()}
+                      创建时间: {formatBeijingTime(task.created_at)}
                     </div>
                     <div className="flex gap-2">
                       {task.status === TaskStatus.PROCESSING && (

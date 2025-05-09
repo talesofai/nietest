@@ -298,17 +298,23 @@ class ImageGenerationService:
                     artifacts_count = len(result.get('artifacts', []))
 
                     # 记录轮询结果，但减少日志量
-                    if attempt % 3 == 0 or task_status in ["SUCCESS", "FAILED", "ERROR", "TIMEOUT"]:
+                    if attempt % 3 == 0 or task_status != "PENDING":
                         logger.debug(f"轮询状态 (第{attempt+1}次): {task_status}, artifacts={artifacts_count}, 任务ID: {task_uuid}")
 
-                    # 如果任务完成或失败，返回结果
-                    if task_status in ["SUCCESS", "FAILED", "ERROR", "TIMEOUT"]:
+                    # 如果任务状态是PENDING，继续轮询
+                    if task_status == "PENDING":
+                        # 任务仍在进行中，等待一段时间后再次轮询
+                        await asyncio.sleep(polling_interval)
+                    else:
+                        # 任务已完成或失败，返回结果
+                        # 如果状态不在预期列表中，记录警告
+                        if task_status not in ["SUCCESS", "FAILED", "ERROR", "TIMEOUT", "ILLEGAL_IMAGE", "FAILURE"]:
+                            logger.warning(f"任务状态不在预期列表中: {task_status}，将视为FAILURE处理, 任务ID: {task_uuid}")
+                            result["task_status"] = "FAILURE"  # 将未预期的状态视为FAILURE
+
                         total_time = time.time() - start_time
                         logger.info(f"任务完成，状态: {task_status}, 总耗时: {total_time:.2f}秒, 任务ID: {task_uuid}")
                         return result
-
-                    # 如果任务仍在进行中，等待一段时间后再次轮询
-                    await asyncio.sleep(polling_interval)
 
             except Exception as e:
                 logger.error(f"轮询任务状态时出错 (第{attempt+1}次): {str(e)}, 任务ID: {task_uuid}")

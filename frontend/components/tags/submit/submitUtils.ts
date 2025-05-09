@@ -3,6 +3,7 @@ import { VariableValue } from "@/types/variable";
 import { alertService } from "@/utils/alertService";
 import { apiService } from "@/utils/api/apiService";
 import { getCurrentUsername, checkUserLoggedIn } from "@/utils/user/userUtils";
+import { getCurrentBeijingTimeISO } from "@/utils/dateUtils";
 
 /**
  * 显示通知消息
@@ -518,7 +519,7 @@ export const prepareSubmitData = async (
       maxThreads: globalSettings.maxThreads,
       xToken: globalSettings.xToken,
     },
-    createdAt: new Date().toISOString(),
+    createdAt: getCurrentBeijingTimeISO(),
   };
 };
 
@@ -645,7 +646,7 @@ export const submitPost = async (data: SubmitData): Promise<SubmitResponse> => {
     return {
       success: true,
       message: apiResponse.data?.message || "提交成功",
-      timestamp: new Date().toISOString(),
+      timestamp: getCurrentBeijingTimeISO(),
       data: apiResponse.data,
     };
   } catch (error) {

@@ -17,7 +17,10 @@ import { Icon } from "@iconify/react";
 
 import { TaskStatus, TaskDetail } from "@/types/task";
 import { getTaskList } from "@/utils/taskService";
+import { reuseTaskSettings } from "@/utils/taskReuseService";
+import { formatBeijingTime } from "@/utils/dateUtils";
 import { SearchIcon, CloseIcon } from "@/components/icons";
+import { alertService } from "@/utils/alertService";
 
 const HistoryTab: React.FC = () => {
   const router = useRouter();
@@ -141,6 +144,33 @@ const HistoryTab: React.FC = () => {
     router.push(`/history/task-detail?id=${taskId}`);
   };
 
+  // 处理复用任务设置
+  const handleReuseTask = async (taskId: string, taskName: string) => {
+    try {
+      const result = await reuseTaskSettings(taskId);
+
+      if (result.success) {
+        alertService.success({
+          title: "复用成功",
+          description: `已复用任务"${taskName}"的设置，请前往参数页面查看`,
+        });
+
+        // 可选：导航到参数页面
+        router.push("/parameters");
+      } else {
+        alertService.error({
+          title: "复用失败",
+          description: result.message || "无法复用任务设置",
+        });
+      }
+    } catch (error) {
+      alertService.error({
+        title: "复用失败",
+        description: error instanceof Error ? error.message : "发生未知错误",
+      });
+    }
+  };
+
   // 渲染历史列表部分
   const renderHistoryList = () => {
     if (loading) {
@@ -182,8 +212,13 @@ const HistoryTab: React.FC = () => {
             >
               <CardHeader className="flex justify-between items-center pb-2">
                 <div>
-                  <h3 className="text-lg font-semibold">
-                    {task.task_name || `任务 ${task.id.substring(0, 8)}`}
+                  <h3
+                    className="text-lg font-semibold truncate max-w-[200px]"
+                    title={task.task_name || `任务 ${task.id.substring(0, 8)}`}
+                  >
+                    {(task.task_name && task.task_name.length > 8)
+                      ? `${task.task_name.substring(0, 8)}...`
+                      : (task.task_name || `任务 ${task.id.substring(0, 8)}`)}
                   </h3>
                   <p className="text-xs text-default-500">ID: {task.id.substring(0, 8)}...</p>
                 </div>
@@ -213,12 +248,12 @@ const HistoryTab: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <h5 className="text-xs font-semibold mb-1 text-default-600">创建时间</h5>
-                    <div className="text-sm">{new Date(task.created_at).toLocaleString()}</div>
+                    <div className="text-sm">{formatBeijingTime(task.created_at)}</div>
                   </div>
                   <div>
                     <h5 className="text-xs font-semibold mb-1 text-default-600">更新时间</h5>
                     <div className="text-sm">
-                      {task.updated_at ? new Date(task.updated_at).toLocaleString() : "-"}
+                      {task.updated_at ? formatBeijingTime(task.updated_at) : "-"}
                     </div>
                   </div>
                 </div>
@@ -244,8 +279,24 @@ const HistoryTab: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex justify-end mt-2">
-                  <Button color="primary" size="sm" onPress={() => handleViewHistory(task.id)}>
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button
+                    color="default"
+                    size="sm"
+                    startContent={<Icon icon="solar:restart-linear" width={16} />}
+                    variant="flat"
+                    onPress={() => handleReuseTask(
+                      task.id,
+                      task.task_name || `任务 ${task.id.substring(0, 8)}`
+                    )}
+                  >
+                    复用设置
+                  </Button>
+                  <Button
+                    color="primary"
+                    size="sm"
+                    onPress={() => handleViewHistory(task.id)}
+                  >
                     查看详情
                   </Button>
                 </div>

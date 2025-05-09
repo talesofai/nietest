@@ -3,6 +3,8 @@ from enum import Enum
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field
 
+from app.utils.timezone import get_beijing_now
+
 class Role(str, Enum):
     """用户角色枚举"""
     ADMIN = "admin"      # 管理员
@@ -32,15 +34,15 @@ class User(BaseModel):
     fullname: Optional[str] = None
     roles: List[Role] = [Role.USER]
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=get_beijing_now)
+    updated_at: datetime = Field(default_factory=get_beijing_now)
 
     def has_permission(self, permission: Permission) -> bool:
         """检查用户是否具有指定权限
-        
+
         Args:
             permission: 权限
-            
+
         Returns:
             是否具有权限
         """
@@ -51,10 +53,10 @@ class User(BaseModel):
 
     def has_role(self, role: Role) -> bool:
         """检查用户是否具有指定角色
-        
+
         Args:
             role: 角色
-            
+
         Returns:
             是否具有角色
         """

@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.config import settings
+from app.utils.timezone import get_beijing_now
 
 # 密码上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -50,9 +51,9 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
 
     # 设置过期时间
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = get_beijing_now() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = get_beijing_now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire})
 
