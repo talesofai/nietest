@@ -438,6 +438,7 @@ class AutoScalingManager:
 
         self.last_scale_up_time = 0
         self.last_scale_down_time = 0
+        self.last_empty_time = 0  # 记录队列最后一次变为空的时间
         self._is_running = False
         self._monitor_task = None
 
@@ -514,12 +515,37 @@ class AutoScalingManager:
 
                 # 判断是否需要缩容
                 elif running_tasks < max_concurrent // 2 and max_concurrent > self.min_concurrent_tasks:
-                    # 检查是否可以缩容（时间间隔）
-                    if current_time - self.last_scale_down_time >= self.scale_down_interval:
-                        new_concurrent = max(max_concurrent - self.scale_up_step, self.min_concurrent_tasks)
-                        logger.info(f"自动缩容: {max_concurrent} -> {new_concurrent} 并发任务")
-                        executor.set_max_concurrent_tasks(new_concurrent)
-                        self.last_scale_down_time = current_time
+                    # Lumina队列和标准队列使用不同的缩容逻辑
+                    if is_lumina:
+                        # Lumina队列：只有在没有任何任务后持续3分钟才触发缩容
+                        if running_tasks == 0:
+                            # 如果队列为空且之前未记录空队列时间，记录当前时间
+                            if self.last_empty_time == 0:
+                                self.last_empty_time = current_time
+                                logger.debug(f"Lumina队列变为空，开始计时: {current_time}")
+                            # 如果队列持续为空超过3分钟，触发缩容
+                            elif current_time - self.last_empty_time >= 180:  # 3分钟 = 180秒
+                                # 检查是否可以缩容（时间间隔）
+                                if current_time - self.last_scale_down_time >= self.scale_down_interval:
+                                    new_concurrent = max(max_concurrent - self.scale_up_step, self.min_concurrent_tasks)
+                                    logger.info(f"Lumina自动缩容: {max_concurrent} -> {new_concurrent} 并发任务，队列已空闲 {(current_time - self.last_empty_time):.0f} 秒")
+                                    executor.set_max_concurrent_tasks(new_concurrent)
+                                    self.last_scale_down_time = current_time
+                                    # 重置空队列时间
+                                    self.last_empty_time = 0
+                        else:
+                            # 如果队列不为空，重置空队列时间
+                            if self.last_empty_time != 0:
+                                logger.debug(f"Lumina队列不再为空，重置计时")
+                                self.last_empty_time = 0
+                    else:
+                        # 标准队列：使用原有的缩容逻辑
+                        # 检查是否可以缩容（时间间隔）
+                        if current_time - self.last_scale_down_time >= self.scale_down_interval:
+                            new_concurrent = max(max_concurrent - self.scale_up_step, self.min_concurrent_tasks)
+                            logger.info(f"自动缩容: {max_concurrent} -> {new_concurrent} 并发任务")
+                            executor.set_max_concurrent_tasks(new_concurrent)
+                            self.last_scale_down_time = current_time
 
                 await asyncio.sleep(10)  # 每10秒检查一次
             except asyncio.CancelledError:

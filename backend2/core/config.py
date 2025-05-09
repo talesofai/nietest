@@ -3,25 +3,35 @@
 
 存储应用的全局配置
 """
-from pydantic import BaseSettings, Field
-from typing import Optional, Dict, Any, List
+import os
 
+from dotenv import load_dotenv
 
-class Settings(BaseSettings):
+load_dotenv()
+
+class Settings:
     """应用配置类"""
-    # API版本
-    API_VERSION: str = "1.0.0"
+    def __init__(self):
+        # API版本
+        self.API_VERSION = "1.0.0"
 
-    # 图像生成服务配置
-    IMAGE_MAX_POLLING_ATTEMPTS: int = Field(default=30, description="图像生成任务轮询最大次数")
-    IMAGE_POLLING_INTERVAL: float = Field(default=2.0, description="图像生成任务轮询间隔（秒）")
+        # 数据库配置
+        self.TEST_DB_HOST = os.getenv("TEST_DB_HOST", "localhost")
+        self.TEST_DB_PORT = int(os.getenv("TEST_DB_PORT", "5432"))
+        self.TEST_DB_NAME = os.getenv("TEST_DB_NAME", "database")
+        self.TEST_DB_USER = os.getenv("TEST_DB_USER", "postgres")
+        self.TEST_DB_PASSWORD = os.getenv("TEST_DB_PASSWORD", "")
 
-    # 环境变量配置
-    MAKE_API_TOKEN: Optional[str] = Field(default=None, description="Make API的认证Token")
+        # 数据库连接池配置
+        self.TEST_DB_MAX_CONNECTIONS = int(os.getenv("TEST_DB_MAX_CONNECTIONS", "8"))
+        self.TEST_DB_STALE_TIMEOUT = int(os.getenv("TEST_DB_STALE_TIMEOUT", "300"))
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+        # 图像生成服务配置
+        self.TEST_IMAGE_MAX_POLLING_ATTEMPTS = int(os.getenv("TEST_IMAGE_MAX_POLLING_ATTEMPTS", "30"))
+        self.TEST_IMAGE_POLLING_INTERVAL = float(os.getenv("TEST_IMAGE_POLLING_INTERVAL", "2.0"))
+
+        # 环境变量配置
+        self.TEST_MAKE_API_TOKEN = os.getenv("TEST_MAKE_API_TOKEN")
 
 
 # 创建全局设置实例

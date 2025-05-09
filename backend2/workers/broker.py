@@ -31,7 +31,7 @@ redis_broker = RedisBroker(
         CurrentTime(),
         Pipelines(),
         Prometheus(),
-        Retries(max_retries=3, min_backoff=5000, max_backoff=60000),
+        Retries(max_retries=10, min_backoff=0, max_backoff=0),  # 最大重试10次，无等待时间
     ]
 )
 

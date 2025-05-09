@@ -62,7 +62,7 @@ class CRUDUser(CRUDBase[User]):
         if not user:
             return None
         user.roles = roles
-        user.save()
+        self.save_with_updated_time(user)
         return user
 
 

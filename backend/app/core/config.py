@@ -66,10 +66,10 @@ class Settings(BaseSettings):
     TASK_EXECUTOR_SCALE_DOWN_INTERVAL: int = int(os.getenv("TASK_EXECUTOR_SCALE_DOWN_INTERVAL", "180"))  # 缩容间隔（秒）
 
     # Lumina任务执行器配置
-    LUMINA_EXECUTOR_MIN_CONCURRENT: int = int(os.getenv("LUMINA_EXECUTOR_MIN_CONCURRENT", "2"))  # Lumina初始并发数
-    LUMINA_EXECUTOR_MAX_CONCURRENT: int = int(os.getenv("LUMINA_EXECUTOR_MAX_CONCURRENT", "20"))  # Lumina最大并发数
+    LUMINA_EXECUTOR_MIN_CONCURRENT: int = int(os.getenv("LUMINA_EXECUTOR_MIN_CONCURRENT", "10"))  # Lumina初始并发数
+    LUMINA_EXECUTOR_MAX_CONCURRENT: int = int(os.getenv("LUMINA_EXECUTOR_MAX_CONCURRENT", "40"))  # Lumina最大并发数
     LUMINA_EXECUTOR_SCALE_UP_STEP: int = int(os.getenv("LUMINA_EXECUTOR_SCALE_UP_STEP", "2"))  # Lumina每次扩容增加的并发数
-    LUMINA_EXECUTOR_SCALE_UP_INTERVAL: int = int(os.getenv("LUMINA_EXECUTOR_SCALE_UP_INTERVAL", "120"))  # Lumina扩容间隔（秒）
+    LUMINA_EXECUTOR_SCALE_UP_INTERVAL: int = int(os.getenv("LUMINA_EXECUTOR_SCALE_UP_INTERVAL", "60"))  # Lumina扩容间隔（秒）
     LUMINA_EXECUTOR_SCALE_DOWN_INTERVAL: int = int(os.getenv("LUMINA_EXECUTOR_SCALE_DOWN_INTERVAL", "180"))  # Lumina缩容间隔（秒）
 
     # 图像生成配置

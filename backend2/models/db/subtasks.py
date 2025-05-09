@@ -1,3 +1,8 @@
+"""
+子任务模型模块
+
+定义与子任务相关的数据库模型
+"""
 import uuid
 from datetime import datetime
 from enum import Enum
@@ -48,16 +53,4 @@ class Subtask(BaseModel):
             (('rating',), False),  # 评价索引
         )
 
-    def save(self, *args, **kwargs):
-        """重写保存方法，自动更新updated_at字段"""
-        self.updated_at = datetime.now()
-        return super(Subtask, self).save(*args, **kwargs)
 
-    @classmethod
-    def create_tables(cls, safe=True):
-        """创建子任务表"""
-        from peewee import PostgresqlDatabase
-        db = cls._meta.database
-        if isinstance(db, PostgresqlDatabase):
-            db.execute_sql("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
-        db.create_tables([cls], safe=safe)
