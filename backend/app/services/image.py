@@ -154,7 +154,10 @@ class ImageGenerationService:
         try:
             task_result = await self._poll_task_status(task_uuid, task_status_url)
             if task_result:
-                logger.info(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}, url: {task_result.get('artifacts', [{}])[0].get('url')}")
+                # 安全地获取URL，避免索引错误
+                artifacts = task_result.get('artifacts', [])
+                url = artifacts[0].get('url') if artifacts else None
+                logger.info(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}, url: {url}")
                 logger.debug(f"轮询任务结果: {json.dumps(task_result, ensure_ascii=False)}")
             else:
                 logger.warning(f"轮询任务状态超时: {task_uuid}, 未能获取结果")
@@ -304,6 +307,10 @@ class ImageGenerationService:
                     # 如果任务状态是PENDING，继续轮询
                     if task_status == "PENDING":
                         # 任务仍在进行中，等待一段时间后再次轮询
+                        await asyncio.sleep(polling_interval)
+                    # 如果任务状态是SUCCESS但artifacts列表为空，继续轮询（最多2次）
+                    elif task_status == "SUCCESS" and not result.get('artifacts') and attempt < 2:
+                        logger.warning(f"任务状态为SUCCESS但artifacts列表为空，继续轮询 (第{attempt+1}次), 任务ID: {task_uuid}")
                         await asyncio.sleep(polling_interval)
                     else:
                         # 任务已完成或失败，返回结果
