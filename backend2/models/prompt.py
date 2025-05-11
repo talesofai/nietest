@@ -10,17 +10,10 @@ class PromptType(str, Enum):
     ELEMENTUM = "elementum"                  # 元素类型
 
 
-class Prompt(BaseModel):
-    """通用提示词模型，根据is_variable自动处理变量或常量提示词"""
+class ConstantPrompt(BaseModel):
+    """常量提示词基础模型，用于非变量类型的提示词"""
     type: str = Field(..., description="提示词类型")
-    value: Optional[str] = Field(None, description="提示词值", exclude_unset=True)
-    is_variable: bool = Field(default=False, description="是否为变量")
-
-    # 变量提示词特有字段
-    variable_id: Optional[str] = Field(None, description="变量ID", exclude_unset=True)
-    variable_name: Optional[str] = Field(None, description="变量名称", exclude_unset=True)
-
-    # 常量提示词特有字段
+    value: str = Field(..., description="提示词值")
     weight: float = Field(1.0, description="权重")
     img_url: Optional[str] = Field(None, description="图片URL", exclude_unset=True)
     uuid: Optional[str] = Field(None, description="唯一标识符", exclude_unset=True)
@@ -34,23 +27,18 @@ class Prompt(BaseModel):
         return v
 
     @model_validator(mode='after')
-    def validate_by_variable_type(self):
-        """根据is_variable验证字段"""
-        if self.is_variable:
-            # 变量提示词必须包含variable_id和variable_name
-            if not self.variable_id or not self.variable_name:
-                raise ValueError("变量提示词必须包含variable_id和variable_name")
-        else:
-            # 常量提示词必须包含value
-            if not self.value:
-                raise ValueError("常量提示词必须包含value")
+    def validate_fields(self):
+        """验证字段"""
+        # 常量提示词必须包含value
+        if not self.value:
+            raise ValueError("常量提示词必须包含value")
 
-            # 非FREETEXT类型需要额外字段
-            if self.type != PromptType.FREETEXT.value:
-                if not self.name:
-                    raise ValueError("非text提示词的name字段不能为空")
-                if not self.img_url:
-                    raise ValueError("非text提示词的img_url字段不能为空")
+        # 非FREETEXT类型需要额外字段
+        if self.type != PromptType.FREETEXT.value:
+            if not self.name:
+                raise ValueError("非text提示词的name字段不能为空")
+            if not self.img_url:
+                raise ValueError("非text提示词的img_url字段不能为空")
 
         return self
 
@@ -59,14 +47,7 @@ class Prompt(BaseModel):
 
         Returns:
             扩展后的提示词字典
-
-        Raises:
-            ValueError: 如果提示词是变量类型
         """
-        # 验证是否为常量提示词
-        if self.is_variable:
-            raise ValueError("变量提示词无法扩展")
-
         # 基本字段
         result = {
             "type": self.type,
@@ -84,6 +65,7 @@ class Prompt(BaseModel):
 
         # 根据类型添加额外字段
         if self.type in [PromptType.OC_VTOKEN_ADAPTOR.value, PromptType.ELEMENTUM.value]:
+            # 硬编码的默认值，如 "domain": "", "parent": "", "sort_index": 0 等。是固定且必须的默认值。
             result.update({
                 "uuid": self.value,
                 "domain": "",
@@ -96,6 +78,56 @@ class Prompt(BaseModel):
             })
 
         return result
+
+    class Config:
+        """Pydantic配置"""
+        extra = "allow"  # 允许额外字段
+        json_schema_extra = {
+            "example": {
+                "type": "freetext",
+                "value": "1girl, cute",
+                "weight": 1.0
+            }
+        }
+
+
+class Prompt(ConstantPrompt):
+    """通用提示词模型，扩展ConstantPrompt以支持变量类型"""
+    # 覆盖value字段，使其可为空
+    value: Optional[str] = Field(None, description="提示词值", exclude_unset=True)
+    is_variable: bool = Field(default=False, description="是否为变量")
+
+    # 变量提示词特有字段
+    variable_id: Optional[str] = Field(None, description="变量ID", exclude_unset=True)
+    variable_name: Optional[str] = Field(None, description="变量名称", exclude_unset=True)
+
+    @model_validator(mode='after')
+    def validate_by_variable_type(self):
+        """根据is_variable验证字段"""
+        if self.is_variable:
+            # 变量提示词必须包含variable_id和variable_name
+            if not self.variable_id or not self.variable_name:
+                raise ValueError("变量提示词必须包含variable_id和variable_name")
+        else:
+            # 对于非变量类型，调用父类的验证
+            super().validate_fields()
+        return self
+
+    def expand(self) -> Dict[str, Any]:
+        """扩展提示词为完整的字典，重写父类方法以处理变量情况
+
+        Returns:
+            扩展后的提示词字典
+
+        Raises:
+            ValueError: 如果提示词是变量类型
+        """
+        # 验证是否为常量提示词
+        if self.is_variable:
+            raise ValueError("变量提示词无法扩展")
+
+        # 对于非变量类型，调用父类的扩展方法
+        return super().expand()
 
     class Config:
         """Pydantic配置"""

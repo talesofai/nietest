@@ -81,6 +81,12 @@ interface MatrixData {
   coordinates_by_indices?: Record<string, string>; // 键："0,1,,," -> URL映射
 }
 
+// 定义筛选维度的值类型
+interface DimensionFilter {
+  dimension: string; // 维度名称，如 "v0", "v1" 等
+  valueIndex: number | null; // 选择的值索引，null 表示不筛选
+}
+
 export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
   const [xAxis, setXAxis] = useState<string | null>(null);
   const [yAxis, setYAxis] = useState<string | null>(null);
@@ -95,6 +101,11 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
   const [currentImageUrls, setCurrentImageUrls] = useState<string[]>([]);
   const [isGridView, setIsGridView] = useState<boolean>(false);
   const [hasBatchTag, setHasBatchTag] = useState<boolean>(false);
+
+  // 新增：非X/Y轴维度的筛选值
+  const [dimensionFilters, setDimensionFilters] = useState<DimensionFilter[]>([]);
+  // 新增：可筛选的维度（非X/Y轴的维度）
+  const [filterableDimensions, setFilterableDimensions] = useState<string[]>([]);
 
   // 矩阵数据 - 从后端获取的六维空间坐标系统
   const [matrixData, setMatrixData] = useState<MatrixData | null>(null);
@@ -364,7 +375,30 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       };
 
       // 使用requestAnimationFrame确保状态更新在同一帧内完成
-      window.requestAnimationFrame(() => batchUpdate());
+      window.requestAnimationFrame(() => {
+        batchUpdate();
+        // 在下一帧更新可筛选的维度，确保状态已更新
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            // 获取所有可用的维度
+            const allDimensions = Object.keys(processedData.variables || {}).filter(key =>
+              key.startsWith('v') &&
+              processedData.variables?.[key] &&
+              processedData.variables?.[key].values &&
+              processedData.variables?.[key].values.length > 0
+            );
+
+            // 排除当前选择的X轴和Y轴
+            const filterable = allDimensions.filter(dim =>
+              dim !== xAxisRef.current &&
+              dim !== yAxisRef.current
+            );
+
+            // 更新可筛选维度列表
+            setFilterableDimensions(filterable);
+          }
+        }, 0);
+      });
     } catch (err) {
       // 如果组件已卸载，不再更新状态
       if (!isMountedRef.current) return;
@@ -400,6 +434,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       logger.log(`任务ID变化或数据未加载: ${taskIdRef.current} -> ${task.id}`);
       // 重置加载状态
       dataLoadedRef.current = false;
+      // 重置筛选器
+      setDimensionFilters([]);
       // 获取矩阵数据
       fetchMatrixData(task.id, false);
     }
@@ -431,6 +467,38 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     }
   }, [hasBatchTagValue, hasBatchTag]);
 
+  // 当X轴或Y轴变化时，更新可筛选的维度
+  useEffect(() => {
+    if (!matrixData || !matrixData.variables) {
+      setFilterableDimensions([]);
+      return;
+    }
+
+    // 获取所有可用的维度
+    const allDimensions = Object.keys(matrixData.variables).filter(key =>
+      key.startsWith('v') &&
+      matrixData.variables[key] &&
+      matrixData.variables[key].values &&
+      matrixData.variables[key].values.length > 0
+    );
+
+    // 排除当前选择的X轴和Y轴
+    const filterable = allDimensions.filter(dim =>
+      dim !== xAxis &&
+      dim !== yAxis
+    );
+
+    // 更新可筛选维度列表
+    setFilterableDimensions(filterable);
+
+    // 更新筛选器，移除不再可用的维度
+    setDimensionFilters(prev =>
+      prev.filter(filter =>
+        filterable.includes(filter.dimension)
+      )
+    );
+  }, [matrixData, xAxis, yAxis]);
+
   // 同步xAxis和yAxis的状态变化到ref中
   useEffect(() => {
     xAxisRef.current = xAxis;
@@ -451,8 +519,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         return null;
       }
 
-      // 使用缓存来避免重复计算
-      const cacheKey = `${xAxis}_${xValue}_${yAxis}_${yValue}`;
+      // 使用缓存来避免重复计算 - 包含筛选维度的值
+      const filterString = dimensionFilters.map(f => `${f.dimension}:${f.valueIndex}`).join('_');
+      const cacheKey = `${xAxis}_${xValue}_${yAxis}_${yValue}_${filterString}`;
 
       if (cacheKey in urlCache.current) {
         return urlCache.current[cacheKey];
@@ -462,7 +531,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       const debugId =
         process.env.NODE_ENV === "development" ? Math.random().toString(36).substring(2, 8) : "";
 
-      logger.log(`[${debugId}] 尝试获取 [${xValue}][${yValue}] 的图片URL`);
+      logger.log(`[${debugId}] 尝试获取 [${xValue}][${yValue}] 的图片URL，筛选条件: ${filterString}`);
 
       // 获取变量维度（0-5）
       const xVarDimension = xAxis ? parseInt(xAxis.substring(1)) : -1; // 从 'v0' 提取 0
@@ -504,8 +573,26 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
             yMatches = (keyIndexParts[yVarDimension] === String(yValIndex));
           }
 
-          // 如果两个轴都匹配，则添加URL
-          if (xMatches && yMatches) {
+          // 新增：检查其他维度的筛选条件
+          let otherDimensionsMatch = true;
+          for (const filter of dimensionFilters) {
+            if (filter.valueIndex !== null) {
+              const filterDimension = parseInt(filter.dimension.substring(1));
+              // 如果筛选维度有效且不是X轴或Y轴
+              if (filterDimension >= 0 &&
+                filterDimension !== xVarDimension &&
+                filterDimension !== yVarDimension) {
+                // 检查该维度的值是否匹配
+                if (keyIndexParts[filterDimension] !== String(filter.valueIndex)) {
+                  otherDimensionsMatch = false;
+                  break;
+                }
+              }
+            }
+          }
+
+          // 如果所有条件都匹配，则添加URL
+          if (xMatches && yMatches && otherDimensionsMatch) {
             logger.log(`[${debugId}] 找到匹配的图片URL:`, url);
             matchingUrls.push(url);
           }
@@ -528,7 +615,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       urlCache.current[cacheKey] = null;
       return null;
     },
-    [matrixData, task, xAxis, yAxis]
+    [matrixData, task, xAxis, yAxis, dimensionFilters]
   );
 
   // 获取所有匹配的图片URL - 用于显示同一参数组合下的多个batch图片
@@ -575,8 +662,26 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
             yMatches = (keyIndexParts[yVarDimension] === String(yValIndex));
           }
 
-          // 如果两个轴都匹配，则添加URL
-          if (xMatches && yMatches) {
+          // 新增：检查其他维度的筛选条件
+          let otherDimensionsMatch = true;
+          for (const filter of dimensionFilters) {
+            if (filter.valueIndex !== null) {
+              const filterDimension = parseInt(filter.dimension.substring(1));
+              // 如果筛选维度有效且不是X轴或Y轴
+              if (filterDimension >= 0 &&
+                filterDimension !== xVarDimension &&
+                filterDimension !== yVarDimension) {
+                // 检查该维度的值是否匹配
+                if (keyIndexParts[filterDimension] !== String(filter.valueIndex)) {
+                  otherDimensionsMatch = false;
+                  break;
+                }
+              }
+            }
+          }
+
+          // 如果所有条件都匹配，则添加URL
+          if (xMatches && yMatches && otherDimensionsMatch) {
             matchingUrls.push(url);
           }
         }
@@ -584,7 +689,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       return matchingUrls;
     },
-    [matrixData, task, xAxis, yAxis]
+    [matrixData, task, xAxis, yAxis, dimensionFilters]
   );
 
   // 处理变量值，处理重名情况
@@ -876,6 +981,28 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     };
   }, [tableData, xAxis, yAxis, availableVariables, variableNames, task, getImageUrl]); // 移除不必要的依赖项
 
+  // 处理维度筛选器变化
+  const handleDimensionFilterChange = (dimension: string, valueIndex: number | null) => {
+    // 检查是否已存在该维度的筛选器
+    const existingFilterIndex = dimensionFilters.findIndex(f => f.dimension === dimension);
+
+    if (existingFilterIndex !== -1) {
+      // 更新现有筛选器
+      const updatedFilters = [...dimensionFilters];
+      updatedFilters[existingFilterIndex] = { dimension, valueIndex };
+      setDimensionFilters(updatedFilters);
+    } else {
+      // 添加新筛选器
+      setDimensionFilters([...dimensionFilters, { dimension, valueIndex }]);
+    }
+
+    // 清除URL缓存，因为筛选条件已更改
+    urlCache.current = {};
+
+    // 记录筛选条件变化
+    logger.log(`维度筛选条件变化: ${dimension} = ${valueIndex !== null ? valueIndex : '全部'}`);
+  };
+
   // 处理全屏模式切换
   const toggleFullscreen = () => {
     if (!fullscreenElementRef.current) return;
@@ -1047,6 +1174,71 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 ))}
               </Select>
             </div>
+            {/* 添加其他维度的筛选器 */}
+            {filterableDimensions.length > 0 && (
+              <div className="mt-6">
+                <h4 className="text-md font-medium mb-2">其他维度筛选</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filterableDimensions.map((dimension) => {
+                    // 获取当前维度的变量数据
+                    const varData = matrixData?.variables?.[dimension];
+                    // 获取当前维度的筛选值
+                    const currentFilter = dimensionFilters.find(f => f.dimension === dimension);
+                    const currentValueIndex = currentFilter?.valueIndex;
+
+                    return (
+                      <Select
+                        key={`filter-${dimension}`}
+                        className="w-full"
+                        label={`${dimension}: ${variableNames[dimension] || ""}`}
+                        placeholder={`选择${variableNames[dimension] || dimension}的值`}
+                        selectedKeys={currentValueIndex !== null ? [`${currentValueIndex}`] : []}
+                        onSelectionChange={(keys) => {
+                          const keysArray = Array.from(keys);
+                          if (keysArray.length > 0) {
+                            const valueIndex = parseInt(keysArray[0] as string);
+                            handleDimensionFilterChange(dimension, valueIndex);
+                          } else {
+                            // 如果没有选择，则设置为null（表示不筛选）
+                            handleDimensionFilterChange(dimension, null);
+                          }
+                        }}
+                      >
+                        <SelectItem key="all">全部</SelectItem>
+                        {varData?.values?.map((value, index) => (
+                          <SelectItem key={`${index}`}>
+                            {value.value}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex justify-between items-center">
+                  <div className="text-xs text-default-500">
+                    <p>选择"全部"表示不对该维度进行筛选</p>
+                  </div>
+                  {dimensionFilters.length > 0 && (
+                    <Button
+                      color="danger"
+                      size="sm"
+                      startContent={<Icon icon="solar:restart-bold-duotone" width={16} />}
+                      variant="light"
+                      onPress={() => {
+                        // 重置所有筛选器
+                        setDimensionFilters([]);
+                        // 清除URL缓存
+                        urlCache.current = {};
+                        logger.log("已重置所有维度筛选器");
+                      }}
+                    >
+                      重置筛选
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-between items-center mt-4">
               <div className="text-xs text-default-500">
                 <p>注：只有具有有效名称的变量会显示在选择器中</p>
@@ -1087,38 +1279,71 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       {(xAxis || yAxis) && tableData && tableData.length > 0 && (
         <Card>
-          <CardHeader className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">结果表格</h3>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-default-500">缩放：</span>
-                <Slider
-                  aria-label="表格缩放比例"
-                  className="w-32"
-                  defaultValue={100}
-                  maxValue={100}
-                  minValue={30}
-                  size="sm"
-                  step={5}
-                  value={tableScale}
-                  onChange={(value) => setTableScale(typeof value === "number" ? value : value[0])}
-                />
-                <span className="text-xs text-default-500">{tableScale}%</span>
-              </div>
-              <Button
-                size="sm"
-                startContent={
-                  <Icon
-                    icon={isFullscreen ? "solar:exit-bold-linear" : "solar:maximize-bold-linear"}
-                    width={18}
+          <CardHeader className="flex flex-col gap-2">
+            <div className="flex justify-between items-center w-full">
+              <h3 className="text-lg font-semibold">结果表格</h3>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-default-500">缩放：</span>
+                  <Slider
+                    aria-label="表格缩放比例"
+                    className="w-32"
+                    defaultValue={100}
+                    maxValue={100}
+                    minValue={30}
+                    size="sm"
+                    step={5}
+                    value={tableScale}
+                    onChange={(value) => setTableScale(typeof value === "number" ? value : value[0])}
                   />
-                }
-                variant="bordered"
-                onPress={toggleFullscreen}
-              >
-                {isFullscreen ? "退出全屏" : "全屏查看"}
-              </Button>
+                  <span className="text-xs text-default-500">{tableScale}%</span>
+                </div>
+                <Button
+                  size="sm"
+                  startContent={
+                    <Icon
+                      icon={isFullscreen ? "solar:exit-bold-linear" : "solar:maximize-bold-linear"}
+                      width={18}
+                    />
+                  }
+                  variant="bordered"
+                  onPress={toggleFullscreen}
+                >
+                  {isFullscreen ? "退出全屏" : "全屏查看"}
+                </Button>
+              </div>
             </div>
+
+            {/* 显示当前筛选条件 */}
+            {dimensionFilters.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-1">
+                <span className="text-xs text-default-500">当前筛选：</span>
+                {dimensionFilters.map(filter => {
+                  if (filter.valueIndex === null) return null;
+
+                  const dimension = filter.dimension;
+                  const varData = matrixData?.variables?.[dimension];
+                  const valueData = varData?.values?.[filter.valueIndex];
+                  const displayValue = valueData?.value || `索引 ${filter.valueIndex}`;
+                  const dimensionName = variableNames[dimension] || dimension;
+
+                  return (
+                    <div
+                      key={`filter-tag-${dimension}`}
+                      className="bg-default-100 text-default-700 text-xs px-2 py-1 rounded-full flex items-center gap-1"
+                    >
+                      <span>{dimensionName}: {displayValue}</span>
+                      <button
+                        className="text-default-500 hover:text-danger"
+                        onClick={() => handleDimensionFilterChange(dimension, null)}
+                      >
+                        <Icon icon="solar:close-circle-bold" width={14} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardHeader>
           <CardBody>
             <div
