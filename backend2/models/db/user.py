@@ -54,8 +54,8 @@ class Permission(str, Enum):
     GLOBAL_ASSIGN_PERMISSIONS = "global:assign_permissions"# 分配权限
 
 
-# 角色权限映射
-ROLE_PERMISSIONS: Dict[str, List[Permission]] = {
+# 仅定义每个角色额外拥有的权限，避免重复
+ROLE_ADDITIONAL_PERMISSIONS: Dict[str, List[Permission]] = {
     # 访客权限
     Role.GUEST.value: [
         Permission.TEST_VIEW_RESULTS,
@@ -63,12 +63,8 @@ ROLE_PERMISSIONS: Dict[str, List[Permission]] = {
         Permission.DATA_CHANGE_TAGS_VIEWABLE,
     ],
 
-    # 普通用户权限 (包含访客所有权限)
+    # 普通用户额外权限（比访客多出的权限）
     Role.USER.value: [
-        Permission.TEST_VIEW_RESULTS,
-        Permission.DATA_VIEW_COLLECTION,
-        Permission.DATA_CHANGE_TAGS_VIEWABLE,
-        # 普通用户额外权限
         Permission.TEST_CREATE_LOW_PRIORITY,
         Permission.TEST_DELETE_OWN,
         Permission.DATA_VIEW_ALL,
@@ -78,67 +74,26 @@ ROLE_PERMISSIONS: Dict[str, List[Permission]] = {
         Permission.TRAIN_STOP,
     ],
 
-    # 高级用户权限 (包含普通用户所有权限)
+    # 高级用户额外权限（比普通用户多出的权限）
     Role.PRO_USER.value: [
-        Permission.TEST_VIEW_RESULTS,
-        Permission.DATA_VIEW_COLLECTION,
-        Permission.DATA_CHANGE_TAGS_VIEWABLE,
-        Permission.TEST_CREATE_LOW_PRIORITY,
-        Permission.TEST_DELETE_OWN,
-        Permission.DATA_VIEW_ALL,
-        Permission.DATA_UPLOAD,
-        Permission.DATA_CHANGE_TAGS_ANY,
-        Permission.TRAIN_START,
-        Permission.TRAIN_STOP,
-        # 高级用户额外权限
         Permission.TEST_CREATE_HIGH_PRIORITY,
         Permission.TEST_DELETE_ANY,
         Permission.DATA_AUTO_ANNOTATE,
         Permission.TRAIN_BATCH_START,
     ],
 
-    # 管理员权限 (包含高级用户所有权限)
+    # 管理员额外权限（比高级用户多出的权限）
     Role.MANAGER.value: [
-        Permission.TEST_VIEW_RESULTS,
-        Permission.DATA_VIEW_COLLECTION,
-        Permission.DATA_CHANGE_TAGS_VIEWABLE,
-        Permission.TEST_CREATE_LOW_PRIORITY,
-        Permission.TEST_DELETE_OWN,
-        Permission.DATA_VIEW_ALL,
-        Permission.DATA_UPLOAD,
-        Permission.DATA_CHANGE_TAGS_ANY,
-        Permission.TRAIN_START,
-        Permission.TRAIN_STOP,
-        Permission.TEST_CREATE_HIGH_PRIORITY,
-        Permission.TEST_DELETE_ANY,
-        Permission.DATA_AUTO_ANNOTATE,
-        Permission.TRAIN_BATCH_START,
-        # 管理员额外权限
         Permission.DATA_DELETE,
     ],
 
-    # 超级管理员权限 (包含所有权限)
+    # 超级管理员额外权限（比管理员多出的权限）
     Role.ADMIN.value: [
-        Permission.TEST_VIEW_RESULTS,
-        Permission.DATA_VIEW_COLLECTION,
-        Permission.DATA_CHANGE_TAGS_VIEWABLE,
-        Permission.TEST_CREATE_LOW_PRIORITY,
-        Permission.TEST_DELETE_OWN,
-        Permission.DATA_VIEW_ALL,
-        Permission.DATA_UPLOAD,
-        Permission.DATA_CHANGE_TAGS_ANY,
-        Permission.TRAIN_START,
-        Permission.TRAIN_STOP,
-        Permission.TEST_CREATE_HIGH_PRIORITY,
-        Permission.TEST_DELETE_ANY,
-        Permission.DATA_AUTO_ANNOTATE,
-        Permission.TRAIN_BATCH_START,
-        Permission.DATA_DELETE,
-        # 超级管理员额外权限
         Permission.GLOBAL_CREATE_USER,
         Permission.GLOBAL_ASSIGN_PERMISSIONS,
     ],
 }
+
 
 # 角色继承关系
 ROLE_HIERARCHY = {
@@ -161,12 +116,28 @@ class User(BaseModel):
     updated_at = DateTimeField(default=datetime.now)
 
     def get_permissions(self) -> Set[Permission]:
-        """获取用户所有权限"""
+        """获取用户所有权限，考虑角色继承关系"""
         permissions = set()
-        for role in self.roles:
-            # 直接添加角色对应的权限
-            if role in ROLE_PERMISSIONS:
-                permissions.update(ROLE_PERMISSIONS[role])
+
+        roles_to_process = list(self.roles)
+        processed_roles = set()  # 防止因循环继承导致死循环（尽管当前设计中没有）
+
+        while roles_to_process:
+            role_name = roles_to_process.pop(0)
+            if role_name in processed_roles:
+                continue
+            processed_roles.add(role_name)
+
+            # 添加当前角色的额外权限
+            if role_name in ROLE_ADDITIONAL_PERMISSIONS:
+                permissions.update(ROLE_ADDITIONAL_PERMISSIONS[role_name])
+
+            # 将父角色加入待处理列表
+            parent_roles = ROLE_HIERARCHY.get(role_name, [])
+            for parent_role in parent_roles:
+                if parent_role not in processed_roles:
+                    roles_to_process.append(parent_role)
+
         return permissions
 
     def has_permission(self, permission: Permission) -> bool:

@@ -60,6 +60,7 @@ const HistoryTab: React.FC = () => {
 
         // 调试信息
         console.log(`获取任务列表，页码: ${page}, 每页数量: ${pageSize}, 过滤条件:`, filters);
+        console.log(`当前搜索词: "${searchTerm}"`);
 
         const listResponse = await getTaskList(page, pageSize, filters);
 
@@ -137,6 +138,10 @@ const HistoryTab: React.FC = () => {
   const handleSearch = (term: string) => {
     setSearchTerm(term);
     setPage(1); // 重置到第一页
+    // 重置初始加载标志，强制重新加载数据
+    initialLoadDone.current = false;
+    // 触发刷新
+    setRefreshKey(prev => prev + 1);
   };
 
   // 处理查看历史记录
@@ -367,7 +372,10 @@ const HistoryTab: React.FC = () => {
                 className="w-full"
                 endContent={
                   searchTerm && (
-                    <Button isIconOnly size="sm" variant="light" onPress={() => handleSearch("")}>
+                    <Button isIconOnly size="sm" variant="light" onPress={() => {
+                      setSearchTerm("");
+                      handleSearch("");
+                    }}>
                       <CloseIcon className="text-default-400" />
                     </Button>
                   )
@@ -389,7 +397,10 @@ const HistoryTab: React.FC = () => {
               isDisabled={loading}
               startContent={<Icon icon="solar:magnifer-linear" width={16} />}
               variant="bordered"
-              onPress={() => handleSearch(searchTerm)}
+              onPress={() => {
+                console.log("搜索按钮点击，搜索词:", searchTerm);
+                handleSearch(searchTerm);
+              }}
             >
               搜索
             </Button>
