@@ -265,15 +265,25 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
                     break
 
             if has_lumina1:
-                # 如果存在lumina1元素，更新client_args
-                logger.debug(f"检测到lumina1元素，更新client_args参数")
+                # 检查是否有相关的lumina参数标签
+                has_lumina_params = False
+                for tag in tags:
+                    if tag.get("type") in ["ckpt_name", "steps", "cfg"] and tag.get("isVariable"):
+                        has_lumina_params = True
+                        break
 
-                # 获取ckpt_name、steps和cfg参数
-                client_args = client_args or {
-                    "ckpt_name": "1.pth",  # 默认值
-                    "steps": 1,            # 默认值
-                    "cfg": 7.5             # 默认值
-                }
+                # 只有当存在lumina1元素并且同时选择了其他相关参数时，才会更新client_args
+                if has_lumina_params:
+                    logger.debug(f"检测到lumina1元素和相关参数，更新client_args参数")
+
+                    # 获取ckpt_name、steps和cfg参数
+                    client_args = client_args or {
+                        "ckpt_name": "1.pth",  # 默认值
+                        "steps": 1,            # 默认值
+                        "cfg": 7.5             # 默认值
+                    }
+                else:
+                    logger.debug(f"检测到lumina1元素，但没有相关参数，不更新client_args")
 
                 # 更新client_args参数
                 for tag in tags:
@@ -559,10 +569,6 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
                 elif task_status == "TIMEOUT":
                     # 触发超时错误的重试逻辑
                     raise asyncio.TimeoutError("图像生成API返回TIMEOUT状态，任务超时")
-                elif task_status == "SUCCESS":
-                    pass
-                else:
-                    raise ValueError(f"图像生成API返回未知状态: {task_status}")
 
             # 提取图像URL
             image_url = await image_generator.extract_image_url(result)
