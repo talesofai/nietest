@@ -140,9 +140,9 @@ export const TagValueInput = ({
   // 自动聚焦
   useEffect(() => {
     if (autoFocus) {
-      if (type === "prompt" || type === "batch" || type === "seed") {
+      if (type === "prompt" || type === "batch" || type === "seed" || type === "steps" || type === "cfg") {
         inputRef.current?.focus();
-      } else if (type === "ratio") {
+      } else if (type === "ratio" || type === "ckpt_name") {
         selectRef.current?.focus();
       }
     }
@@ -326,6 +326,73 @@ export const TagValueInput = ({
               onValueChange={(checked: boolean) => onChange?.(checked.toString())}
             />
           </div>
+        </div>
+      );
+
+    case "ckpt_name":
+      return (
+        <div className={wrapperClassName}>
+          <select
+            className="w-full text-sm h-[32px] px-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+            value={value}
+            onBlur={onBlur}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange?.(e.target.value)}
+            onFocus={onFocus}
+          >
+            <option value="1.pth">1.pth</option>
+            <option value="2.pth">2.pth</option>
+          </select>
+        </div>
+      );
+
+    case "steps":
+      return (
+        <div className={wrapperClassName}>
+          <Input
+            ref={inputRef}
+            className="flex-grow"
+            min={1}
+            max={50}
+            placeholder="步数(1-50)"
+            size="sm"
+            type="number"
+            value={value}
+            onBlur={onBlur}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              const numValue = parseInt(e.target.value);
+              if (!isNaN(numValue) && numValue >= 1 && numValue <= 50) {
+                onChange?.(numValue.toString());
+              }
+            }}
+            onFocus={onFocus}
+            onKeyDown={handleKeyDown}
+          />
+        </div>
+      );
+
+    case "cfg":
+      return (
+        <div className={wrapperClassName}>
+          <Input
+            ref={inputRef}
+            className="flex-grow"
+            min={0.1}
+            max={10}
+            step={0.1}
+            placeholder="CFG值(0.1-10)"
+            size="sm"
+            type="number"
+            value={value}
+            onBlur={onBlur}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              const numValue = parseFloat(e.target.value);
+              if (!isNaN(numValue) && numValue >= 0.1 && numValue <= 10) {
+                onChange?.(numValue.toString());
+              }
+            }}
+            onFocus={onFocus}
+            onKeyDown={handleKeyDown}
+          />
         </div>
       );
 

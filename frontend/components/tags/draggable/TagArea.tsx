@@ -87,7 +87,7 @@ const TagArea: React.FC<TagAreaProps> = ({
     return (
       <AnimatePresence mode="wait">
         {showAddForm ? (
-          <AddTagForm onAdd={handleAddTag} onCancel={() => setShowAddForm(false)} />
+          <AddTagForm onAdd={handleAddTag} onCancel={() => setShowAddForm(false)} tags={tags} />
         ) : (
           <motion.div
             key="add-button"
@@ -195,7 +195,7 @@ const TagArea: React.FC<TagAreaProps> = ({
                 hexColor={activeTag.color}
                 startContent={
                   (activeTag.type === "character" || activeTag.type === "element" || activeTag.type === "lumina") &&
-                  activeTag.header_img ? (
+                    activeTag.header_img ? (
                     <div className="h-6 w-6 flex-shrink-0 bg-transparent rounded-full overflow-hidden">
                       <Image
                         alt=""

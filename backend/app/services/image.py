@@ -92,7 +92,8 @@ class ImageGenerationService:
         width: int,
         height: int,
         seed: Optional[int] = None,
-        advanced_translator: bool = False
+        advanced_translator: bool = False,
+        client_args: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         生成图像
@@ -103,6 +104,7 @@ class ImageGenerationService:
             height: 图像高度
             seed: 随机种子，如果为None则自动生成
             advanced_translator: 是否使用高级翻译
+            client_args: 客户端参数，仅当存在lumina1元素时使用
 
         Returns:
             图像生成结果
@@ -112,10 +114,15 @@ class ImageGenerationService:
 
         # 检查是否包含lumina关键字
         use_lumina = False
+        has_lumina1 = False
         for prompt in prompts:
             if isinstance(prompt, dict) and "name" in prompt and "lumina" in prompt["name"].lower():
                 use_lumina = True
                 logger.debug(f"检测到prompt中包含lumina关键字，将使用Lumina API端点")
+                # 检查是否是lumina1
+                if prompt.get("name") == "lumina1":
+                    has_lumina1 = True
+                    logger.debug(f"检测到prompt中包含lumina1元素")
                 break
 
         # 选择API端点
@@ -136,8 +143,13 @@ class ImageGenerationService:
             "advanced_translator": advanced_translator
         }
 
+        # 如果存在lumina1元素且提供了client_args，添加到请求中
+        if has_lumina1 and client_args:
+            logger.debug(f"检测到lumina1元素，添加client_args参数: {client_args}")
+            payload["client_args"] = client_args
+
         # 记录请求载荷基本信息
-        logger.debug(payload)
+        logger.info(f"请求载荷: {json.dumps(payload, ensure_ascii=False)}")
 
         # 发送API请求获取任务ID
         task_response = await self._send_api_request(payload, api_url)

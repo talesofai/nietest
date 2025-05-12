@@ -21,7 +21,9 @@
 }
 
 /* 确保所有图片保持原始比例 */
-img, .heroui-image, [class*="object-"] {
+img,
+.heroui-image,
+[class*="object-"] {
     object-fit: contain !important;
 }
 
@@ -44,4 +46,47 @@ img, .heroui-image, [class*="object-"] {
     transform: none !important;
     opacity: 1 !important;
     filter: none !important;
+}
+
+/* 确保下拉框显示所有选项 */
+.heroui-listbox-content,
+[data-slot="listbox-content"],
+[data-slot="base"]>div,
+.heroui-select-popover [role="listbox"] {
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* 确保下拉框宽度足够 */
+.heroui-select-trigger {
+    min-width: 140px !important;
+}
+
+/* 确保下拉框选项文本完整显示 */
+.heroui-listbox-item-content {
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+/* 确保下拉框选项容器足够宽 */
+.heroui-listbox {
+    min-width: 140px !important;
+}
+
+/* 确保下拉框弹出内容足够宽 */
+.heroui-popover-content {
+    min-width: 140px !important;
+}
+
+/* 自定义类，确保显示所有选项 */
+.show-all-options {
+    --select-menu-content-max-height: none !important;
+}
+
+.show-all-options [role="listbox"],
+.show-all-options [data-slot="listbox"],
+.show-all-options [data-slot="base"]>div {
+    max-height: none !important;
+    overflow: visible !important;
 }
