@@ -5,7 +5,7 @@
 /**
  * 标签类型
  */
-export type TagType = "prompt" | "ratio" | "batch" | "seed" | "polish" | "character" | "element" | "lumina";
+export type TagType = "prompt" | "ratio" | "batch" | "seed" | "polish" | "character" | "element" | "lumina" | "ckpt_name" | "steps" | "cfg";
 
 /**
  * 标签数据接口

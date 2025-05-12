@@ -385,10 +385,22 @@ async def get_task_matrix(
 
     # 处理所有完成的子任务
     for subtask in dramatiq_tasks:
+        # 只要状态是completed并且有result.url，就认为是有效的图片，即使有error字段
         if subtask.get("status") == "completed" and subtask.get("result") and subtask["result"].get("url"):
             # subtask_variable_indices 是一个列表，包含了该子任务所使用的
             # 每个变量 (v0, v1, ...) 在其 respective `values` 数组中的索引
             subtask_variable_indices = subtask.get("variable_indices", [])
+
+            # 确保 variable_indices 是列表类型
+            if isinstance(subtask_variable_indices, dict):
+                # 如果是字典类型，尝试提取v0-v5的值
+                temp_indices = [None] * 6
+                for i in range(6):
+                    var_key = f"v{i}"
+                    if var_key in subtask_variable_indices:
+                        temp_indices[i] = subtask_variable_indices[var_key]
+                subtask_variable_indices = temp_indices
+                logger.debug(f"将字典类型的variable_indices转换为列表: {subtask_variable_indices}")
 
             # 构建索引键 (确保总是6个部分，用空字符串代表None或未使用)
             current_indices_key_parts = [""] * 6  # 初始化为6个空字符串，对应 v0 到 v5

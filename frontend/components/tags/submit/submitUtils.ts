@@ -290,10 +290,7 @@ interface SubmitData {
       }>;
     }
   >;
-  settings: {
-    maxThreads: number;
-    xToken: string;
-  };
+  settings: Record<string, any>;
   createdAt: string;
 }
 
@@ -483,6 +480,39 @@ const getGlobalSettings = (): { maxThreads: number; xToken: string } => {
 };
 
 /**
+ * 检查是否存在lumina1元素
+ * @param tags 标签数组
+ * @param variableValues 变量值数组
+ * @param variableIndex 当前变量索引
+ * @returns 是否存在lumina1元素
+ */
+const hasLumina1Element = (
+  tags: Tag[],
+  variableValues: VariableValue[] = [],
+  variableIndex: number = 0
+): boolean => {
+  // 检查是否存在lumina1元素
+  return tags.some(tag => {
+    // 如果是非变量标签，直接检查值
+    if (!tag.isVariable && (tag.type === "element" || tag.type === "lumina") && tag.value === "lumina1") {
+      console.log(`检测到非变量lumina1元素: ${tag.id}, 类型: ${tag.type}`);
+      return true;
+    }
+
+    // 如果是变量标签，检查当前变量值
+    if (tag.isVariable && (tag.type === "element" || tag.type === "lumina")) {
+      const values = variableValues.filter(v => v.variable_id === tag.id || v.tag_id === tag.id);
+      if (values.length > variableIndex && values[variableIndex].value === "lumina1") {
+        console.log(`检测到变量lumina1元素: ${tag.id}, 类型: ${tag.type}, 变量索引: ${variableIndex}, 变量值: ${values[variableIndex].value}`);
+        return true;
+      }
+    }
+
+    return false;
+  });
+};
+
+/**
  * 准备提交数据
  * @param tags 标签数组
  * @param variableValues 变量值数组
@@ -509,16 +539,23 @@ export const prepareSubmitData = async (
   // 获取全局设置
   const globalSettings = getGlobalSettings();
 
+  // 检查是否存在lumina1元素
+  const hasLumina = hasLumina1Element(tags, variableValues, 0);
+  console.log("是否存在lumina1元素:", hasLumina);
+
+  // 构建设置对象
+  const settings: Record<string, any> = {
+    maxThreads: globalSettings.maxThreads,
+    xToken: globalSettings.xToken,
+  };
+
   // 返回最终提交数据
   return {
     username,
     task_name: taskName,
     tags: tagData,
     variables,
-    settings: {
-      maxThreads: globalSettings.maxThreads,
-      xToken: globalSettings.xToken,
-    },
+    settings,
     createdAt: getCurrentBeijingTimeISO(),
   };
 };

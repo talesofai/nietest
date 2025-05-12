@@ -35,6 +35,9 @@ export const RESERVED_VARIABLE_NAMES: Record<Exclude<TagType, "batch" | "charact
   prompt: "", // prompt 类型不使用预设名，但包含在类型中避免索引错误
   element: "元素测试", // 添加元素类型的预设变量名
   lumina: "Lumina测试", // 添加Lumina类型的预设变量名
+  ckpt_name: "lumina模型测试", // 添加ckpt_name类型的预设变量名
+  steps: "lumina步数测试", // 添加steps类型的预设变量名
+  cfg: "luminacfg测试", // 添加cfg类型的预设变量名
 };
 
 /**
@@ -50,6 +53,9 @@ export const TAG_TYPE_OPTIONS = [
   { key: "character", label: "角色" },
   { key: "element", label: "元素" },
   { key: "lumina", label: "Lumina" },
+  { key: "ckpt_name", label: "Lumina模型" },
+  { key: "steps", label: "Lumina步数" },
+  { key: "cfg", label: "LuminaCFG" },
 ] as const;
 
 // 标签类型到显示名称的映射缓存，提高性能
@@ -80,6 +86,12 @@ export const getDefaultValueByType = (type: TagType): string => {
       return "";
     case "lumina":
       return "";
+    case "ckpt_name":
+      return "1.pth";
+    case "steps":
+      return "1";
+    case "cfg":
+      return "7.5";
     default:
       return "";
   }
@@ -140,8 +152,25 @@ export const isTypeUnique = (type: TagType, tags: Tag[]): boolean => {
   // prompt、character、element和lumina类型可以有多个
   if (type === "prompt" || type === "character" || type === "element" || type === "lumina") return true;
 
-  // 其他类型每种只能有一个
+  // 检查ckpt_name、steps和cfg标签，这些标签只有在存在lumina1元素时才能添加
+  if (type === "ckpt_name" || type === "steps" || type === "cfg") {
+    // 检查是否已经存在相同类型的标签
+    if (tags.some((tag) => tag.type === type)) {
+      return false;
+    }
 
+    // 检查是否存在lumina1元素
+    const hasLumina1 = tags.some(tag =>
+      tag.type === "lumina" &&
+      tag.value === "lumina1" &&
+      !tag.isVariable
+    );
+
+    // 只有在存在lumina1元素时才能添加这些标签
+    return hasLumina1;
+  }
+
+  // 其他类型每种只能有一个
   return !tags.some((tag) => tag.type === type);
 };
 

@@ -6,7 +6,7 @@ import { Button, Select, SelectItem, Input, Switch, Alert, Slider } from "@herou
 import { Icon } from "@iconify/react";
 import { CloseIcon } from "@heroui/shared-icons";
 
-import { TagType } from "@/types/tag";
+import { TagType, Tag } from "@/types/tag";
 import {
   getDefaultValueByType,
   RESERVED_VARIABLE_NAMES,
@@ -29,12 +29,13 @@ interface AddTagFormProps {
     header_img?: string;
   }) => void;
   onCancel: () => void;
+  tags?: Tag[]; // 当前已有的标签列表，用于检查是否存在lumina1元素
 }
 
 /**
  * 添加标签表单组件
  */
-const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
+const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel, tags = [] }) => {
   const [name, setName] = useState("");
   const [type, setType] = useState<TagType>("prompt");
   const [isVariable, setIsVariable] = useState(false);
@@ -42,6 +43,26 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
   const [weight, setWeight] = useState<number>(1); // 默认权重为1
   const [formError, setFormError] = useState<string | null>(null);
   const variableNameInputRef = useRef<HTMLInputElement>(null);
+
+  // 检查是否存在lumina1元素
+  const hasLumina1 = useMemo(() => {
+    return tags.some(tag =>
+      tag.type === "lumina" &&
+      tag.value === "lumina1" &&
+      !tag.isVariable
+    );
+  }, [tags]);
+
+  // 根据是否存在lumina1元素过滤标签类型选项
+  const filteredTagTypeOptions = useMemo(() => {
+    return TAG_TYPE_OPTIONS.filter(option => {
+      // 如果是ckpt_name、steps或cfg类型，只有在存在lumina1元素时才显示
+      if (option.key === "ckpt_name" || option.key === "steps" || option.key === "cfg") {
+        return hasLumina1;
+      }
+      return true;
+    });
+  }, [hasLumina1]);
 
   // 角色信息
   const [characterInfo, setCharacterInfo] = useState<{
@@ -192,17 +213,17 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
         // 如果是角色、元素或Lumina类型，添加相关属性
         ...((type === "character" || type === "element" || type === "lumina") && !isVariable
           ? {
-              uuid: characterInfo.uuid,
-              header_img: characterInfo.header_img || characterInfo.avatar_img,
-              heat_score: characterInfo.heat_score,
-              color: "#cccccc", // 默认颜色
-              useGradient: false, // 默认不使用渐变
-            }
+            uuid: characterInfo.uuid,
+            header_img: characterInfo.header_img || characterInfo.avatar_img,
+            heat_score: characterInfo.heat_score,
+            color: "#cccccc", // 默认颜色
+            useGradient: false, // 默认不使用渐变
+          }
           : {}),
         // 如果是角色、元素、Lumina或提示词类型，添加权重
         ...((type === "character" || type === "element" || type === "lumina" || type === "prompt") &&
-        !isVariable &&
-        weight !== undefined
+          !isVariable &&
+          weight !== undefined
           ? { weight }
           : {}),
       });
@@ -224,7 +245,7 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
   return (
     <motion.form
       animate={{ scale: 1, opacity: 1 }}
-      className="flex flex-col gap-3 p-3 border rounded-lg bg-white shadow-md w-64"
+      className="flex flex-col gap-3 p-3 border rounded-lg bg-white shadow-md w-80"
       exit={{ scale: 0.8, opacity: 0 }}
       initial={{ scale: 0.8, opacity: 0 }}
       transition={{ duration: 0.2 }}
@@ -238,18 +259,39 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
       </div>
 
       <div>
-        <div className="flex items-center gap-6">
+
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center flex-1">
             <span className="text-sm font-semibold mr-2 min-w-[40px]">类型</span>
             <Select
               aria-label="类型"
-              className="flex-1"
+              className="flex-1 min-w-[140px]"
               defaultSelectedKeys={["prompt"]}
               disallowEmptySelection={true}
               selectedKeys={[type]}
               selectionMode="single"
               size="sm"
               variant="flat"
+              scrollShadowProps={{
+                isEnabled: false
+              }}
+              popoverProps={{
+                classNames: {
+                  content: "min-w-[140px]"
+                },
+                placement: "bottom",
+                offset: 5,
+                showArrow: true
+              }}
+              listboxProps={{
+                itemClasses: {
+                  base: "text-sm"
+                },
+                style: {
+                  maxHeight: "none"
+                }
+              }}
+              maxListboxHeight={1000}
               onSelectionChange={(keys) => {
                 const keysArray = Array.from(keys);
 
@@ -260,12 +302,12 @@ const AddTagForm: React.FC<AddTagFormProps> = ({ onAdd, onCancel }) => {
                 }
               }}
             >
-              {TAG_TYPE_OPTIONS.map((option) => (
+              {filteredTagTypeOptions.map((option) => (
                 <SelectItem key={option.key}>{option.label}</SelectItem>
               ))}
             </Select>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center whitespace-nowrap">
             <span className="text-sm font-semibold mr-2">变量</span>
             <Switch
               aria-label="变量模式"

@@ -133,19 +133,37 @@ export default function ParametersPage() {
         <p>标签类型说明：</p>
         <ul className="mt-2 list-disc text-left pl-5">
           <li>
-            <strong>提示词</strong>：可以添加多个提示词类型标签
+            <strong>提示词</strong>：可以添加多个提示词类型标签，用于描述你想要生成的图像内容
           </li>
           <li>
-            <strong>比例</strong>：设置图像比例，提供多种预设选项
+            <strong>比例</strong>：设置图像比例，提供多种预设选项，如1:1、3:4、16:9等
           </li>
           <li>
-            <strong>批次</strong>：设置批处理大小，范围1-16
+            <strong>批次</strong>：设置批处理大小，范围1-16，决定一次生成多少张图片
           </li>
           <li>
-            <strong>种子</strong>：设置生成种子，输入0或正整数
+            <strong>种子</strong>：设置生成种子，输入0或正整数，相同的种子值在相同条件下会生成相似的图像
           </li>
           <li>
-            <strong>润色</strong>：启用或禁用润色功能
+            <strong>润色</strong>：启用或禁用润色功能，可以提升图像的质量和细节
+          </li>
+          <li>
+            <strong>角色</strong>：设置图像中的角色，可以从预设角色库中选择
+          </li>
+          <li>
+            <strong>元素</strong>：添加特定的视觉元素，如场景、物品等
+          </li>
+          <li>
+            <strong>Lumina</strong>：选择Lumina模型进行图像生成，选择lumina1时，有以下附加选项
+          </li>
+          <li>
+            <strong>Lumina模型</strong>：选择特定的Lumina模型文件
+          </li>
+          <li>
+            <strong>Lumina步数</strong>：设置Lumina模型的推理步数，影响生成图像的质量和细节
+          </li>
+          <li>
+            <strong>LuminaCFG</strong>：设置Lumina模型的CFG值，影响生成图像对提示词的遵循程度
           </li>
         </ul>
         <p className="mt-4">将标签设置为&quot;变量&quot;后，可以在下方为其添加多个变量值</p>

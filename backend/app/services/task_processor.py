@@ -7,7 +7,7 @@
 3. 清理过期任务
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 import logging
 import asyncio
 import time
@@ -232,6 +232,268 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
     seed = task_data.get("seed")
     use_polish = task_data.get("use_polish", False)
 
+    # 获取client_args参数
+    client_args = None
+    parent_task_id = task_data.get("parent_task_id")
+    if parent_task_id:
+        parent_task = await get_task(db, parent_task_id)
+        if parent_task and "settings" in parent_task and "client_args" in parent_task["settings"]:
+            client_args = parent_task["settings"]["client_args"]
+            logger.debug(f"从父任务 {parent_task_id} 获取client_args参数: {client_args}")
+
+    # 如果存在变量索引，检查是否需要更新client_args
+    variable_indices = task_data.get("variable_indices")
+    logger.debug(f"变量索引: {variable_indices}, 类型: {type(variable_indices)}")
+
+    # 如果client_args为None，初始化为空字典
+    if client_args is None:
+        client_args = {}
+        logger.debug("初始化client_args为空字典")
+
+    if variable_indices and parent_task_id:
+        # 获取父任务的标签和变量值
+        parent_task = await get_task(db, parent_task_id)
+        if parent_task:
+            tags = parent_task.get("tags", [])
+            variables = parent_task.get("variables", {})
+
+            # 检查是否存在lumina1元素
+            has_lumina1 = False
+            for prompt in prompts:
+                if isinstance(prompt, dict) and prompt.get("name") == "lumina1":
+                    has_lumina1 = True
+                    break
+
+            if has_lumina1:
+                # 如果存在lumina1元素，更新client_args
+                logger.debug(f"检测到lumina1元素，更新client_args参数")
+
+                # 获取ckpt_name、steps和cfg参数
+                client_args = client_args or {
+                    "ckpt_name": "1.pth",  # 默认值
+                    "steps": 1,            # 默认值
+                    "cfg": 7.5             # 默认值
+                }
+
+                # 更新client_args参数
+                for tag in tags:
+                    if tag.get("type") == "ckpt_name" and tag.get("isVariable"):
+                        # 查找变量值
+                        var_name = tag.get("name")
+                        tag_id = tag.get("id")
+
+                        # 记录更多调试信息
+                        logger.debug(f"处理ckpt_name变量标签: name={var_name}, id={tag_id}")
+                        logger.debug(f"变量列表: {list(variables.keys())}")
+
+                        # 查找与标签关联的变量
+                        found_var_name = None
+                        for v_name, v_data in variables.items():
+                            if v_data.get("name") == var_name or v_data.get("tag_id") == tag_id:
+                                found_var_name = v_name
+                                logger.debug(f"找到与ckpt_name标签关联的变量: {v_name}, 标签名称: {var_name}, 标签ID: {tag_id}")
+                                break
+
+                        if found_var_name:
+                            var_name = found_var_name
+
+                        if var_name and var_name in variables:
+                            var_values = variables[var_name].get("values", [])
+                            var_index = None
+
+                            # 从variable_indices中获取索引
+                            # 首先直接检查字典中是否有该变量名的索引
+                            if isinstance(variable_indices, dict) and var_name in variable_indices:
+                                var_index = variable_indices[var_name]
+                                logger.debug(f"直接从字典variable_indices[{var_name}]={var_index}中获取到变量索引")
+                            # 然后尝试其他方式
+                            elif isinstance(variable_indices, list) and len(variable_indices) > 0:
+                                # 尝试从variable_indices数组中获取索引
+                                for i, idx in enumerate(variable_indices):
+                                    if idx is not None and f"v{i}" == var_name:
+                                        var_index = idx
+                                        logger.debug(f"从variable_indices[{i}]={idx}中获取到变量{var_name}的索引")
+                                        break
+                            elif isinstance(variable_indices, str):
+                                # 如果variable_indices是字符串，尝试解析
+                                try:
+                                    indices = json.loads(variable_indices)
+                                    if isinstance(indices, dict) and var_name in indices:
+                                        # 如果解析后是字典，直接获取
+                                        var_index = indices[var_name]
+                                        logger.debug(f"从字符串解析的字典variable_indices[{var_name}]={var_index}中获取到变量索引")
+                                    elif isinstance(indices, list) and len(indices) > 0:
+                                        # 如果解析后是列表，遍历查找
+                                        for i, idx in enumerate(indices):
+                                            if idx is not None and f"v{i}" == var_name:
+                                                var_index = idx
+                                                logger.debug(f"从字符串解析的列表variable_indices[{i}]={idx}中获取到变量{var_name}的索引")
+                                                break
+                                except (json.JSONDecodeError, TypeError):
+                                    logger.warning(f"无法解析variable_indices字符串: {variable_indices}")
+                            elif isinstance(variable_indices, dict):
+                                # 如果variable_indices是字典但没有直接匹配，尝试查找其他匹配
+                                for key, idx in variable_indices.items():
+                                    if key == var_name and idx is not None:
+                                        var_index = idx
+                                        logger.debug(f"从字典variable_indices[{key}]={idx}中获取到变量{var_name}的索引")
+                                        break
+
+                            if var_index is not None and var_index < len(var_values):
+                                value = var_values[var_index]
+                                if isinstance(value, dict):
+                                    value = value.get("value")
+                                client_args["ckpt_name"] = value
+                                logger.debug(f"更新ckpt_name参数: {value}")
+
+                    elif tag.get("type") == "steps" and tag.get("isVariable"):
+                        # 查找变量值
+                        var_name = tag.get("name")
+                        tag_id = tag.get("id")
+
+                        # 记录更多调试信息
+                        logger.debug(f"处理steps变量标签: name={var_name}, id={tag_id}")
+                        logger.debug(f"变量列表: {list(variables.keys())}")
+
+                        # 查找与标签关联的变量
+                        found_var_name = None
+                        for v_name, v_data in variables.items():
+                            if v_data.get("name") == var_name or v_data.get("tag_id") == tag_id:
+                                found_var_name = v_name
+                                logger.debug(f"找到与steps标签关联的变量: {v_name}, 标签名称: {var_name}, 标签ID: {tag_id}")
+                                break
+
+                        if found_var_name:
+                            var_name = found_var_name
+
+                        if var_name and var_name in variables:
+                            var_values = variables[var_name].get("values", [])
+                            var_index = None
+
+                            # 从variable_indices中获取索引
+                            # 首先直接检查字典中是否有该变量名的索引
+                            if isinstance(variable_indices, dict) and var_name in variable_indices:
+                                var_index = variable_indices[var_name]
+                                logger.debug(f"直接从字典variable_indices[{var_name}]={var_index}中获取到变量索引")
+                            # 然后尝试其他方式
+                            elif isinstance(variable_indices, list) and len(variable_indices) > 0:
+                                # 尝试从variable_indices数组中获取索引
+                                for i, idx in enumerate(variable_indices):
+                                    if idx is not None and f"v{i}" == var_name:
+                                        var_index = idx
+                                        logger.debug(f"从variable_indices[{i}]={idx}中获取到变量{var_name}的索引")
+                                        break
+                            elif isinstance(variable_indices, str):
+                                # 如果variable_indices是字符串，尝试解析
+                                try:
+                                    indices = json.loads(variable_indices)
+                                    if isinstance(indices, dict) and var_name in indices:
+                                        # 如果解析后是字典，直接获取
+                                        var_index = indices[var_name]
+                                        logger.debug(f"从字符串解析的字典variable_indices[{var_name}]={var_index}中获取到变量索引")
+                                    elif isinstance(indices, list) and len(indices) > 0:
+                                        # 如果解析后是列表，遍历查找
+                                        for i, idx in enumerate(indices):
+                                            if idx is not None and f"v{i}" == var_name:
+                                                var_index = idx
+                                                logger.debug(f"从字符串解析的列表variable_indices[{i}]={idx}中获取到变量{var_name}的索引")
+                                                break
+                                except (json.JSONDecodeError, TypeError):
+                                    logger.warning(f"无法解析variable_indices字符串: {variable_indices}")
+                            elif isinstance(variable_indices, dict):
+                                # 如果variable_indices是字典但没有直接匹配，尝试查找其他匹配
+                                for key, idx in variable_indices.items():
+                                    if key == var_name and idx is not None:
+                                        var_index = idx
+                                        logger.debug(f"从字典variable_indices[{key}]={idx}中获取到变量{var_name}的索引")
+                                        break
+
+                            if var_index is not None and var_index < len(var_values):
+                                value = var_values[var_index]
+                                if isinstance(value, dict):
+                                    value = value.get("value")
+                                try:
+                                    steps = int(value)
+                                    if steps >= 1 and steps <= 50:
+                                        client_args["steps"] = steps
+                                        logger.debug(f"更新steps参数: {steps}")
+                                except (ValueError, TypeError):
+                                    logger.warning(f"无法将steps值 '{value}' 转换为整数")
+
+                    elif tag.get("type") == "cfg" and tag.get("isVariable"):
+                        # 查找变量值
+                        var_name = tag.get("name")
+                        tag_id = tag.get("id")
+
+                        # 记录更多调试信息
+                        logger.debug(f"处理cfg变量标签: name={var_name}, id={tag_id}")
+                        logger.debug(f"变量列表: {list(variables.keys())}")
+
+                        # 查找与标签关联的变量
+                        found_var_name = None
+                        for v_name, v_data in variables.items():
+                            if v_data.get("name") == var_name or v_data.get("tag_id") == tag_id:
+                                found_var_name = v_name
+                                logger.debug(f"找到与cfg标签关联的变量: {v_name}, 标签名称: {var_name}, 标签ID: {tag_id}")
+                                break
+
+                        if found_var_name:
+                            var_name = found_var_name
+
+                        if var_name and var_name in variables:
+                            var_values = variables[var_name].get("values", [])
+                            var_index = None
+
+                            # 从variable_indices中获取索引
+                            # 首先直接检查字典中是否有该变量名的索引
+                            if isinstance(variable_indices, dict) and var_name in variable_indices:
+                                var_index = variable_indices[var_name]
+                                logger.debug(f"直接从字典variable_indices[{var_name}]={var_index}中获取到变量索引")
+                            # 然后尝试其他方式
+                            elif isinstance(variable_indices, list) and len(variable_indices) > 0:
+                                # 尝试从variable_indices数组中获取索引
+                                for i, idx in enumerate(variable_indices):
+                                    if idx is not None and f"v{i}" == var_name:
+                                        var_index = idx
+                                        logger.debug(f"从variable_indices[{i}]={idx}中获取到变量{var_name}的索引")
+                                        break
+                            elif isinstance(variable_indices, str):
+                                # 如果variable_indices是字符串，尝试解析
+                                try:
+                                    indices = json.loads(variable_indices)
+                                    if isinstance(indices, dict) and var_name in indices:
+                                        # 如果解析后是字典，直接获取
+                                        var_index = indices[var_name]
+                                        logger.debug(f"从字符串解析的字典variable_indices[{var_name}]={var_index}中获取到变量索引")
+                                    elif isinstance(indices, list) and len(indices) > 0:
+                                        # 如果解析后是列表，遍历查找
+                                        for i, idx in enumerate(indices):
+                                            if idx is not None and f"v{i}" == var_name:
+                                                var_index = idx
+                                                logger.debug(f"从字符串解析的列表variable_indices[{i}]={idx}中获取到变量{var_name}的索引")
+                                                break
+                                except (json.JSONDecodeError, TypeError):
+                                    logger.warning(f"无法解析variable_indices字符串: {variable_indices}")
+                            elif isinstance(variable_indices, dict):
+                                # 如果variable_indices是字典但没有直接匹配，尝试查找其他匹配
+                                for key, idx in variable_indices.items():
+                                    if key == var_name and idx is not None:
+                                        var_index = idx
+                                        logger.debug(f"从字典variable_indices[{key}]={idx}中获取到变量{var_name}的索引")
+                                        break
+
+                            if var_index is not None and var_index < len(var_values):
+                                value = var_values[var_index]
+                                if isinstance(value, dict):
+                                    value = value.get("value")
+                                try:
+                                    cfg = float(value)
+                                    if cfg >= 0.1 and cfg <= 10:
+                                        client_args["cfg"] = cfg
+                                        logger.debug(f"更新cfg参数: {cfg}")
+                                except (ValueError, TypeError):
+                                    logger.warning(f"无法将cfg值 '{value}' 转换为浮点数")
+
     # 检查是否是Lumina任务
     is_lumina_task = False
     for prompt in prompts:
@@ -276,7 +538,8 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
                     width=width,
                     height=height,
                     seed=seed,
-                    advanced_translator=use_polish
+                    advanced_translator=use_polish,
+                    client_args=client_args
                 ),
                 timeout=timeout
             )
@@ -296,6 +559,10 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
                 elif task_status == "TIMEOUT":
                     # 触发超时错误的重试逻辑
                     raise asyncio.TimeoutError("图像生成API返回TIMEOUT状态，任务超时")
+                elif task_status == "SUCCESS":
+                    pass
+                else:
+                    raise ValueError(f"图像生成API返回未知状态: {task_status}")
 
             # 提取图像URL
             image_url = await image_generator.extract_image_url(result)
@@ -1020,7 +1287,7 @@ async def prepare_subtask_data(
 
     return subtask_data
 
-def calculate_variable_indices(variables: Dict[str, Any], combination: Dict[str, Dict[str, Any]]) -> List[Optional[int]]:
+def calculate_variable_indices(variables: Dict[str, Any], combination: Dict[str, Dict[str, Any]]) -> Union[List[Optional[int]], Dict[str, int]]:
     """
     计算变量索引数组，既可以基于变量类型工作，也兼容传统的v0,v1位置索引
 
@@ -1034,29 +1301,36 @@ def calculate_variable_indices(variables: Dict[str, Any], combination: Dict[str,
     # 初始化所有变量索引为None
     variable_indices = [None] * 6
 
+    # 创建一个字典来存储所有变量的索引，包括非v开头的变量
+    variable_indices_dict = {}
+
     try:
-        # 第一步：处理位置索引变量（v0, v1等）
+        # 第一步：处理所有变量，包括位置索引变量（v0, v1等）和其他变量（如steps, cfg等）
         for var_name, var_data in variables.items():
-            if var_name.startswith('v') and var_data.get('values'):
-                try:
-                    var_index = int(var_name[1:])  # 从v0, v1等提取索引
-                    if var_index < 0 or var_index >= 6:
-                        continue
+            if var_data.get('values'):
+                var_values = var_data.get('values', [])
 
-                    var_values = var_data.get('values', [])
+                # 获取当前组合中该变量的值
+                if var_name in combination and isinstance(combination[var_name], dict):
+                    combo_var_value = combination[var_name].get('value')
 
-                    # 获取当前组合中该变量的值
-                    if var_name in combination and isinstance(combination[var_name], dict):
-                        combo_var_value = combination[var_name].get('value')
+                    # 在变量值列表中查找匹配的索引
+                    for idx, val in enumerate(var_values):
+                        if isinstance(val, dict) and val.get('value') == combo_var_value:
+                            # 如果是v开头的变量，同时更新variable_indices数组
+                            if var_name.startswith('v'):
+                                try:
+                                    var_index = int(var_name[1:])  # 从v0, v1等提取索引
+                                    if 0 <= var_index < 6:
+                                        variable_indices[var_index] = idx
+                                        logger.debug(f"设置变量索引数组位置 {var_index} 的值为 {idx}")
+                                except (ValueError, IndexError):
+                                    logger.warning(f"无法解析变量名 {var_name} 或访问值列表")
 
-                        # 在变量值列表中查找匹配的索引
-                        for idx, val in enumerate(var_values):
-                            if isinstance(val, dict) and val.get('value') == combo_var_value:
-                                variable_indices[var_index] = idx
-                                break
-                except (ValueError, IndexError):
-                    logger.warning(f"无法解析变量名 {var_name} 或访问值列表")
-                    continue
+                            # 无论是否v开头，都更新字典
+                            variable_indices_dict[var_name] = idx
+                            logger.debug(f"设置变量 {var_name} 的索引为 {idx}")
+                            break
         # 处理batch索引，如果存在
         if "_batch_index" in combination and isinstance(combination["_batch_index"], dict):
             batch_index = combination["_batch_index"].get("index", 0)
@@ -1067,9 +1341,19 @@ def calculate_variable_indices(variables: Dict[str, Any], combination: Dict[str,
                 logger.debug(f"将batch索引 {batch_index} 存储在v5位置")
             else:
                 logger.warning(f"v5已被使用，无法存储batch索引 {batch_index}")
+
+            # 同时存储到字典中
+            variable_indices_dict["_batch_index"] = batch_index
+            logger.debug(f"将batch索引 {batch_index} 存储到字典中")
     except Exception as e:
         logger.warning(f"计算变量索引时发生错误: {str(e)}")
 
+    # 记录字典形式的变量索引（仅用于调试）
+    if variable_indices_dict:
+        logger.debug(f"变量索引字典: {json.dumps(variable_indices_dict)}")
+
+    # 始终返回六个项的列表形式
+    logger.debug(f"返回变量索引数组: {variable_indices}")
     return variable_indices
 
 async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
