@@ -87,11 +87,11 @@ export const getDefaultValueByType = (type: TagType): string => {
     case "lumina":
       return "";
     case "ckpt_name":
-      return "1.pth";
+      return "results_cosine_2e-4_bs64_infallssssuum/checkpoint-e0_s15000/consolidated.00-of-01.pth";
     case "steps":
-      return "1";
+      return "30";
     case "cfg":
-      return "7.5";
+      return "5.5";
     default:
       return "";
   }

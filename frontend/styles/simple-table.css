@@ -1,0 +1,93 @@
+.simple-table-wrapper {
+  overflow: auto;
+  max-height: 100%;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+.simple-matrix-table {
+  width: max-content;
+  border-spacing: 4px;
+  border-collapse: separate;
+  margin: 0;
+  box-shadow: 0 0 0 1px #e0e0e0;
+  table-layout: fixed;
+  display: table;
+}
+
+.simple-matrix-table th.header-cell {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: rgb(200, 200, 200);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  padding: 4px;
+  font-size: 0.75rem;
+  text-align: center;
+  border: 1px solid #e0e0e0;
+  height: auto;
+  display: table-cell;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+}
+
+.simple-matrix-table th.header-cell:first-child {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 20;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+  width: 70px;
+  min-width: 70px;
+  max-width: 70px;
+}
+
+.simple-matrix-table td.data-cell {
+  height: 180px;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  min-height: 180px;
+  padding: 0;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  text-align: center;
+  vertical-align: middle;
+  border-radius: 0;
+  display: table-cell;
+}
+
+.simple-matrix-table td.row-title-cell {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background-color: rgb(200, 200, 200);
+  width: 70px;
+  min-width: 70px;
+  max-width: 70px;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.15);
+  padding: 2px 4px;
+  height: 180px;
+  display: table-cell;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  font-weight: 500;
+}
+
+.simple-matrix-table tr {
+  display: table-row;
+}
+
+/* 全屏模式样式 */
+.fullscreen-table .simple-table-wrapper {
+  max-height: 100vh;
+}
+
+:fullscreen .simple-table-wrapper {
+  max-height: 100vh;
+}

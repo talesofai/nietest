@@ -21,7 +21,10 @@ import { TaskDetail } from "@/types/task";
 import { apiService } from "@/utils/api/apiService";
 import { formatBeijingTime } from "@/utils/dateUtils";
 import * as logger from "@/utils/logger";
-import MatrixTableView from "@/components/history/MatrixTableView";
+import SimpleTableView from "@/components/history/SimpleTableView";
+
+// 导入简单表格样式
+import "@/styles/simple-table.css";
 
 // 占位图片URL
 const PLACEHOLDER_IMAGE_URL = "/placeholder-image.png";
@@ -476,11 +479,11 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     }
 
     // 获取所有可用的维度
-    const allDimensions = Object.keys(matrixData.variables).filter(key =>
+    const allDimensions = Object.keys(matrixData?.variables || {}).filter(key =>
       key.startsWith('v') &&
-      matrixData.variables[key] &&
-      matrixData.variables[key].values &&
-      matrixData.variables[key].values.length > 0
+      matrixData?.variables?.[key] &&
+      matrixData?.variables?.[key].values &&
+      matrixData?.variables?.[key].values.length > 0
     );
 
     // 排除当前选择的X轴和Y轴
@@ -1051,9 +1054,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         fullscreenElementRef.current.style.backgroundColor = "#fff";
 
         // 确保表头和第一列在全屏模式下仍然固定
-        const stickyContainer = fullscreenElementRef.current.querySelector('.sticky-table-container');
-        if (stickyContainer) {
-          (stickyContainer as HTMLElement).style.maxHeight = "100vh";
+        const tableContainer = fullscreenElementRef.current.querySelector('.simple-table-wrapper');
+        if (tableContainer) {
+          (tableContainer as HTMLElement).style.maxHeight = "100vh";
         }
       }
 
@@ -1077,9 +1080,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
             fullscreenElementRef.current.style.backgroundColor = "";
 
             // 恢复表格容器的原始样式
-            const stickyContainer = fullscreenElementRef.current.querySelector('.sticky-table-container');
-            if (stickyContainer) {
-              (stickyContainer as HTMLElement).style.maxHeight = "100%";
+            const tableContainer = fullscreenElementRef.current.querySelector('.simple-table-wrapper');
+            if (tableContainer) {
+              (tableContainer as HTMLElement).style.maxHeight = "100%";
             }
           }
         })
@@ -1114,7 +1117,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       }
 
       /* 固定表头和第一列的样式 */
-      .sticky-table-container {
+      .simple-table-wrapper {
         overflow: auto;
         max-height: 100%;
         position: relative;
@@ -1146,9 +1149,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           fullscreenElementRef.current.style.height = "100vh";
 
           // 确保表头和第一列在全屏模式下仍然固定
-          const stickyContainer = fullscreenElementRef.current.querySelector('.sticky-table-container');
-          if (stickyContainer) {
-            (stickyContainer as HTMLElement).style.maxHeight = "100vh";
+          const tableContainer = fullscreenElementRef.current.querySelector('.simple-table-wrapper');
+          if (tableContainer) {
+            (tableContainer as HTMLElement).style.maxHeight = "100vh";
           }
 
           // CSS会自动应用固定样式
@@ -1157,9 +1160,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
           fullscreenElementRef.current.style.height = "calc(100vh - 300px)";
 
           // 恢复表格容器的原始样式
-          const stickyContainer = fullscreenElementRef.current.querySelector('.sticky-table-container');
-          if (stickyContainer) {
-            (stickyContainer as HTMLElement).style.maxHeight = "100%";
+          const tableContainer = fullscreenElementRef.current.querySelector('.simple-table-wrapper');
+          if (tableContainer) {
+            (tableContainer as HTMLElement).style.maxHeight = "100%";
           }
 
           // CSS会自动应用固定样式
@@ -1503,10 +1506,19 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 padding: "0"
               }}
             >
-              {/* 使用新的MatrixTableView组件替代原有表格 */}
-              <MatrixTableView
+              {/* 使用SimpleTableView组件替代原有表格 */}
+              <SimpleTableView
                 tableData={tableData}
-                columnValues={Object.keys(tableData[0]).filter(key => key !== "key" && key !== "rowTitle")}
+                columnValues={(() => {
+                  if (!tableData || tableData.length === 0) return [];
+                  const cols = Object.keys(tableData[0]).filter(key => key !== "key" && key !== "rowTitle");
+                  // 开发环境下输出调试信息
+                  if (process.env.NODE_ENV === "development") {
+                    console.log("TaskDetailView传递的列数:", cols.length);
+                    console.log("TaskDetailView传递的列:", cols);
+                  }
+                  return cols;
+                })()}
                 xAxis={xAxis}
                 yAxis={yAxis}
                 tableScale={tableScale}

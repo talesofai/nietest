@@ -132,9 +132,19 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
     onViewImage,
     onViewMultipleImages,
 }) => {
+    // 启动时输出列数据以便调试
+    useEffect(() => {
+        if (process.env.NODE_ENV === "development") {
+            console.log("表格列数据:", {
+                columnValuesLength: columnValues.length,
+                columnValues: columnValues
+            });
+        }
+    }, [columnValues]);
+
     // 表格状态
     const [sorting, setSorting] = useState<SortingState>([]);
-    const [useVirtualization, setUseVirtualization] = useState(tableData.length > 100);
+    const [useVirtualization, setUseVirtualization] = useState(false); // 默认关闭虚拟滚动
 
     // 表格容器引用
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -191,7 +201,12 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
         ];
 
         // 添加数据列
-        columnValues.forEach((colKey) => {
+        columnValues.forEach((colKey, index) => {
+            // 调试输出当前处理的列
+            if (process.env.NODE_ENV === "development") {
+                console.log(`处理第 ${index + 1} 列: ${colKey}`);
+            }
+
             cols.push(
                 columnHelper.accessor(colKey, {
                     id: colKey,
@@ -302,6 +317,11 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
             );
         });
 
+        // 调试打印最终列数
+        if (process.env.NODE_ENV === "development") {
+            console.log(`最终生成的表格列数: ${cols.length}, 包括: 1个行标题列 + ${cols.length - 1}个数据列`);
+        }
+
         return cols;
     }, [columnValues, xAxis, yAxis, hasBatchTag, onViewImage, onViewMultipleImages]);
 
@@ -358,15 +378,31 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                     transition: "transform 0.2s ease",
                     width: "100%",
                     height: "100%",
+                    overflowX: "auto"
                 }}
             >
                 <style jsx global>{`
+                    .sticky-table-container {
+                        overflow: auto;
+                        max-height: 100%;
+                        position: relative;
+                        z-index: 1;
+                        width: 100%;
+                    }
+
+                    .virtual-table-container {
+                        overflow: auto;
+                        width: 100%;
+                    }
+
                     .matrix-table {
-                        width: auto;
+                        width: max-content;
                         border-spacing: 4px;
                         border-collapse: separate;
                         margin: 0;
                         box-shadow: 0 0 0 1px #e0e0e0;
+                        table-layout: fixed;
+                        display: table;
                     }
 
                     .matrix-table th {
@@ -380,6 +416,7 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                         text-align: center;
                         border: 1px solid #e0e0e0;
                         height: auto;
+                        display: table-cell;
                     }
 
                     .matrix-table th:first-child {
@@ -394,6 +431,7 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                         height: 180px;
                         width: 180px;
                         min-width: 180px;
+                        max-width: 180px;
                         min-height: 180px;
                         padding: 0;
                         border: 1px solid #e0e0e0;
@@ -401,6 +439,7 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                         text-align: center;
                         vertical-align: middle;
                         border-radius: 0;
+                        display: table-cell;
                     }
 
                     .matrix-table td:first-child {
@@ -421,7 +460,10 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                         text-overflow: ellipsis;
                     }
 
-                    /* 可排序的表头样式 */
+                    .matrix-table tr {
+                        display: table-row;
+                    }
+
                     .matrix-table th.sortable {
                         cursor: pointer;
                     }
@@ -493,10 +535,11 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                             style={{
                                 height: `${rowVirtualizer.getTotalSize()}px`,
                                 position: 'relative',
-                                width: '100%',
+                                width: 'max-content',
+                                minWidth: '100%',
                             }}
                         >
-                            <table className="matrix-table">
+                            <table className="matrix-table" style={{ width: 'max-content' }}>
                                 <tbody>
                                     {rowVirtualizer.getVirtualItems().map(virtualRow => {
                                         const row = rows[virtualRow.index];
@@ -532,7 +575,7 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                     </div>
                 ) : (
                     // 常规表格
-                    <table className="matrix-table">
+                    <table className="matrix-table" style={{ width: 'max-content' }}>
                         <thead>
                             {table.getHeaderGroups().map(headerGroup => (
                                 <tr key={headerGroup.id}>
