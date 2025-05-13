@@ -159,18 +159,18 @@ class ImageGenerationService:
         if not task_uuid:
             raise Exception("无法获取任务UUID")
 
-        logger.debug(f"获取到图像任务UUID: {task_uuid}")
+        logger.info(f"获取到图像任务UUID: {task_uuid}")
 
         # 轮询任务状态直到完成
-        logger.debug(f"开始轮询任务状态: {task_uuid}")
+        logger.info(f"开始轮询任务状态: {task_uuid}")
         try:
             task_result = await self._poll_task_status(task_uuid, task_status_url)
             if task_result:
                 # 安全地获取URL，避免索引错误
                 artifacts = task_result.get('artifacts', [])
                 url = artifacts[0].get('url') if artifacts else None
-                logger.debug(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}, url: {url}")
-                logger.debug(f"轮询任务结果: {json.dumps(task_result, ensure_ascii=False)}")
+                logger.info(f"轮询任务状态完成: {task_uuid}, 状态: {task_result.get('task_status')}, url: {url}")
+                logger.info(f"轮询任务结果: {json.dumps(task_result, ensure_ascii=False)}")
             else:
                 logger.warning(f"轮询任务状态超时: {task_uuid}, 未能获取结果")
         except Exception as e:
@@ -190,12 +190,23 @@ class ImageGenerationService:
             }
         }
 
-        # 如果有图像结果，添加图像 URL
-        if task_result and task_result.get("task_status") == "SUCCESS" and task_result.get("artifacts"):
-            for artifact in task_result.get("artifacts", []):
-                if artifact.get("url"):
-                    result["data"]["image_url"] = artifact.get("url")
-                    break
+        # 如果任务结果存在，将任务状态添加到结果中
+        if task_result:
+            task_status = task_result.get("task_status")
+            # 将任务状态添加到结果中，以便task_processor.py可以检测到TIMEOUT状态
+            result["task_status"] = task_status
+
+            # 如果有图像结果且状态为SUCCESS，添加图像URL
+            if task_status == "SUCCESS" and task_result.get("artifacts"):
+                for artifact in task_result.get("artifacts", []):
+                    if artifact.get("url"):
+                        result["data"]["image_url"] = artifact.get("url")
+                        break
+                logger.info(f"任务状态为SUCCESS，添加图像URL: {result['data']['image_url']}")
+
+            # 如果状态为TIMEOUT，记录日志
+            elif task_status == "TIMEOUT":
+                logger.warning(f"任务状态为TIMEOUT: {task_uuid}，将通知task_processor进行重试")
 
         return result
 
@@ -290,13 +301,13 @@ class ImageGenerationService:
         logger.debug(f"开始轮询{task_type}任务状态: {task_uuid}, 最大轮询次数: {max_attempts}, 轮询间隔: {polling_interval}秒")
 
         status_url = task_status_url.format(task_uuid=task_uuid)
-        logger.debug(f"开始轮询任务状态: {status_url}")
+        logger.info(f"开始轮询任务状态: {status_url}")
         start_time = time.time()
 
         for attempt in range(max_attempts):
             try:
                 elapsed_time = time.time() - start_time
-                logger.debug(f"轮询任务状态 (第{attempt+1}/{max_attempts}次), 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_uuid}")
+                logger.info(f"轮询任务状态 (第{attempt+1}/{max_attempts}次), 已耗时: {elapsed_time:.2f}秒, 任务ID: {task_uuid}")
 
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.get(
@@ -314,7 +325,7 @@ class ImageGenerationService:
 
                     # 记录轮询结果，但减少日志量
                     if attempt % 3 == 0 or task_status != "PENDING":
-                        logger.debug(f"轮询状态 (第{attempt+1}次): {task_status}, artifacts={artifacts_count}, 任务ID: {task_uuid}")
+                        logger.info(f"轮询状态 (第{attempt+1}次): {task_status}, artifacts={artifacts_count}, 任务ID: {task_uuid}")
 
                     # 如果任务状态是PENDING，继续轮询
                     if task_status == "PENDING":
@@ -332,7 +343,7 @@ class ImageGenerationService:
                             result["task_status"] = "FAILURE"  # 将未预期的状态视为FAILURE
 
                         total_time = time.time() - start_time
-                        logger.debug(f"任务完成，状态: {task_status}, 总耗时: {total_time:.2f}秒, 任务ID: {task_uuid}")
+                        logger.info(f"任务完成，状态: {task_status}, 总耗时: {total_time:.2f}秒, 任务ID: {task_uuid}, 结果: {json.dumps(result, ensure_ascii=False)}")
                         return result
 
             except Exception as e:

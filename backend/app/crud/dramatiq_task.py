@@ -17,7 +17,9 @@ from app.crud.subtask import (
     update_subtask_error,
     delete_subtasks_by_parent_id,
     get_oldest_pending_subtask,
-    count_subtasks_by_status
+    count_subtasks_by_status,
+    create_subtasks_batch,
+    get_existing_subtasks_by_indices
 )
 
 logger = logging.getLogger(__name__)
@@ -77,3 +79,13 @@ async def count_dramatiq_tasks_by_status(db: Any, status: str) -> int:
     """计算指定状态的Dramatiq任务数量（兼容层）"""
     logger.debug(f"使用兼容层函数 count_dramatiq_tasks_by_status: {status}")
     return await count_subtasks_by_status(db, status)
+
+async def create_dramatiq_tasks_batch(db: Any, tasks_data: List[Dict[str, Any]]) -> List[str]:
+    """批量创建Dramatiq任务（兼容层）"""
+    logger.debug(f"使用兼容层函数 create_dramatiq_tasks_batch，批量创建 {len(tasks_data)} 个任务")
+    return await create_subtasks_batch(db, tasks_data)
+
+async def get_existing_dramatiq_tasks_by_indices(db: Any, parent_task_id: str, variable_indices_list: List[List[Optional[int]]]) -> List[Dict[str, Any]]:
+    """批量查询已存在的Dramatiq任务（兼容层）"""
+    logger.debug(f"使用兼容层函数 get_existing_dramatiq_tasks_by_indices，查询 {len(variable_indices_list)} 个索引组合")
+    return await get_existing_subtasks_by_indices(db, parent_task_id, variable_indices_list)
