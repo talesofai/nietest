@@ -21,6 +21,7 @@ import { TaskDetail } from "@/types/task";
 import { apiService } from "@/utils/api/apiService";
 import { formatBeijingTime } from "@/utils/dateUtils";
 import * as logger from "@/utils/logger";
+import MatrixTableView from "@/components/history/MatrixTableView";
 
 // 占位图片URL
 const PLACEHOLDER_IMAGE_URL = "/placeholder-image.png";
@@ -499,6 +500,40 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     );
   }, [matrixData, xAxis, yAxis]);
 
+  // 当可筛选维度列表变化时，为每个维度默认选择第一个选项
+  useEffect(() => {
+    if (!matrixData || !matrixData.variables || filterableDimensions.length === 0) {
+      return;
+    }
+
+    // 检查哪些维度需要设置默认值
+    const dimensionsToSet = filterableDimensions.filter(dimension => {
+      // 检查该维度是否已经有筛选值
+      return !dimensionFilters.some(filter => filter.dimension === dimension);
+    });
+
+    if (dimensionsToSet.length === 0) {
+      return;
+    }
+
+    // 为每个需要设置的维度创建默认筛选器
+    const newFilters = dimensionsToSet.map(dimension => {
+      // 默认选择第一个选项（索引0）
+      return {
+        dimension,
+        valueIndex: 0
+      };
+    });
+
+    // 合并现有筛选器和新筛选器
+    setDimensionFilters(prev => [...prev, ...newFilters]);
+
+    // 清除URL缓存，因为筛选条件已更改
+    urlCache.current = {};
+
+    logger.log(`为${dimensionsToSet.length}个维度设置了默认筛选值`);
+  }, [filterableDimensions, dimensionFilters, matrixData]);
+
   // 同步xAxis和yAxis的状态变化到ref中
   useEffect(() => {
     xAxisRef.current = xAxis;
@@ -583,7 +618,9 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 filterDimension !== xVarDimension &&
                 filterDimension !== yVarDimension) {
                 // 检查该维度的值是否匹配
-                if (keyIndexParts[filterDimension] !== String(filter.valueIndex)) {
+                // 如果坐标索引中没有该维度的值（为空字符串），或者值匹配，则认为匹配
+                if (keyIndexParts[filterDimension] !== "" &&
+                  keyIndexParts[filterDimension] !== String(filter.valueIndex)) {
                   otherDimensionsMatch = false;
                   break;
                 }
@@ -672,7 +709,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 filterDimension !== xVarDimension &&
                 filterDimension !== yVarDimension) {
                 // 检查该维度的值是否匹配
-                if (keyIndexParts[filterDimension] !== String(filter.valueIndex)) {
+                if (keyIndexParts[filterDimension] !== "" &&
+                  keyIndexParts[filterDimension] !== String(filter.valueIndex)) {
                   otherDimensionsMatch = false;
                   break;
                 }
@@ -1008,6 +1046,17 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     if (!fullscreenElementRef.current) return;
 
     if (!document.fullscreenElement) {
+      // 进入全屏模式前先设置一些样式
+      if (fullscreenElementRef.current) {
+        fullscreenElementRef.current.style.backgroundColor = "#fff";
+
+        // 确保表头和第一列在全屏模式下仍然固定
+        const stickyContainer = fullscreenElementRef.current.querySelector('.sticky-table-container');
+        if (stickyContainer) {
+          (stickyContainer as HTMLElement).style.maxHeight = "100vh";
+        }
+      }
+
       fullscreenElementRef.current
         .requestFullscreen()
         .then(() => {
@@ -1022,6 +1071,17 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
         .exitFullscreen()
         .then(() => {
           setIsFullscreen(false);
+
+          // 退出全屏模式后恢复样式
+          if (fullscreenElementRef.current) {
+            fullscreenElementRef.current.style.backgroundColor = "";
+
+            // 恢复表格容器的原始样式
+            const stickyContainer = fullscreenElementRef.current.querySelector('.sticky-table-container');
+            if (stickyContainer) {
+              (stickyContainer as HTMLElement).style.maxHeight = "100%";
+            }
+          }
         })
         .catch((err) => {
           // eslint-disable-next-line no-console
@@ -1030,10 +1090,81 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
     }
   };
 
+  // 添加全屏模式和固定表头的CSS样式
+  useEffect(() => {
+    // 创建样式元素
+    const styleElement = document.createElement('style');
+    styleElement.id = 'table-styles';
+    styleElement.innerHTML = `
+      .fullscreen-table {
+        background-color: white;
+        padding: 0 !important;
+        height: 100vh !important;
+        position: relative;
+        z-index: 1000;
+      }
+
+      .fullscreen-table table {
+        margin: 0;
+      }
+
+      :fullscreen {
+        background-color: white;
+        padding: 0;
+      }
+
+      /* 固定表头和第一列的样式 */
+      .sticky-table-container {
+        overflow: auto;
+        max-height: 100%;
+        position: relative;
+        z-index: 1;
+      }
+    `;
+
+    // 添加到文档头部
+    document.head.appendChild(styleElement);
+
+    // 清理函数
+    return () => {
+      const existingStyle = document.getElementById('table-styles');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, []);
+
   // 监听全屏状态变化
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
+
+      // 全屏模式下调整表格容器样式
+      if (fullscreenElementRef.current) {
+        if (document.fullscreenElement) {
+          // 全屏模式下设置容器样式
+          fullscreenElementRef.current.style.height = "100vh";
+
+          // 确保表头和第一列在全屏模式下仍然固定
+          const stickyContainer = fullscreenElementRef.current.querySelector('.sticky-table-container');
+          if (stickyContainer) {
+            (stickyContainer as HTMLElement).style.maxHeight = "100vh";
+          }
+
+          // CSS会自动应用固定样式
+        } else {
+          // 退出全屏模式后恢复原来的样式
+          fullscreenElementRef.current.style.height = "calc(100vh - 300px)";
+
+          // 恢复表格容器的原始样式
+          const stickyContainer = fullscreenElementRef.current.querySelector('.sticky-table-container');
+          if (stickyContainer) {
+            (stickyContainer as HTMLElement).style.maxHeight = "100%";
+          }
+
+          // CSS会自动应用固定样式
+        }
+      }
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -1042,6 +1173,12 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
+
+  // 监听轴变化，确保表格结构正确
+  useEffect(() => {
+    // 当轴变化时，确保表格结构正确
+    // 这里不需要做任何事情，因为我们使用CSS来固定表头和第一列
+  }, [xAxis, yAxis, tableData]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -1079,12 +1216,10 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
 
       <div className="mb-4">
         <h2
-          className="text-xl font-semibold mb-2"
+          className="text-xl font-semibold mb-2 break-words"
           title={task.task_name || `任务 ID: ${task.id}`}
         >
-          {(task.task_name && task.task_name.length > 8)
-            ? `${task.task_name.substring(0, 8)}...`
-            : (task.task_name || `任务 ID: ${task.id.substring(0, 8)}`)}
+          {task.task_name || `任务 ID: ${task.id.substring(0, 8)}`}
         </h2>
         <p className="text-sm text-default-500">
           创建时间: {formatBeijingTime(task.created_at)}
@@ -1186,26 +1321,30 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                     const currentFilter = dimensionFilters.find(f => f.dimension === dimension);
                     const currentValueIndex = currentFilter?.valueIndex;
 
+                    // 判断是否有可用的值
+                    const hasValues = varData?.values && varData.values.length > 0;
+
+                    // 如果没有值，则跳过该筛选器
+                    if (!hasValues) {
+                      return null;
+                    }
+
                     return (
                       <Select
                         key={`filter-${dimension}`}
                         className="w-full"
                         label={`${dimension}: ${variableNames[dimension] || ""}`}
                         placeholder={`选择${variableNames[dimension] || dimension}的值`}
-                        selectedKeys={currentValueIndex !== null ? [`${currentValueIndex}`] : []}
+                        selectedKeys={currentValueIndex !== null ? [`${currentValueIndex}`] : ['0']}
                         onSelectionChange={(keys) => {
                           const keysArray = Array.from(keys);
                           if (keysArray.length > 0) {
                             const valueIndex = parseInt(keysArray[0] as string);
                             handleDimensionFilterChange(dimension, valueIndex);
-                          } else {
-                            // 如果没有选择，则设置为null（表示不筛选）
-                            handleDimensionFilterChange(dimension, null);
                           }
                         }}
                       >
-                        <SelectItem key="all">全部</SelectItem>
-                        {varData?.values?.map((value, index) => (
+                        {varData.values.map((value, index) => (
                           <SelectItem key={`${index}`}>
                             {value.value}
                           </SelectItem>
@@ -1216,7 +1355,7 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                 </div>
                 <div className="mt-2 flex justify-between items-center">
                   <div className="text-xs text-default-500">
-                    <p>选择"全部"表示不对该维度进行筛选</p>
+                    {/* 移除"全部"选项提示 */}
                   </div>
                   {dimensionFilters.length > 0 && (
                     <Button
@@ -1225,11 +1364,16 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                       startContent={<Icon icon="solar:restart-bold-duotone" width={16} />}
                       variant="light"
                       onPress={() => {
-                        // 重置所有筛选器
-                        setDimensionFilters([]);
+                        // 重置所有筛选器 - 但现在我们不允许没有筛选器
+                        // 而是重置为默认状态（每个维度选择第一个值）
+                        const defaultFilters = filterableDimensions.map(dimension => ({
+                          dimension,
+                          valueIndex: 0
+                        }));
+                        setDimensionFilters(defaultFilters);
                         // 清除URL缓存
                         urlCache.current = {};
-                        logger.log("已重置所有维度筛选器");
+                        logger.log("已重置所有维度筛选器为默认值");
                       }}
                     >
                       重置筛选
@@ -1278,8 +1422,8 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
       )}
 
       {(xAxis || yAxis) && tableData && tableData.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-col gap-2">
+        <Card className="p-0">
+          <CardHeader className="flex flex-col gap-2 py-2 px-3">
             <div className="flex justify-between items-center w-full">
               <h3 className="text-lg font-semibold">结果表格</h3>
               <div className="flex items-center gap-4">
@@ -1294,7 +1438,10 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
                     size="sm"
                     step={5}
                     value={tableScale}
-                    onChange={(value) => setTableScale(typeof value === "number" ? value : value[0])}
+                    onChange={(value) => {
+                      const newScale = typeof value === "number" ? value : value[0];
+                      setTableScale(newScale);
+                    }}
                   />
                   <span className="text-xs text-default-500">{tableScale}%</span>
                 </div>
@@ -1345,271 +1492,28 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({ task }) => {
               </div>
             )}
           </CardHeader>
-          <CardBody>
+          <CardBody className="p-0">
             <div
               ref={fullscreenElementRef}
-              className={`overflow-x-auto ${isFullscreen ? "fullscreen-table" : ""}`}
-              style={{ maxWidth: "100%", overflowX: "scroll" }}
+              className={`${isFullscreen ? "fullscreen-table" : ""}`}
+              style={{
+                maxWidth: "100%",
+                height: isFullscreen ? "100vh" : "calc(100vh - 300px)",
+                position: "relative",
+                padding: "0"
+              }}
             >
-              <table
-                className="border-collapse"
-                style={{
-                  tableLayout: "fixed",
-                  width: "auto",
-                  borderSpacing: "8px",
-                  borderCollapse: "separate",
-                  borderRadius: 0,
-                  transform: `scale(${tableScale / 100})`,
-                  transformOrigin: "top left",
-                  transition: "transform 0.2s ease",
-                }}
-              >
-                <thead>
-                  <tr>
-                    <th
-                      className="border p-1 bg-default-100 text-xs w-20"
-                      style={{
-                        minWidth: "80px",
-                        borderRadius: 0,
-                        border: "1px solid #e0e0e0",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                      }}
-                    >
-                      {xAxis && yAxis
-                        ? `${xAxis}:${variableNames[xAxis] || ""} / ${yAxis}:${variableNames[yAxis] || ""}`
-                        : xAxis
-                          ? `${xAxis}:${variableNames[xAxis] || ""}`
-                          : yAxis
-                            ? `${yAxis}:${variableNames[yAxis] || ""}`
-                            : ""}
-                    </th>
-                    {/* 获取第一行的所有列键作为列头 */}
-                    {tableData.length > 0 &&
-                      Object.keys(tableData[0])
-                        .filter((key) => key !== "key" && key !== "rowTitle")
-                        .map((colKey, colIndex) => (
-                          <th
-                            key={`col-${colIndex}-${colKey}`}
-                            className="border p-1 bg-default-100 text-xs"
-                            style={{
-                              width: "200px",
-                              minWidth: "200px",
-                              maxWidth: "200px",
-                              borderRadius: 0,
-                              border: "1px solid #e0e0e0",
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                            }}
-                          >
-                            <span title={colKey}>
-                              {colKey.length > 8 ? `${colKey.substring(0, 8)}...` : colKey}
-                            </span>
-                          </th>
-                        ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.map((row: TableRowData, rowIndex: number) => (
-                    <tr key={`row-${rowIndex}-${row.key}`}>
-                      <td
-                        className="border p-1 font-medium bg-default-50 text-xs w-20"
-                        style={{
-                          minWidth: "80px",
-                          borderRadius: 0,
-                          border: "1px solid #e0e0e0",
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                        }}
-                      >
-                        <span title={row.rowTitle}>
-                          {row.rowTitle.length > 8 ? `${row.rowTitle.substring(0, 8)}...` : row.rowTitle}
-                        </span>
-                      </td>
-                      {Object.keys(row)
-                        .filter((key) => key !== "key" && key !== "rowTitle")
-                        .map((colKey, colIndex) => {
-                          const cell = row[colKey] as TableCellData;
-                          const imageUrl = cell.hasValidImage ? cell.url : "";
-                          const cellTitle = `${row.rowTitle}-${colKey}`;
-
-                          return (
-                            <td
-                              key={`cell-${rowIndex}-${colIndex}-${colKey}`}
-                              className="border p-0 text-center"
-                              style={{
-                                width: "200px",
-                                height: "200px",
-                                minWidth: "200px",
-                                minHeight: "200px",
-                                borderRadius: 0,
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                border: "1px solid #e0e0e0",
-                                padding: 0,
-                              }}
-                            >
-                              {cell.hasValidImage ? (
-                                <div className="w-full h-full">
-                                  {/* 如果有多张图片且是批次任务，显示网格 */}
-                                  {cell.urls && cell.urls.length > 1 && hasBatchTag ? (
-                                    <div
-                                      className={`grid gap-1 ${getGridColumns(cell.urls.length)} w-full h-full bg-default-50 overflow-hidden`}
-                                      style={{ gridAutoRows: "1fr" }}
-                                    >
-                                      {cell.urls.map((url, index) => (
-                                        <div
-                                          key={index}
-                                          className="relative overflow-hidden cursor-pointer bg-default-50"
-                                          role="button"
-                                          tabIndex={0}
-                                          onClick={() => {
-                                            viewImageInModal(
-                                              url,
-                                              `${cellTitle} - 批次 ${index + 1}`
-                                            );
-                                          }}
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter" || e.key === " ") {
-                                              e.preventDefault();
-                                              viewImageInModal(
-                                                url,
-                                                `${cellTitle} - 批次 ${index + 1}`
-                                              );
-                                            }
-                                          }}
-                                        >
-                                          <div className="w-full h-full flex items-center justify-center">
-                                            <Image
-                                              alt={`${cellTitle} - 批次 ${index + 1}`}
-                                              className="max-w-full max-h-full"
-                                              height="auto"
-                                              radius="none"
-                                              src={getResizedImageUrl(
-                                                url,
-                                                getImageSizeByBatchCount(cell.urls?.length || 1)
-                                              )}
-                                              style={{
-                                                objectFit: "none",
-                                                width: "auto",
-                                                height: "auto",
-                                              }}
-                                              width="auto"
-                                              onError={() => {
-                                                logger.log("图片加载失败:", url);
-                                                const imgSrc = getResizedImageUrl(
-                                                  url,
-                                                  getImageSizeByBatchCount(cell.urls?.length || 1)
-                                                );
-
-                                                if (imgSrc) {
-                                                  const errorElement = document.querySelector(`img[src="${imgSrc}"]`) as HTMLImageElement | null;
-
-                                                  if (errorElement && errorElement.parentElement) {
-                                                    // 创建提示元素
-                                                    const errorText = document.createElement('div');
-                                                    errorText.className = "absolute inset-0 flex items-center justify-center bg-default-50 text-xs text-default-500";
-                                                    errorText.innerHTML = `<span>图片加载失败</span>`;
-                                                    errorElement.parentElement.appendChild(errorText);
-                                                    // 隐藏加载失败的图片
-                                                    errorElement.style.display = 'none';
-                                                  }
-                                                }
-                                              }}
-                                            />
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div
-                                      className="w-full h-full bg-default-50 overflow-hidden cursor-pointer"
-                                      role="button"
-                                      tabIndex={0}
-                                      onClick={() => {
-                                        cell.urls && cell.urls.length > 0
-                                          ? viewMultipleImagesInModal(cell.urls, cellTitle)
-                                          : viewImageInModal(imageUrl, cellTitle);
-                                      }}
-                                      onKeyDown={(e) => {
-                                        if (e.key === "Enter" || e.key === " ") {
-                                          e.preventDefault();
-                                          cell.urls && cell.urls.length > 0
-                                            ? viewMultipleImagesInModal(cell.urls, cellTitle)
-                                            : viewImageInModal(imageUrl, cellTitle);
-                                        }
-                                      }}
-                                    >
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <Image
-                                          alt={cellTitle}
-                                          className="max-w-full max-h-full"
-                                          height="auto"
-                                          radius="none"
-                                          src={getResizedImageUrl(imageUrl, getImageSizeByBatchCount(1))}
-                                          style={{
-                                            objectFit: "none",
-                                            width: "auto",
-                                            height: "auto",
-                                          }}
-                                          width="auto"
-                                          onError={() => {
-                                            logger.log("图片加载失败:", imageUrl);
-                                            const imgSrc = getResizedImageUrl(imageUrl, getImageSizeByBatchCount(1));
-
-                                            if (imgSrc) {
-                                              const errorElement = document.querySelector(`img[src="${imgSrc}"]`) as HTMLImageElement | null;
-
-                                              if (errorElement && errorElement.parentElement) {
-                                                // 创建提示元素
-                                                const errorText = document.createElement('div');
-                                                errorText.className = "absolute inset-0 flex items-center justify-center bg-default-50 text-xs text-default-500";
-                                                errorText.innerHTML = `<span>图片加载失败</span>`;
-                                                errorElement.parentElement.appendChild(errorText);
-                                                // 隐藏加载失败的图片
-                                                errorElement.style.display = 'none';
-                                              }
-                                            }
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="w-full h-full">
-                                  <div className="w-full h-full flex items-center justify-center bg-default-50 overflow-hidden">
-                                    <div className="text-center p-4">
-                                      <div className="flex flex-col items-center">
-                                        <Icon icon="solar:missing-circular-linear" className="w-8 h-8 text-default-300 mb-2" />
-                                        <p className="text-default-500 text-sm font-medium">未找到图片</p>
-                                        <div className="mt-2 text-default-400 text-xs space-y-1">
-                                          {xAxis && (
-                                            <p title={`${xAxis}:${(cell as TableCellData)?.xValue || colKey.replace(/#\d+$/, "")}`}>
-                                              {(() => {
-                                                const text = `${xAxis}:${(cell as TableCellData)?.xValue || colKey.replace(/#\d+$/, "")}`;
-                                                return text.length > 8 ? `${text.substring(0, 8)}...` : text;
-                                              })()}
-                                            </p>
-                                          )}
-                                          {yAxis && (
-                                            <p title={`${yAxis}:${(cell as TableCellData)?.yValue || row.rowTitle.replace(/#\d+$/, "")}`}>
-                                              {(() => {
-                                                const text = `${yAxis}:${(cell as TableCellData)?.yValue || row.rowTitle.replace(/#\d+$/, "")}`;
-                                                return text.length > 8 ? `${text.substring(0, 8)}...` : text;
-                                              })()}
-                                            </p>
-                                          )}
-                                          <p className="text-default-300 mt-1">无匹配数据</p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {/* 使用新的MatrixTableView组件替代原有表格 */}
+              <MatrixTableView
+                tableData={tableData}
+                columnValues={Object.keys(tableData[0]).filter(key => key !== "key" && key !== "rowTitle")}
+                xAxis={xAxis}
+                yAxis={yAxis}
+                tableScale={tableScale}
+                hasBatchTag={hasBatchTag}
+                onViewImage={viewImageInModal}
+                onViewMultipleImages={viewMultipleImagesInModal}
+              />
             </div>
           </CardBody>
         </Card>

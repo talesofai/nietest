@@ -1,11 +1,15 @@
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from bson import ObjectId
+import logging
 
 from app.models.subtask import SubTaskStatus
 from app.utils.timezone import get_beijing_now
 
 import uuid
+
+# 配置日志
+logger = logging.getLogger(__name__)
 
 async def create_subtask(db: Any, task_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -311,3 +315,103 @@ async def count_subtasks_by_status(db: Any, status: str) -> int:
     # 计算任务数量
     count = await db.dramatiq_tasks.count_documents({"status": status})
     return count
+
+async def get_existing_subtasks_by_indices(db: Any, parent_task_id: str, variable_indices_list: List[List[Optional[int]]]) -> List[Dict[str, Any]]:
+    """
+    批量查询已存在的子任务
+
+    Args:
+        db: 数据库连接
+        parent_task_id: 父任务ID
+        variable_indices_list: 变量索引数组列表
+
+    Returns:
+        匹配的子任务列表
+    """
+    if not variable_indices_list:
+        return []
+
+    # 构建查询条件
+    query = {
+        "parent_task_id": parent_task_id,
+        # 排除seed=0的情况，因为seed=0表示随机种子，每次生成的结果都不同
+        "seed": {"$ne": 0},
+        "$or": []
+    }
+
+    # 为每组变量索引构建一个条件
+    for indices in variable_indices_list:
+        condition = {}
+        for i, value in enumerate(indices):
+            if value is not None:
+                condition[f"variable_indices.{i}"] = value
+        if condition:
+            query["$or"].append(condition)
+
+    # 如果没有有效的条件，返回空列表
+    if not query["$or"]:
+        return []
+
+    # 查询任务
+    cursor = db.dramatiq_tasks.find(query)
+    tasks = await cursor.to_list(length=None)
+
+    return tasks
+
+async def create_subtasks_batch(db: Any, subtasks_data: List[Dict[str, Any]]) -> List[str]:
+    """
+    批量创建子任务
+
+    Args:
+        db: 数据库连接
+        subtasks_data: 子任务数据列表
+
+    Returns:
+        创建的子任务ID列表
+    """
+    if not subtasks_data:
+        return []
+
+    # 准备批量插入的文档
+    documents = []
+    subtask_ids = []
+
+    for task_data in subtasks_data:
+        # 使用提供的ID或生成新的UUID
+        task_id = task_data.get("id") or str(uuid.uuid4())
+        subtask_ids.append(task_id)
+
+        # 准备任务数据
+        variable_indices = task_data.get("variable_indices", [None] * 6)
+        variable_types_map = task_data.get("variable_types_map", {})
+        type_to_variable = task_data.get("type_to_variable", {})
+
+        task = {
+            "id": task_id,  # 使用提供的ID或UUID作为主键
+            "parent_task_id": task_data.get("parent_task_id"),
+            "variable_indices": variable_indices,  # 使用变量索引数组
+            "variable_types_map": variable_types_map,  # 变量类型映射
+            "type_to_variable": type_to_variable,  # 类型到变量的映射
+            "status": task_data.get("status", SubTaskStatus.PENDING.value),
+            "result": task_data.get("result"),
+            "error": task_data.get("error"),
+            "retry_count": task_data.get("retry_count", 0),
+            "prompts": task_data.get("prompts", []),  # 使用单一的prompts字段
+            "ratio": task_data.get("ratio", "1:1"),
+            "seed": task_data.get("seed"),
+            "use_polish": task_data.get("use_polish", False),
+            "created_at": get_beijing_now(),
+            "updated_at": get_beijing_now()
+        }
+        documents.append(task)
+
+    # 批量插入任务
+    if documents:
+        try:
+            result = await db.dramatiq_tasks.insert_many(documents)
+            logger.info(f"批量创建了 {len(result.inserted_ids)} 个子任务")
+        except Exception as e:
+            logger.error(f"批量创建子任务失败: {str(e)}")
+            raise
+
+    return subtask_ids

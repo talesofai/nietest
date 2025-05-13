@@ -279,7 +279,7 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
                     # 获取ckpt_name、steps和cfg参数
                     client_args = client_args or {
                         "ckpt_name": "1.pth",  # 默认值
-                        "steps": 1,            # 默认值
+                        "steps": 25,            # 默认值
                         "cfg": 7.5             # 默认值
                     }
                 else:
@@ -568,14 +568,61 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
                     raise ValueError("图像生成API返回FAILURE状态，生成失败")
                 elif task_status == "TIMEOUT":
                     # 触发超时错误的重试逻辑
-                    raise asyncio.TimeoutError("图像生成API返回TIMEOUT状态，任务超时")
+                    logger.warning(f"任务 {task_id} 状态为TIMEOUT，触发超时重试逻辑")
+                    # 不使用raise，而是直接调用超时处理逻辑
+                    elapsed_time = time.time() - start_time
+                    error_msg = f"图像生成API返回TIMEOUT状态，任务超时，已耗时: {elapsed_time:.2f}秒"
+                    logger.error(f"任务 {task_id} {error_msg}")
 
-            # 提取图像URL
+                    # 检查是否达到超时错误最大重试次数
+                    if retry_count >= max_timeout_retries - 1:  # -1是因为当前这次也算一次
+                        # 已达到最大重试次数，标记为失败
+                        logger.warning(f"任务 {task_id} 已达到超时最大重试次数 ({max_timeout_retries})，标记为最终失败")
+                        await update_dramatiq_task_error(db, task_id, SubTaskStatus.FAILED.value, f"已重试 {max_timeout_retries} 次后仍然超时: {error_msg}")
+
+                        # 更新父任务进度，确保失败的任务也被计入进度
+                        parent_task_id = task_data.get("parent_task_id")
+                        if parent_task_id:
+                            await task_crud.update_task_progress(db, parent_task_id)
+                            logger.info(f"已更新父任务 {parent_task_id} 的进度")
+
+                        return {
+                            "status": "failed",
+                            "error": f"图像生成失败: {error_msg}",
+                            "reason": "timeout",
+                            "message": "任务超时，已达到最大重试次数"
+                        }
+                    else:
+                        # 未达到最大重试次数，增加重试计数并立即重新提交任务
+                        logger.info(f"任务 {task_id} 超时，将立即进行第 {retry_count + 1} 次重试")
+                        await update_dramatiq_task_error(db, task_id, SubTaskStatus.PROCESSING.value, f"第 {retry_count} 次尝试超时，准备重试: {error_msg}")
+
+                        # 立即重新提交任务，不等待时间
+                        from app.services.task_executor import submit_task
+
+                        # 检查是否是Lumina任务
+                        is_lumina_task = False
+                        for prompt in prompts:
+                            if prompt.get("name", "").lower().find("lumina") >= 0:
+                                is_lumina_task = True
+                                break
+
+                        # 重新提交任务
+                        await submit_task(process_image_task(task_id), task_id, is_lumina=is_lumina_task)
+                        logger.info(f"已立即重新提交任务 {task_id} 进行第 {retry_count + 1} 次重试")
+
+                        # 返回一个特殊的结果，表示任务已重新提交
+                        return {
+                            "status": "retrying",
+                            "message": f"任务已重新提交进行第 {retry_count + 1} 次重试"
+                        }
+
+            # 提取图像URL（只有当任务状态不是TIMEOUT/ILLEGAL_IMAGE/FAILURE时才会执行到这里）
             image_url = await image_generator.extract_image_url(result)
 
             # 检查图像URL是否有效
             if not image_url:
-                raise ValueError("无法获取有效的图像URL")
+                raise ValueError(f"无法获取有效的图像URL: {result}")
 
             # 创建结果项
             result_item = {
@@ -847,14 +894,9 @@ async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dic
         # 创建标签ID到标签类型的映射 - 简化为直接使用tag的type属性
         tag_id_to_type = {}
 
-        # 记录变量的类型
-        variables_info = {}
-
         # 创建变量类型映射，用于记录到子任务中
         variable_types_map = {}
         type_to_variable = {}
-
-        logger.debug(f"task_data: {task_data}")
 
         # 遍历所有标签，提取标签类型
         for tag in task_data.get("tags", []):
@@ -864,34 +906,33 @@ async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dic
 
             if tag_id and tag_type:
                 tag_id_to_type[tag_id] = tag_type
-                logger.debug(f"标签 {tag_id} 的类型为 {tag_type}, is_variable={is_variable}")
 
                 # 如果是变量标签，记录变量信息
                 if is_variable:
                     # 查找与该标签关联的变量
                     for var_name, var_data in task_data.get("variables", {}).items():
                         if var_data.get("tag_id") == tag_id:
-                            variables_info[var_name] = {
-                                "tag_id": tag_id,
-                                "type": tag_type,
-                                "name": var_data.get("name", ""),
-                                "values_count": len(var_data.get("values", []))
-                            }
                             # 记录变量类型映射
                             variable_types_map[var_name] = tag_type
                             if tag_type not in type_to_variable:
                                 type_to_variable[tag_type] = var_name
-                            logger.debug(f"变量 {var_name} 的标签ID={tag_id}, 类型={tag_type}, 名称='{var_data.get('name', '')}', 值数量={len(var_data.get('values', []))}")
                             break
 
-        logger.debug(f"variables_info: {variables_info}")
-
         # 获取子任务创建函数
-        from app.crud.dramatiq_task import create_dramatiq_task, get_dramatiq_task_by_variables
+        from app.crud.dramatiq_task import create_dramatiq_tasks_batch, get_existing_dramatiq_tasks_by_indices
 
-        # 创建子任务并提交到执行器
-        subtask_ids = []
+        # 第一阶段：准备所有子任务数据
+        subtasks_data = []
+
+        # 准备所有变量索引，用于批量查询已存在的子任务
+        all_variable_indices = []
+
+        # 准备所有子任务数据
         for i, combination in enumerate(combinations):
+            # 计算变量索引
+            variable_indices = calculate_variable_indices(task_data.get("variables", {}), combination)
+            all_variable_indices.append(variable_indices)
+
             # 一次性处理所有参数和索引
             subtask_data = await prepare_subtask_data(task_data, combination, tag_id_to_type, i)
 
@@ -901,55 +942,108 @@ async def create_and_submit_subtasks(parent_task_id: str, combinations: List[Dic
             if "type_to_variable" not in subtask_data:
                 subtask_data["type_to_variable"] = type_to_variable
 
-            # 检查是否已存在相同的子任务
-            existing_task = await get_dramatiq_task_by_variables(db, parent_task_id, subtask_data["variable_indices"])
+            # 添加到批量创建列表
+            subtasks_data.append(subtask_data)
 
-            if existing_task:
-                logger.debug(f"已存在相同的子任务: {existing_task['id']}, 跳过创建")
-                subtask_ids.append(existing_task['id'])
+        # 批量查询已存在的子任务
+        logger.info(f"批量查询已存在的子任务，共 {len(all_variable_indices)} 个索引组合")
+        existing_tasks = await get_existing_dramatiq_tasks_by_indices(db, parent_task_id, all_variable_indices)
+
+        # 创建已存在子任务的索引集合，用于快速查找
+        existing_indices_set = set()
+        existing_subtask_ids = []
+
+        for task in existing_tasks:
+            task_indices = tuple(task.get("variable_indices", []))
+            existing_indices_set.add(task_indices)
+            existing_subtask_ids.append(task["id"])
+
+        logger.info(f"找到 {len(existing_subtask_ids)} 个已存在的子任务")
+
+        # 过滤掉已存在的子任务，但保留seed=0的子任务（随机种子）
+        filtered_subtasks_data = []
+        for subtask_data in subtasks_data:
+            indices = tuple(subtask_data.get("variable_indices", []))
+            seed = subtask_data.get("seed", 0)
+
+            # 如果是随机种子(seed=0)或者索引不在已存在集合中，则添加到待创建列表
+            if seed == 0 or indices not in existing_indices_set:
+                filtered_subtasks_data.append(subtask_data)
+
+        subtask_ids = []
+        # 批量创建子任务
+        if filtered_subtasks_data:
+            logger.info(f"开始批量创建 {len(filtered_subtasks_data)} 个子任务")
+            created_subtask_ids = await create_dramatiq_tasks_batch(db, filtered_subtasks_data)
+            subtask_ids.extend(created_subtask_ids)
+            logger.info(f"批量创建子任务完成，共创建 {len(created_subtask_ids)} 个子任务")
+
+        # 合并已存在和新创建的子任务ID
+        all_subtask_ids = existing_subtask_ids + subtask_ids
+
+        # 第二阶段：异步提交子任务到执行队列
+        # 创建一个异步任务来提交子任务，不等待它完成
+        if subtask_ids:
+            asyncio.create_task(submit_subtasks_async(subtask_ids, parent_task_id))
+
+        return {
+            "status": "success",
+            "message": f"已创建 {len(subtask_ids)} 个子任务，已存在 {len(existing_subtask_ids)} 个子任务，正在异步提交到执行队列",
+            "subtask_ids": all_subtask_ids
+        }
+    except Exception as e:
+        logger.error(f"创建子任务时出错: {str(e)}")
+        import traceback
+        logger.error(f"异常堆栈: {traceback.format_exc()}")
+        return {
+            "status": "failed",
+            "error": str(e)
+        }
+
+async def submit_subtasks_async(subtask_ids: List[str], parent_task_id: str) -> None:
+    """
+    异步提交子任务到执行队列
+
+    Args:
+        subtask_ids: 子任务ID列表
+        parent_task_id: 父任务ID
+    """
+    try:
+        db = await get_database()
+        from app.crud.dramatiq_task import get_dramatiq_task
+        from app.services.task_executor import submit_task
+
+        logger.info(f"开始异步提交 {len(subtask_ids)} 个子任务到执行队列")
+
+        for i, subtask_id in enumerate(subtask_ids):
+            # 获取子任务数据
+            subtask_data = await get_dramatiq_task(db, subtask_id)
+
+            if not subtask_data:
+                logger.warning(f"无法获取子任务数据: {subtask_id}，跳过提交")
                 continue
-
-            # 记录子任务的prompts详细信息
-            prompts = subtask_data.get("prompts", [])
-            logger.debug(f"子任务 {subtask_data['id']} 的prompts详细信息:")
-            for i, prompt in enumerate(prompts):
-                prompt_type = prompt.get("type")
-                if prompt_type == "freetext":
-                    logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 值={prompt.get('value', '')}")
-                elif prompt_type in ["oc_vtoken_adaptor", "elementum"]:
-                    logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 名称={prompt.get('name', '')}, UUID={prompt.get('uuid', '')}, 图片URL={prompt.get('img_url', '')}")
-                else:
-                    logger.debug(f"Prompt #{i+1}: 类型={prompt_type}, 值={prompt.get('value', '')}")
-
-            # 直接保存到数据库并提交任务
-            await create_dramatiq_task(db, subtask_data)
 
             # 检查是否是Lumina任务
             is_lumina_task = False
             for prompt in subtask_data.get("prompts", []):
                 if prompt.get("name", "").lower().find("lumina") >= 0:
                     is_lumina_task = True
-                    logger.debug(f"检测到Lumina子任务: {subtask_data['id']}")
+                    logger.debug(f"检测到Lumina子任务: {subtask_id}")
                     break
 
-            # 根据任务类型选择不同的执行器
-            from app.services.task_executor import submit_task, get_lumina_task_executor
-            await submit_task(process_image_task(subtask_data["id"]), subtask_data["id"], is_lumina=is_lumina_task)
+            # 提交任务到执行队列
+            await submit_task(process_image_task(subtask_id), subtask_id, is_lumina=is_lumina_task)
 
-            subtask_ids.append(subtask_data["id"])
-            logger.debug(f"创建并提交子任务: {subtask_data['id']}, 父任务: {parent_task_id}")
+            # 每提交10个任务记录一次日志
+            if (i + 1) % 10 == 0 or i == len(subtask_ids) - 1:
+                logger.info(f"已提交 {i + 1}/{len(subtask_ids)} 个子任务到执行队列")
 
-        return {
-            "status": "success",
-            "message": f"已创建并提交 {len(subtask_ids)} 个子任务",
-            "subtask_ids": subtask_ids
-        }
+        logger.info(f"所有子任务已提交到执行队列，父任务: {parent_task_id}")
     except Exception as e:
-        logger.error(f"创建子任务时出错: {str(e)}")
-        return {
-            "status": "failed",
-            "error": str(e)
-        }
+        logger.error(f"异步提交子任务时出错: {str(e)}")
+        # 记录详细的异常信息
+        import traceback
+        logger.error(f"异常堆栈: {traceback.format_exc()}")
 
 async def prepare_subtask_data(
     task_data: Dict[str, Any],
@@ -975,9 +1069,6 @@ async def prepare_subtask_data(
     seed = random.randint(1, 2147483647)  # 默认随机种子
     use_polish = False  # 默认不使用润色
 
-    # 记录组合内容用于调试
-    logger.debug(f"准备处理组合 {combination_index+1}: {json.dumps(combination, ensure_ascii=False)}")
-
     # 创建变量类型映射，用于记录到子任务中
     variable_types_map = {}
     type_to_variable = {}
@@ -987,8 +1078,6 @@ async def prepare_subtask_data(
         tag_type = tag.get("type")
         tag_id = tag.get("id")
         is_variable = tag.get("isVariable", False)  # 修正字段名称为isVariable
-
-        logger.debug(f"处理标签: type={tag_type}, id={tag_id}, is_variable={is_variable}")
 
         # 如果是变量标签，从变量映射中获取值
         if is_variable:
@@ -1000,7 +1089,6 @@ async def prepare_subtask_data(
             # 查找与标签关联的变量
             variables = task_data.get("variables", {})
             tag_name = tag.get("name", "")
-            logger.debug(f"查找变量标签 {tag_id}(类型:{tag_type}) 的关联变量，标签名称: {tag_name}")
 
             # 如果标签没有name字段，直接报错
             if not tag_name:
@@ -1024,7 +1112,6 @@ async def prepare_subtask_data(
                         var_name = v_name
                         var_data = combination[v_name]
                         var_value = var_data.get("value")
-                        logger.debug(f"找到变量标签 {tag_id}(名称:{tag_name}) 关联的变量: {var_name}, 值: {var_value}")
                         break
 
             # 如果没有找到匹配的变量，报错
@@ -1034,7 +1121,6 @@ async def prepare_subtask_data(
 
             # 如果没有找到变量值，跳过
             if var_value is None:
-                logger.warning(f"未找到变量标签 {tag_id}(类型:{tag_type}) 的值，跳过处理此标签")
                 continue
 
             # 获取变量值的完整信息
@@ -1044,13 +1130,9 @@ async def prepare_subtask_data(
 
             if var_index >= 0 and var_index < len(var_values_list):
                 var_value_info = var_values_list[var_index]
-                logger.debug(f"找到变量值的完整信息: {json.dumps(var_value_info, ensure_ascii=False)}")
-            else:
-                logger.warning(f"无法找到变量值的完整信息，索引 {var_index} 超出范围")
 
             # 根据标签类型处理变量值
             if tag_type == "prompt":
-                logger.debug(f"应用prompt变量: {var_value}")
                 all_prompts.append({
                     "type": "freetext",
                     "weight": var_data.get("weight", 1.0),
@@ -1065,15 +1147,12 @@ async def prepare_subtask_data(
                 if var_value_info and isinstance(var_value_info, dict):
                     uuid_value = var_value_info.get("uuid", "")
                     header_img = var_value_info.get("header_img", "")
-                    logger.debug(f"从变量值信息中获取角色UUID: {uuid_value}, 图片: {header_img}")
 
                 # 如果变量值信息中没有，尝试从组合中获取
                 if not uuid_value and var_data and isinstance(var_data, dict):
                     uuid_value = var_data.get("uuid", "")
                     header_img = var_data.get("header_img", "")
-                    logger.debug(f"从组合中获取角色UUID: {uuid_value}, 图片: {header_img}")
 
-                logger.debug(f"应用character变量: {var_value}, uuid={uuid_value}, header_img={header_img}")
                 all_prompts.append({
                     "type": "oc_vtoken_adaptor",
                     "uuid": uuid_value,
@@ -1098,15 +1177,12 @@ async def prepare_subtask_data(
                 if var_value_info and isinstance(var_value_info, dict):
                     uuid_value = var_value_info.get("uuid", "")
                     header_img = var_value_info.get("header_img", "")
-                    logger.debug(f"从变量值信息中获取元素UUID: {uuid_value}, 图片: {header_img}")
 
                 # 如果变量值信息中没有，尝试从组合中获取
                 if not uuid_value and var_data and isinstance(var_data, dict):
                     uuid_value = var_data.get("uuid", "")
                     header_img = var_data.get("header_img", "")
-                    logger.debug(f"从组合中获取元素UUID: {uuid_value}, 图片: {header_img}")
 
-                logger.debug(f"应用element变量: {var_value}, uuid={uuid_value}, header_img={header_img}")
                 all_prompts.append({
                     "type": "elementum",
                     "uuid": uuid_value,
@@ -1123,40 +1199,28 @@ async def prepare_subtask_data(
                     "sub_type": None
                 })
             elif tag_type == "ratio":
-                logger.debug(f"应用ratio变量: {var_value}")
                 # 确保比例格式正确
                 if ":" in var_value:
                     ratio = var_value
-                    logger.debug(f"设置ratio={ratio}")
                 else:
-                    logger.warning(f"比例变量值格式不正确: {var_value}，使用默认值1:1")
                     ratio = "1:1"
             elif tag_type == "seed":
                 try:
-                    logger.debug(f"应用seed变量: {var_value}")
                     seed = int(var_value)
                 except (ValueError, TypeError):
-                    logger.error(f"无法将seed变量值 '{var_value}' 转换为整数")
                     pass
             elif tag_type == "polish":
-                logger.debug(f"应用polish变量: {var_value}")
                 # 明确将"true"和"false"字符串转为布尔值
                 if isinstance(var_value, str):
                     use_polish = var_value.lower() == "true"
                 else:
                     use_polish = bool(var_value)
-                logger.debug(f"设置use_polish={use_polish}, 原始值={var_value}")
-            elif tag_type == "batch":
-                # batch是特殊类型，记录但不做特殊处理
-                logger.debug(f"应用batch变量: {var_value}, 不做特殊处理")
         else:
             # 处理非变量标签
             tag_value = tag.get("value", "")
-            logger.debug(f"处理非变量标签: type={tag_type}, value={tag_value}")
 
             if tag_type == "prompt":
                 if tag_value:
-                    logger.debug(f"应用非变量prompt: {tag_value}")
                     all_prompts.append({
                         "type": "freetext",
                         "weight": tag.get("weight", 1.0),
@@ -1168,7 +1232,6 @@ async def prepare_subtask_data(
                 header_img = tag.get("header_img", "")
                 name_value = tag.get("value", "")
 
-                logger.debug(f"应用非变量character: {name_value}, uuid={uuid_value}, header_img={header_img}")
                 all_prompts.append({
                     "type": "oc_vtoken_adaptor",
                     "uuid": uuid_value,
@@ -1190,7 +1253,6 @@ async def prepare_subtask_data(
                 header_img = tag.get("header_img", "")
                 name_value = tag.get("value", "")
 
-                logger.debug(f"应用非变量element: {name_value}, uuid={uuid_value}, header_img={header_img}")
                 all_prompts.append({
                     "type": "elementum",
                     "uuid": uuid_value,
@@ -1207,46 +1269,30 @@ async def prepare_subtask_data(
                     "sub_type": None
                 })
             elif tag_type == "ratio":
-                logger.debug(f"应用非变量ratio: {tag_value}")
                 # 确保比例格式正确
                 if ":" in tag_value:
                     ratio = tag_value
-                    logger.debug(f"设置非变量ratio={ratio}")
                 else:
-                    logger.warning(f"非变量比例值格式不正确: {tag_value}，使用默认值1:1")
                     ratio = "1:1"
             elif tag_type == "seed":
                 try:
                     if tag_value:
-                        logger.debug(f"应用非变量seed: {tag_value}")
                         seed = int(tag_value)
                 except (ValueError, TypeError):
-                    logger.error(f"无法将seed值 '{tag_value}' 转换为整数")
                     pass
             elif tag_type == "polish":
-                logger.debug(f"应用非变量polish: {tag_value}")
                 # 使用相同的处理逻辑确保一致性
                 if isinstance(tag_value, str):
                     use_polish = tag_value.lower() == "true"
                 else:
                     use_polish = bool(tag_value)
-                logger.debug(f"非变量标签设置use_polish={use_polish}, 原始值={tag_value}")
-            elif tag_type == "batch":
-                # batch是特殊类型，记录但不做特殊处理
-                logger.debug(f"检测到batch标签，值为: {tag_value}")
 
     # 如果没有任何提示词，添加一个空占位符
     if not all_prompts:
-        logger.warning("没有任何提示词，添加1girl")
         all_prompts = [{"type": "freetext", "weight": 1, "value": "1girl"}]
 
     # 计算变量索引 - 既可以基于变量类型工作，也兼容传统的v0,v1位置索引
     variable_indices = calculate_variable_indices(task_data.get("variables", {}), combination)
-    logger.debug(f"计算出的变量索引数组: {variable_indices}")
-
-    # 记录变量类型映射
-    logger.debug(f"构建的变量类型映射: {json.dumps(variable_types_map, ensure_ascii=False)}")
-    logger.debug(f"构建的类型到变量映射: {json.dumps(type_to_variable, ensure_ascii=False)}")
 
     # 创建子任务记录
     subtask_id = str(uuid.uuid4())
@@ -1265,32 +1311,6 @@ async def prepare_subtask_data(
         "updated_at": datetime.now(timezone.utc)
     }
 
-    # 记录子任务基本信息
-    logger.debug(f"子任务 {combination_index+1} 数据准备完成: id={subtask_id}, prompts数量={len(all_prompts)}, ratio={ratio}, seed={seed}, use_polish={use_polish}")
-
-    # 检查prompts中是否有空的UUID或name
-    for i, prompt in enumerate(all_prompts):
-        prompt_type = prompt.get("type")
-        if prompt_type in ["oc_vtoken_adaptor", "elementum"]:
-            uuid_value = prompt.get("uuid", "")
-            name_value = prompt.get("name", "")
-            img_url = prompt.get("img_url", "")
-            if not uuid_value or not name_value:
-                logger.warning(f"子任务 {subtask_id} 的prompt #{i+1} 存在空的UUID或name: type={prompt_type}, uuid={uuid_value}, name={name_value}, img_url={img_url}")
-
-    # 记录更详细的变量信息
-    vars_info = []
-    for var_name, var_type in variable_types_map.items():
-        if var_name in combination:
-            var_value = combination[var_name].get("value")
-            vars_info.append(f"{var_type}({var_name})={var_value}")
-
-    if vars_info:
-        logger.debug(f"子任务 {subtask_id} 的变量值: {', '.join(vars_info)}")
-
-    # 记录详细的prompts内容
-    logger.debug(f"子任务 {subtask_id} 详细prompts内容: {json.dumps(all_prompts, ensure_ascii=False)}")
-
     return subtask_data
 
 def calculate_variable_indices(variables: Dict[str, Any], combination: Dict[str, Dict[str, Any]]) -> Union[List[Optional[int]], Dict[str, int]]:
@@ -1307,11 +1327,8 @@ def calculate_variable_indices(variables: Dict[str, Any], combination: Dict[str,
     # 初始化所有变量索引为None
     variable_indices = [None] * 6
 
-    # 创建一个字典来存储所有变量的索引，包括非v开头的变量
-    variable_indices_dict = {}
-
     try:
-        # 第一步：处理所有变量，包括位置索引变量（v0, v1等）和其他变量（如steps, cfg等）
+        # 处理所有变量，包括位置索引变量（v0, v1等）和其他变量（如steps, cfg等）
         for var_name, var_data in variables.items():
             if var_data.get('values'):
                 var_values = var_data.get('values', [])
@@ -1323,20 +1340,16 @@ def calculate_variable_indices(variables: Dict[str, Any], combination: Dict[str,
                     # 在变量值列表中查找匹配的索引
                     for idx, val in enumerate(var_values):
                         if isinstance(val, dict) and val.get('value') == combo_var_value:
-                            # 如果是v开头的变量，同时更新variable_indices数组
+                            # 如果是v开头的变量，更新variable_indices数组
                             if var_name.startswith('v'):
                                 try:
                                     var_index = int(var_name[1:])  # 从v0, v1等提取索引
                                     if 0 <= var_index < 6:
                                         variable_indices[var_index] = idx
-                                        logger.debug(f"设置变量索引数组位置 {var_index} 的值为 {idx}")
                                 except (ValueError, IndexError):
-                                    logger.warning(f"无法解析变量名 {var_name} 或访问值列表")
-
-                            # 无论是否v开头，都更新字典
-                            variable_indices_dict[var_name] = idx
-                            logger.debug(f"设置变量 {var_name} 的索引为 {idx}")
+                                    pass
                             break
+
         # 处理batch索引，如果存在
         if "_batch_index" in combination and isinstance(combination["_batch_index"], dict):
             batch_index = combination["_batch_index"].get("index", 0)
@@ -1344,22 +1357,10 @@ def calculate_variable_indices(variables: Dict[str, Any], combination: Dict[str,
             # 如果v5已经被使用，则不覆盖它
             if variable_indices[5] is None:
                 variable_indices[5] = batch_index
-                logger.debug(f"将batch索引 {batch_index} 存储在v5位置")
-            else:
-                logger.warning(f"v5已被使用，无法存储batch索引 {batch_index}")
-
-            # 同时存储到字典中
-            variable_indices_dict["_batch_index"] = batch_index
-            logger.debug(f"将batch索引 {batch_index} 存储到字典中")
-    except Exception as e:
-        logger.warning(f"计算变量索引时发生错误: {str(e)}")
-
-    # 记录字典形式的变量索引（仅用于调试）
-    if variable_indices_dict:
-        logger.debug(f"变量索引字典: {json.dumps(variable_indices_dict)}")
+    except Exception:
+        pass
 
     # 始终返回六个项的列表形式
-    logger.debug(f"返回变量索引数组: {variable_indices}")
     return variable_indices
 
 async def monitor_task_progress(task_id: str) -> Dict[str, Any]:
