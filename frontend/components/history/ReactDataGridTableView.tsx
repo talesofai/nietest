@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 // 使用require导入react-data-grid
 const ReactDataGrid = require("react-data-grid");
 import { Icon } from "@iconify/react";
@@ -23,6 +23,15 @@ interface TableCellData {
   xValue: string;
   yValue: string;
   hasValidImage: boolean;
+}
+
+// 排序方向类型
+type SortDirection = 'ASC' | 'DESC' | null;
+
+// 排序状态接口
+interface SortState {
+  column: string | null;
+  direction: SortDirection;
 }
 
 interface ReactDataGridTableViewProps {
@@ -129,6 +138,12 @@ export const ReactDataGridTableView: React.FC<ReactDataGridTableViewProps> = ({
   // 表格容器引用
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
+  // 排序状态
+  const [sortState, setSortState] = useState<SortState>({
+    column: null,
+    direction: null
+  });
+
   // 获取网格列数
   const getGridColumns = (imageCount: number): string => {
     if (imageCount <= 1) return "grid-cols-1";
@@ -147,6 +162,53 @@ export const ReactDataGridTableView: React.FC<ReactDataGridTableViewProps> = ({
     return 120;
   };
 
+  // 判断字符串是否为数字
+  const isNumeric = (str: string): boolean => {
+    return !isNaN(parseFloat(str)) && isFinite(Number(str));
+  };
+
+  // 排序函数
+  const sortData = (data: any[], column: string, direction: SortDirection): any[] => {
+    if (!column || !direction) return data;
+
+    return [...data].sort((a, b) => {
+      let valueA: string = column === 'rowTitle' ? a[column] : '';
+      let valueB: string = column === 'rowTitle' ? b[column] : '';
+
+      // 如果不是rowTitle列，则需要从单元格数据中提取值
+      if (column !== 'rowTitle') {
+        valueA = a[column]?.xValue || a[column]?.yValue || '';
+        valueB = b[column]?.xValue || b[column]?.yValue || '';
+      }
+
+      // 检查是否为数字
+      const isANumeric = isNumeric(valueA);
+      const isBNumeric = isNumeric(valueB);
+
+      // 如果两者都是数字，按数字大小排序
+      if (isANumeric && isBNumeric) {
+        return direction === 'ASC'
+          ? Number(valueA) - Number(valueB)
+          : Number(valueB) - Number(valueA);
+      }
+
+      // 否则按字母顺序排序
+      return direction === 'ASC'
+        ? valueA.localeCompare(valueB)
+        : valueB.localeCompare(valueA);
+    });
+  };
+
+  // 处理排序
+  const handleSort = (column: string, direction: SortDirection) => {
+    setSortState({ column, direction });
+  };
+
+  // 应用排序后的数据
+  const sortedData = useMemo(() => {
+    return sortData(tableData, sortState.column || '', sortState.direction);
+  }, [tableData, sortState.column, sortState.direction]);
+
   // 定义表格列
   const columns = [
     // 第一列 - 行标题
@@ -162,6 +224,28 @@ export const ReactDataGridTableView: React.FC<ReactDataGridTableViewProps> = ({
       width: 80,
       resizable: true,
       sortable: true,
+      headerRenderer: () => (
+        <div className="flex items-center justify-center">
+          <span>
+            {xAxis && yAxis
+              ? `${xAxis} / ${yAxis}`
+              : xAxis
+                ? `${xAxis}`
+                : yAxis
+                  ? `${yAxis}`
+                  : ""}
+          </span>
+          <span className="sort-icon ml-1">
+            {sortState.column === 'rowTitle' && sortState.direction === 'ASC' ? (
+              <Icon icon="solar:sort-by-up-bold" width={14} />
+            ) : sortState.column === 'rowTitle' && sortState.direction === 'DESC' ? (
+              <Icon icon="solar:sort-by-down-bold" width={14} />
+            ) : (
+              <Icon icon="solar:sort-bold" width={14} className="opacity-50" />
+            )}
+          </span>
+        </div>
+      ),
       formatter: (props: any) => {
         const row = props.value || props.row;
         return (
@@ -179,6 +263,23 @@ export const ReactDataGridTableView: React.FC<ReactDataGridTableViewProps> = ({
       name: colKey.length > 8 ? `${colKey.substring(0, 8)}...` : colKey,
       width: 180,
       resizable: true,
+      sortable: true,
+      headerRenderer: () => (
+        <div className="flex items-center justify-center">
+          <span>
+            {colKey.length > 8 ? `${colKey.substring(0, 8)}...` : colKey}
+          </span>
+          <span className="sort-icon ml-1">
+            {sortState.column === colKey && sortState.direction === 'ASC' ? (
+              <Icon icon="solar:sort-by-up-bold" width={14} />
+            ) : sortState.column === colKey && sortState.direction === 'DESC' ? (
+              <Icon icon="solar:sort-by-down-bold" width={14} />
+            ) : (
+              <Icon icon="solar:sort-bold" width={14} className="opacity-50" />
+            )}
+          </span>
+        </div>
+      ),
       formatter: (props: any) => {
         const row = props.value || props.row;
         const cell = row[colKey] as TableCellData;
@@ -294,11 +395,12 @@ export const ReactDataGridTableView: React.FC<ReactDataGridTableViewProps> = ({
       >
         <ReactDataGrid
           columns={columns}
-          rowGetter={i => tableData[i]}
-          rowsCount={tableData.length}
+          rowGetter={i => sortedData[i]}
+          rowsCount={sortedData.length}
           rowHeight={180}
           minHeight={500}
           className="rdg-light"
+          onGridSort={(column, direction) => handleSort(column, direction)}
         />
       </div>
 
