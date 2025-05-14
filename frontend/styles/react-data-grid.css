@@ -1,0 +1,122 @@
+.rdg {
+  --color-border: #ddd;
+  --color-header-background: rgb(200, 200, 200);
+  --color-cell-background: #fff;
+  --color-row-hover-background: #f5f5f5;
+  --color-row-selected-background: #f0f7ff;
+  --color-row-selected-hover-background: #e5f3ff;
+  --color-text: #333;
+  --color-header-text: #555;
+  --font-size: 14px;
+
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size);
+  font-family: sans-serif;
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: max-content;
+}
+
+.rdg-header-row {
+  background-color: var(--color-header-background);
+  font-weight: bold;
+  color: var(--color-header-text);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rdg-cell {
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.rdg-row:hover {
+  background-color: var(--color-row-hover-background);
+}
+
+.rdg-row-selected {
+  background-color: var(--color-row-selected-background);
+}
+
+.rdg-row-selected:hover {
+  background-color: var(--color-row-selected-hover-background);
+}
+
+.rdg-header-cell {
+  padding: 0 8px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-weight: bold;
+}
+
+.rdg-header-sort-cell {
+  cursor: pointer;
+}
+
+.rdg-header-sort-name {
+  flex-grow: 1;
+}
+
+.rdg-header-sort-icon {
+  margin-left: 5px;
+}
+
+.rdg-light {
+  --color-border: #e0e0e0;
+  --color-header-background: rgb(200, 200, 200);
+  --color-cell-background: #fff;
+  --color-row-hover-background: #f9f9f9;
+  --color-row-selected-background: #f5f5f5;
+  --color-row-selected-hover-background: #e5f3ff;
+  --color-text: #333;
+  --color-header-text: #555;
+
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+/* 自定义样式 */
+.rdg-cell-frozen {
+  position: sticky;
+  z-index: 1;
+  box-shadow: 2px 0 5px -2px rgba(136, 136, 136, 0.3);
+  background-color: var(--color-header-background);
+}
+
+.rdg-header-row .rdg-cell-frozen {
+  z-index: 2;
+}
+
+/* 调整表格行高 */
+.rdg-row {
+  height: 180px;
+}
+
+/* 调整表头行高 */
+.rdg-header-row {
+  height: 40px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* 调整图片单元格样式 */
+.rdg-cell .image-cell {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}

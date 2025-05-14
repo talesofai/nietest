@@ -274,14 +274,9 @@ async def process_image_task(task_id: str) -> Dict[str, Any]:
 
                 # 只有当存在lumina1元素并且同时选择了其他相关参数时，才会更新client_args
                 if has_lumina_params:
-                    logger.debug(f"检测到lumina1元素和相关参数，更新client_args参数")
-
-                    # 获取ckpt_name、steps和cfg参数
-                    client_args = client_args or {
-                        "ckpt_name": "1.pth",  # 默认值
-                        "steps": 25,            # 默认值
-                        "cfg": 7.5             # 默认值
-                    }
+                    logger.debug(f"检测到lumina1元素和相关参数，准备更新client_args参数")
+                    # 不再设置默认值，只有在用户明确指定了相关参数时才会添加对应字段
+                    # client_args保持原样，后续会根据变量值动态添加字段
                 else:
                     logger.debug(f"检测到lumina1元素，但没有相关参数，不更新client_args")
 

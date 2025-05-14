@@ -89,6 +89,9 @@ importers:
       react:
         specifier: 18.3.1
         version: 18.3.1
+      react-data-grid:
+        specifier: 6.1.0
+        version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-dom:
         specifier: 18.3.1
         version: 18.3.1(react@18.3.1)
@@ -5157,6 +5160,12 @@ packages:
     resolution: {integrity: sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw==}
     hasBin: true
 
+  react-data-grid@6.1.0:
+    resolution: {integrity: sha512-N1UtiHvsowEPzhx0VPqQKvGgSza/YNljczbisFDGMjawiGApS2taMv7h+EDXDx49CdaA6ur4eYS0z10x63IUpw==}
+    peerDependencies:
+      react: ^16.0.0
+      react-dom: ^16.0.0
+
   react-dom@18.3.1:
     resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}
     peerDependencies:
@@ -5167,6 +5176,9 @@ packages:
     peerDependencies:
       react: '>= 16.3.0'
       react-dom: '>= 16.3.0'
+
+  react-is-deprecated@0.1.2:
+    resolution: {integrity: sha512-n3Y04lqbuwMiSywwAKBwW89YxAPuFwS5tYA4L6wDGLQCdSsod1KSfzCIiTTUvS9hPdaB39HdvxjxAaS0Lk4h+A==}
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -5389,6 +5401,9 @@ packages:
 
   setprototypeof@1.1.1:
     resolution: {integrity: sha512-JvdAWfbXeIGaZ9cILp38HntZSFSo3mWg6xGcJJsd+d4aRMOqauag1C63dJfDw7OaMYwEbHMOxEZ1lqVRYP2OAw==}
+
+  shallowequal@1.1.0:
+    resolution: {integrity: sha512-y0m1JoUZSlPAjXVtPPW70aZWfIL/dSP7AFkRnniLCrK/8MDKog3TySTBmckD+RObVxH0v4Tox67+F14PdED2oQ==}
 
   sharp@0.33.5:
     resolution: {integrity: sha512-haPVm1EkS9pgvHrQ/F3Xy+hgcuMV0Wm9vfIBSiwZ05k+xgb0PkBQpGsAA/oWdDobNaZTH5ppvHtzCFbnSEwHVw==}
@@ -12306,6 +12321,14 @@ snapshots:
       minimist: 1.2.8
       strip-json-comments: 2.0.1
 
+  react-data-grid@6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      object-assign: 4.1.1
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      react-is-deprecated: 0.1.2
+      shallowequal: 1.1.0
+
   react-dom@18.3.1(react@18.3.1):
     dependencies:
       loose-envify: 1.4.0
@@ -12318,6 +12341,8 @@ snapshots:
       prop-types: 15.8.1
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
+
+  react-is-deprecated@0.1.2: {}
 
   react-is@16.13.1: {}
 
@@ -12558,6 +12583,8 @@ snapshots:
       es-object-atoms: 1.1.1
 
   setprototypeof@1.1.1: {}
+
+  shallowequal@1.1.0: {}
 
   sharp@0.33.5:
     dependencies:

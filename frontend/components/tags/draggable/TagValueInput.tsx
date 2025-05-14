@@ -119,8 +119,8 @@ export const TagValueInput = ({
       // 传递完整的Lumina信息
       const fullLumina = {
         ...lumina,
-        // 确保config字段存在
-        config: lumina.config || {
+        // 创建config字段，因为SearchSelectItem接口中已排除此字段
+        config: {
           header_img: lumina.header_img,
           avatar_img: lumina.header_img,
         },
@@ -339,8 +339,7 @@ export const TagValueInput = ({
             onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange?.(e.target.value)}
             onFocus={onFocus}
           >
-            <option value="1.pth">1.pth</option>
-            <option value="2.pth">2.pth</option>
+            <option value="results_cosine_2e-4_bs64_infallssssuum/checkpoint-e0_s15000/consolidated.00-of-01.pth">results_cosine_2e-4_bs64_infallssssuum/checkpoint-e0_s15000/consolidated.00-of-01.pth</option>
           </select>
         </div>
       );
