@@ -6,6 +6,7 @@ import {
     useReactTable,
     getSortedRowModel,
     SortingState,
+    sortingFns,
 } from "@tanstack/react-table";
 import { Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
@@ -167,6 +168,43 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
         return 120;
     };
 
+    // 判断字符串是否为数字
+    const isNumeric = (str: string): boolean => {
+        if (typeof str !== 'string') return false;
+        return !isNaN(parseFloat(str)) && isFinite(Number(str));
+    };
+
+    // 自定义排序函数 - 智能排序（数字按数值排序，文本按字母排序）
+    const smartSort = (rowA: any, rowB: any, columnId: string): number => {
+        let valueA = rowA.getValue(columnId);
+        let valueB = rowB.getValue(columnId);
+
+        // 如果是单元格数据，提取xValue或yValue
+        if (valueA && typeof valueA === 'object' && ('xValue' in valueA || 'yValue' in valueA)) {
+            valueA = valueA.xValue || valueA.yValue || '';
+        }
+
+        if (valueB && typeof valueB === 'object' && ('xValue' in valueB || 'yValue' in valueB)) {
+            valueB = valueB.xValue || valueB.yValue || '';
+        }
+
+        // 转换为字符串以便进行比较
+        valueA = String(valueA);
+        valueB = String(valueB);
+
+        // 检查是否为数字
+        const isANumeric = isNumeric(valueA);
+        const isBNumeric = isNumeric(valueB);
+
+        // 如果两者都是数字，按数字大小排序
+        if (isANumeric && isBNumeric) {
+            return Number(valueA) - Number(valueB);
+        }
+
+        // 否则按字母顺序排序
+        return valueA.localeCompare(valueB);
+    };
+
     // 列帮助器
     const columnHelper = createColumnHelper<any>();
 
@@ -196,7 +234,7 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                 ),
                 size: 80, // 设置列宽
                 enableSorting: true,
-                sortingFn: "alphanumeric",
+                sortingFn: smartSort, // 使用自定义排序函数
             }),
         ];
 
@@ -312,7 +350,8 @@ export const MatrixTableView: React.FC<MatrixTableViewProps> = ({
                         }
                     },
                     size: 180, // 设置列宽
-                    enableSorting: false, // 图片单元格不需要排序
+                    enableSorting: true, // 启用排序
+                    sortingFn: smartSort // 使用自定义排序函数
                 })
             );
         });

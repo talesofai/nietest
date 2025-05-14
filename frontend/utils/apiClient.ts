@@ -43,14 +43,8 @@ export const getApiUrl = (path: string): string => {
     }
   }
 
-  // 确保路径以/结尾（除非包含查询参数或片段标识符）
-  if (
-    !processedPath.includes("?") &&
-    !processedPath.includes("#") &&
-    !processedPath.endsWith("/")
-  ) {
-    processedPath = `${processedPath}/`;
-  }
+  // 不再自动添加尾部斜杠，保持路径原样
+  // 移除此逻辑以避免与后端API路径不匹配的问题
 
   // 返回完整URL
   return `${API_BASE_URL}${processedPath}`;
@@ -251,10 +245,8 @@ const processUrl = (url: string): string => {
     processedUrl = "/" + processedUrl;
   }
 
-  // 确保API路径末尾有斜杠（除非URL中包含查询参数或片段标识符）
-  if (!processedUrl.includes("?") && !processedUrl.includes("#") && !processedUrl.endsWith("/")) {
-    processedUrl = processedUrl + "/";
-  }
+  // 不再自动添加尾部斜杠，保持路径原样
+  // 移除此逻辑以避免与后端API路径不匹配的问题
 
   // eslint-disable-next-line no-console
   console.log(`[API请求] 处理后URL: ${processedUrl}`);

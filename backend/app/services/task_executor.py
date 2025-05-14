@@ -527,8 +527,9 @@ class AutoScalingManager:
                             elif current_time - self.last_empty_time >= 180:  # 3分钟 = 180秒
                                 # 检查是否可以缩容（时间间隔）
                                 if current_time - self.last_scale_down_time >= self.scale_down_interval:
-                                    new_concurrent = max(max_concurrent - self.scale_up_step, self.min_concurrent_tasks)
-                                    logger.info(f"Lumina自动缩容: {max_concurrent} -> {new_concurrent} 并发任务，队列已空闲 {(current_time - self.last_empty_time):.0f} 秒")
+                                    # 直接缩容到起始数量
+                                    new_concurrent = self.min_concurrent_tasks
+                                    logger.info(f"Lumina自动缩容: {max_concurrent} -> {new_concurrent} 并发任务（直接缩容到起始数量），队列已空闲 {(current_time - self.last_empty_time):.0f} 秒")
                                     executor.set_max_concurrent_tasks(new_concurrent)
                                     self.last_scale_down_time = current_time
                                     # 重置空队列时间
@@ -539,11 +540,12 @@ class AutoScalingManager:
                                 logger.debug(f"Lumina队列不再为空，重置计时")
                                 self.last_empty_time = 0
                     else:
-                        # 标准队列：使用原有的缩容逻辑
+                        # 标准队列：使用直接缩容到起始数量的逻辑
                         # 检查是否可以缩容（时间间隔）
                         if current_time - self.last_scale_down_time >= self.scale_down_interval:
-                            new_concurrent = max(max_concurrent - self.scale_up_step, self.min_concurrent_tasks)
-                            logger.info(f"自动缩容: {max_concurrent} -> {new_concurrent} 并发任务")
+                            # 直接缩容到起始数量
+                            new_concurrent = self.min_concurrent_tasks
+                            logger.info(f"自动缩容: {max_concurrent} -> {new_concurrent} 并发任务（直接缩容到起始数量）")
                             executor.set_max_concurrent_tasks(new_concurrent)
                             self.last_scale_down_time = current_time
 
